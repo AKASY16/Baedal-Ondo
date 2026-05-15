@@ -14,18 +14,10 @@ import java.time.LocalTime;
 @Service
 public class ScoreService {
 
-//    private final TimeWeightCalculator timeWeightCalculator;
-//    private final WeatherCalculator weatherCalculator;
-//
-//    public ScoreService(TimeWeightCalculator timeWeightCalculator, WeatherCalculator weatherCalculator) {
-//        this.timeWeightCalculator = timeWeightCalculator;
-//        this.weatherCalculator = weatherCalculator;
-//    }
-
     private final TimeWeightCalculator timeWeightCalculator;
     private final DayWeightCalculator dayWeightCalculator;
 
-    public ScoreService(TimeWeightCalculator timeWeightCalculator,  DayWeightCalculator dayWeightCalculator) {
+    public ScoreService(TimeWeightCalculator timeWeightCalculator, DayWeightCalculator dayWeightCalculator) {
         this.timeWeightCalculator = timeWeightCalculator;
         this.dayWeightCalculator = new DayWeightCalculator();
     }
