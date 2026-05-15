@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BeadalOndo</title>
+    <style>
+        :root {
+            --bg: #282925;
+            --line: rgba(255, 255, 255, 0.13);
+            --line-soft: rgba(255, 255, 255, 0.08);
+            --text: #f6f6ef;
+            --muted: #b8b8ae;
+            --muted-strong: #deded5;
+            --green: #95d960;
+            --green-soft: #aeea80;
+            --green-panel: #165f12;
+            --red: #ff8c8c;
+            --blue: #8abaff;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            letter-spacing: 0;
+        }
+
+        .page {
+            width: 100%;
+            min-height: 100vh;
+            max-width: 560px;
+            margin: 0 auto;
+            padding: 24px 20px 28px;
+        }
+
+        .store-header {
+            margin-bottom: 22px;
+        }
+
+        .location {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+            color: var(--muted);
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .pin {
+            width: 9px;
+            height: 9px;
+            border-radius: 50% 50% 50% 0;
+            background: #f2677e;
+            transform: rotate(-45deg);
+            flex: 0 0 auto;
+        }
+
+        .store-name {
+            margin: 0;
+            color: #ffffff;
+            font-size: 25px;
+            font-weight: 900;
+            line-height: 1.2;
+        }
+
+        .temperature-panel {
+            --ondo-main: #95d960;
+            --ondo-soft: #aeea80;
+            --ondo-panel-top: #1d7218;
+            --ondo-panel-bottom: #165f12;
+            --ondo-glow-core: #e7fff4;
+            --ondo-glow-mid: #78d9aa;
+            --ondo-glow-edge: rgba(78, 150, 99, 0.48);
+            --ondo-shadow: rgba(149, 217, 96, 0.38);
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .temperature-panel.status-high {
+            --ondo-main: #95d960;
+            --ondo-soft: #aeea80;
+            --ondo-panel-top: #1d7218;
+            --ondo-panel-bottom: #165f12;
+            --ondo-glow-core: #e7fff4;
+            --ondo-glow-mid: #78d9aa;
+            --ondo-glow-edge: rgba(78, 150, 99, 0.48);
+            --ondo-shadow: rgba(149, 217, 96, 0.38);
+        }
+
+        .temperature-panel.status-medium {
+            --ondo-main: #ffd166;
+            --ondo-soft: #ffe39a;
+            --ondo-panel-top: #7a5a0c;
+            --ondo-panel-bottom: #5a4007;
+            --ondo-glow-core: #fff9e5;
+            --ondo-glow-mid: #ffd166;
+            --ondo-glow-edge: rgba(161, 112, 16, 0.52);
+            --ondo-shadow: rgba(255, 209, 102, 0.38);
+        }
+
+        .temperature-panel.status-low {
+            --ondo-main: #8abaff;
+            --ondo-soft: #b8d6ff;
+            --ondo-panel-top: #1d5f93;
+            --ondo-panel-bottom: #16436f;
+            --ondo-glow-core: #edf6ff;
+            --ondo-glow-mid: #8abaff;
+            --ondo-glow-edge: rgba(74, 129, 201, 0.5);
+            --ondo-shadow: rgba(138, 186, 255, 0.38);
+        }
+
+        .temperature-panel.status-closed {
+            --ondo-main: #ff8c8c;
+            --ondo-soft: #ffb3b3;
+            --ondo-panel-top: #823232;
+            --ondo-panel-bottom: #5f2424;
+            --ondo-glow-core: #fff0f0;
+            --ondo-glow-mid: #ff8c8c;
+            --ondo-glow-edge: rgba(179, 76, 76, 0.5);
+            --ondo-shadow: rgba(255, 140, 140, 0.38);
+        }
+
+        .temperature-scale {
+            display: grid;
+            gap: 6px;
+        }
+
+        .track {
+            position: relative;
+            height: 8px;
+            overflow: hidden;
+            border-radius: 999px;
+            background:
+                repeating-linear-gradient(
+                    to right,
+                    transparent 0 5px,
+                    rgba(255, 255, 255, 0.14) 5px 6px,
+                    transparent 6px 10px
+                ),
+                #20211f;
+        }
+
+        .fill {
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 73%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--ondo-soft), var(--ondo-main));
+            box-shadow: 0 0 10px var(--ondo-shadow);
+        }
+
+        .scale-labels {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            color: #a9a99f;
+            font-size: 11px;
+            line-height: 1.2;
+        }
+
+        .scale-labels span {
+            text-align: center;
+        }
+
+        .scale-labels span:first-child {
+            text-align: left;
+        }
+
+        .scale-labels span:last-child {
+            text-align: right;
+        }
+
+        .score {
+            margin-top: 22px;
+            text-align: center;
+        }
+
+        .score strong {
+            display: block;
+            color: #ffffff;
+            font-size: 48px;
+            font-weight: 750;
+            line-height: 1;
+        }
+
+        .score span {
+            display: block;
+            margin-top: 5px;
+            color: var(--muted-strong);
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .status-card {
+            min-height: 48px;
+            margin-top: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border-radius: 10px;
+            background: linear-gradient(180deg, var(--ondo-panel-top), var(--ondo-panel-bottom));
+            color: var(--ondo-soft);
+            font-size: 17px;
+            font-weight: 850;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .glow-dot {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background:
+                radial-gradient(circle at center, var(--ondo-glow-core) 0 25%, var(--ondo-glow-mid) 26% 55%, var(--ondo-glow-edge) 56% 100%);
+            box-shadow: 0 0 13px var(--ondo-shadow);
+            flex: 0 0 auto;
+        }
+
+        .message {
+            margin: 18px 0 0;
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1.6;
+            text-align: center;
+        }
+
+        .factors {
+            margin-top: 18px;
+        }
+
+        .factors h2 {
+            margin: 0 0 10px;
+            color: var(--muted);
+            font-size: 14px;
+            font-weight: 850;
+        }
+
+        .factor-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .factor {
+            min-height: 40px;
+            display: grid;
+            grid-template-columns: 32px minmax(0, 1fr) auto;
+            align-items: center;
+            border-bottom: 1px solid var(--line-soft);
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .factor:last-child {
+            border-bottom: 0;
+        }
+
+        .factor-icon {
+            display: inline-grid;
+            place-items: center;
+            width: 24px;
+            height: 24px;
+            font-size: 17px;
+        }
+
+        .factor-label {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .impact {
+            min-width: 28px;
+            text-align: right;
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: -1px;
+        }
+
+        .impact.up {
+            color: var(--red);
+        }
+
+        .impact.down {
+            color: var(--blue);
+        }
+
+        @media (min-width: 720px) {
+            body {
+                display: grid;
+                place-items: center;
+                padding: 36px 0;
+                background:
+                    radial-gradient(circle at top, rgba(255, 255, 255, 0.07), transparent 34%),
+                    #171816;
+            }
+
+            .page {
+                min-height: auto;
+                max-height: calc(100vh - 72px);
+                overflow-y: auto;
+                padding: 32px 28px;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 14px;
+                background: var(--bg);
+            }
+        }
+    </style>
+</head>
+<body>
+<main class="page" aria-label="배달온도 대시보드">
+    <header class="store-header">
+        <div class="location">
+            <span class="pin"></span>
+            <span th:text="${dashboard.store.district}">성수동</span>
+        </div>
+        <h1 class="store-name" th:text="${dashboard.store.name}">스시 야무게</h1>
+    </header>
+
+    <section class="temperature-panel" aria-label="현재 배달온도"
+             th:classappend="${#strings.startsWith(dashboard.status, '상') ? ' status-high' : (#strings.startsWith(dashboard.status, '중') ? ' status-medium' : (#strings.startsWith(dashboard.status, '하') ? ' status-low' : ' status-closed'))}">
+        <div class="temperature-scale">
+            <div class="track">
+                <span class="fill" th:style="|width: ${dashboard.score}%|"></span>
+            </div>
+            <div class="scale-labels">
+                <span>0</span>
+                <span>마감</span>
+                <span>하</span>
+                <span>중</span>
+                <span>상</span>
+                <span>100</span>
+            </div>
+        </div>
+
+        <div class="score">
+            <strong th:text="${dashboard.score}">73</strong>
+            <span>배달온도</span>
+        </div>
+
+        <div class="status-card">
+            <span class="glow-dot"></span>
+            <span>
+                <span th:text="${dashboard.status}">중 · 평시 운영 구간</span>
+            </span>
+        </div>
+
+        <p class="message" th:text="${dashboard.message}">
+            평상시 영업을 유지하세요. 프로모션을 진행하기 좋은 구간입니다.
+        </p>
+    </section>
+
+    <section class="factors" aria-label="오늘 점수에 영향을 준 요인">
+        <h2>오늘 점수에 영향을 준 요인</h2>
+        <ul class="factor-list">
+            <li class="factor">
+                <span class="factor-icon">🌧</span>
+                <span class="factor-label">비 (3mm)</span>
+                <span class="impact up">↑↑</span>
+            </li>
+            <li class="factor">
+                <span class="factor-icon">🕘</span>
+                <span class="factor-label">저녁 시간대</span>
+                <span class="impact up">↑</span>
+            </li>
+            <li class="factor">
+                <span class="factor-icon">🚇</span>
+                <span class="factor-label">퇴근 인구 유입</span>
+                <span class="impact up">↑</span>
+            </li>
+            <li class="factor">
+                <span class="factor-icon">🙂</span>
+                <span class="factor-label">미세먼지 좋음</span>
+                <span class="impact down">↓</span>
+            </li>
+            <li class="factor">
+                <span class="factor-icon">🌡</span>
+                <span class="factor-label">기온 (18도, 쾌적)</span>
+                <span class="impact down">↓</span>
+            </li>
+        </ul>
+    </section>
+</main>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>로그인 - 배달온도</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f6f7f9;
+            color: #222;
+        }
+
+        .page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 380px;
+            background: #ffffff;
+            border-radius: 18px;
+            padding: 32px 28px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+        }
+
+        .logo {
+            margin-bottom: 8px;
+            font-size: 28px;
+            font-weight: 800;
+            color: #ff6b35;
+            text-align: center;
+        }
+
+        .subtitle {
+            margin-bottom: 28px;
+            font-size: 14px;
+            color: #666;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        input {
+            width: 100%;
+            height: 46px;
+            padding: 0 14px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 15px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #ff6b35;
+        }
+
+        .login-button {
+            width: 100%;
+            height: 48px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 12px;
+            background: #ff6b35;
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .login-button:hover {
+            background: #f25f2a;
+        }
+
+        .helper {
+            margin-top: 18px;
+            font-size: 13px;
+            color: #777;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+    <div class="login-card">
+        <div class="logo">배달온도</div>
+        <div class="subtitle">
+            사장님의 오늘 배달 수요를<br>
+            한눈에 확인하세요
+        </div>
+
+        <form action="/login" method="post">
+            <div class="form-group">
+                <label for="email">이메일</label>
+                <input type="email" id="email" name="email" placeholder="owner@example.com">
+            </div>
+
+            <div class="form-group">
+                <label for="password">비밀번호</label>
+                <input type="password" id="password" name="password" placeholder="비밀번호를 입력하세요">
+            </div>
+
+            <button type="submit" class="login-button">로그인</button>
+        </form>
+
+        <div class="helper">
+            아직 로그인 기능은 구현 전입니다.
+        </div>
+    </div>
+</div>
+</body>
+</html>
