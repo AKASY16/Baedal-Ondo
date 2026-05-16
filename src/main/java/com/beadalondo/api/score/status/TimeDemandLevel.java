@@ -1,25 +1,32 @@
 package com.beadalondo.api.score.status;
 
 public enum TimeDemandLevel {
-    CLOSED(0, "영업 비권장 시간"),
-    LOW(10, "낮은 수요 시간대"),
-    MEDIUM(15, "보통 수요 시간대"),
-    HIGH(25, "높은 수요 시간대"),
-    VERY_HIGH(30, "피크 수요 시간대");
+    VERY_HIGH(30, "피크 수요 시간대", "↑↑"),
+    HIGH(25, "높은 수요 시간대", "↑"),
+    MEDIUM(15, "보통 수요 시간대", "•"),
+    LOW(10, "낮은 수요 시간대", "↓"),
+    CLOSED(0, "배달앱 비활성 시간대", "↓↓");
 
     private final int weight;
-    private final String description;
+    private final String timeDescription;
+    private String timeFactor;
 
-    TimeDemandLevel(int weight, String description) {
+    TimeDemandLevel(int weight, String timeDescription, String timeFactor) {
         this.weight = weight;
-        this.description = description;
+        this.timeDescription = timeDescription;
+        this.timeFactor = timeFactor;
     }
 
     public int getWeight() {
         return weight;
     }
 
-    public String getDescription() {
-        return description;
+    public String getTimeDescription() {
+        return timeDescription;
     }
+
+    public String getTimeFactor() {
+        return timeFactor;
+    }
+
 }

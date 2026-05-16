@@ -1,5 +1,6 @@
 package com.beadalondo.api.store.service;
 
+import ch.qos.logback.core.rolling.helper.IntegerTokenConverter;
 import com.beadalondo.api.store.domain.Store;
 import com.beadalondo.api.store.repository.StoreRepository;
 import org.springframework.stereotype.Service;
@@ -15,9 +16,15 @@ public class StoreService {
         this.storeRepository = storeRepository;
     }
 
-    public Long registerStore(String name, String businessType, String address,
-                              Double latitude, Double longitude,
-                              String district, String dongCode) {
+    public Long registerStore(String name,
+                              String businessType,
+                              String address,
+                              Double latitude,
+                              Double longitude,
+                              Integer nx,
+                              Integer ny,
+                              String district,
+                              String dongCode) {
 
         Store store = new Store(
                 name, //이름
@@ -25,6 +32,8 @@ public class StoreService {
                 address, //주소
                 latitude, //위도
                 longitude, //경도
+                nx, // 기상청 API 격자 X좌표
+                ny, // 기상청 API 격자 Y좌표
                 district, //자치구
                 dongCode //행정동
         );

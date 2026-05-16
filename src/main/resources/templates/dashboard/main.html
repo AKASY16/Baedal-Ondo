@@ -313,6 +313,27 @@
                 border-radius: 14px;
                 background: var(--bg);
             }
+
+            .store-debug-box {
+                margin-top: 24px;
+                padding: 16px;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 12px;
+                font-size: 13px;
+                line-height: 1.8;
+                opacity: 0.9;
+            }
+
+            .store-debug-box h3 {
+                margin: 0 0 8px 0;
+                font-size: 15px;
+            }
+
+            .store-debug-box span:first-child {
+                font-weight: 700;
+                margin-right: 6px;
+            }
+
         }
     </style>
 </head>
@@ -321,9 +342,10 @@
     <header class="store-header">
         <div class="location">
             <span class="pin"></span>
-            <span th:text="${dashboard.store.district}">성수동</span>
+            <span th:text="${dashboard.store.district}">궁뎅동</span>
+            <span th:text="${dashboard.store.district}">궁뎅동 좌표x</span>
         </div>
-        <h1 class="store-name" th:text="${dashboard.store.name}">스시 야무게</h1>
+        <h1 class="store-name" th:text="${dashboard.store.name}">궁뎅이 스시</h1>
     </header>
 
     <section class="temperature-panel" aria-label="현재 배달온도"
@@ -363,14 +385,30 @@
         <h2>오늘 점수에 영향을 준 요인</h2>
         <ul class="factor-list">
             <li class="factor">
-                <span class="factor-icon">🌧</span>
-                <span class="factor-label">비 (3mm)</span>
-                <span class="impact up">↑↑</span>
+                <span class="factor-icon">🌦</span>
+                <span class="factor-label" th:text="${dashboard.currentWeatherDescription}">습도 높음</span>
+                <span class="impact"
+                      th:text="${dashboard.currentWeatherFactor}"
+                      th:classappend="${#strings.contains(dashboard.currentWeatherFactor, '↑') ? ' up' : (#strings.contains(dashboard.currentWeatherFactor, '↓') ? ' down' : '')}">↑</span>
             </li>
             <li class="factor">
                 <span class="factor-icon">🕘</span>
-                <span class="factor-label">저녁 시간대</span>
-                <span class="impact up">↑</span>
+                <span class="factor-label" th:text="${dashboard.timeDescription}">저녁 시간대</span>
+                <span class="impact"
+                      th:text="${dashboard.timeFactor}"
+                      th:classappend="${#strings.contains(dashboard.timeFactor, '↑') ? ' up' : (#strings.contains(dashboard.timeFactor, '↓') ? ' down' : '')}">
+        ↑
+    </span>
+            </li>
+
+            <li class="factor">
+                <span class="factor-icon">📅</span>
+                <span class="factor-label" th:text="${dashboard.dayDescription}">주말</span>
+                <span class="impact"
+                      th:text="${dashboard.dayFactor}"
+                      th:classappend="${#strings.contains(dashboard.dayFactor, '↑') ? ' up' : (#strings.contains(dashboard.dayFactor, '↓') ? ' down' : '')}">
+        ↑
+    </span>
             </li>
             <li class="factor">
                 <span class="factor-icon">🚇</span>
@@ -387,6 +425,63 @@
                 <span class="factor-label">기온 (18도, 쾌적)</span>
                 <span class="impact down">↓</span>
             </li>
+            <div class="store-debug-box">
+                <h3>Store Debug Info</h3>
+                <div>
+                    <span>ID: </span>
+                    <span th:text="${dashboard.store.id}">StoreID</span>
+                </div>
+
+                <div>
+                    <span>NAME: </span>
+                    <span th:text="${dashboard.store.name}">가게명</span>
+                </div>
+
+                <div>
+                    <span>ADDRESS: </span>
+                    <span th:text="${dashboard.store.address}">주소</span>
+                </div>
+
+                <div>
+                    <span>DISTRICT: </span>
+                    <span th:text="${dashboard.store.district}">동네</span>
+                </div>
+
+                <div>
+                    <span>DONG_CODE: </span>
+                    <span th:text="${dashboard.store.dongCode}">동코드</span>
+                </div>
+
+                <div>
+                    <span>BUSINESS_TYPE: </span>
+                    <span th:text="${dashboard.store.businessType}">업종</span>
+                </div>
+
+                <div>
+                    <span>LATITUDE: </span>
+                    <span th:text="${dashboard.store.latitude}">위도</span>
+                </div>
+
+                <div>
+                    <span>LONGITUDE: </span>
+                    <span th:text="${dashboard.store.longitude}">경도</span>
+                </div>
+
+                <div>
+                    <span>NX: </span>
+                    <span th:text="${dashboard.store.nx}">nx</span>
+                </div>
+
+                <div>
+                    <span>NY: </span>
+                    <span th:text="${dashboard.store.ny}">ny</span>
+                </div>
+
+                <div>
+                    <span>CREATED_AT: </span>
+                    <span th:text="${dashboard.store.createdAt}">생성 시간</span>
+                </div>
+            </div>
         </ul>
     </section>
 </main>

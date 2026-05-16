@@ -1,11 +1,15 @@
 package com.beadalondo.api.score.service;
 
 import com.beadalondo.api.score.ScoreResult;
+import com.beadalondo.api.score.calculator.CurrentWeatherWeightCalculator;
 import com.beadalondo.api.score.calculator.DayWeightCalculator;
+import com.beadalondo.api.score.status.CurrentWeatherDemandLevel;
 import com.beadalondo.api.score.status.DayDemandLevel;
 import com.beadalondo.api.score.status.TimeDemandLevel;
 import com.beadalondo.api.score.calculator.TimeWeightCalculator;
 import com.beadalondo.api.store.domain.Store;
+import com.beadalondo.api.weather.CurrentWeatherObservation;
+import com.beadalondo.api.weather.service.CurrentWeatherService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -16,10 +20,17 @@ public class ScoreService {
 
     private final TimeWeightCalculator timeWeightCalculator;
     private final DayWeightCalculator dayWeightCalculator;
+    private final CurrentWeatherWeightCalculator currentWeatherWeightCalculator;
+    private final CurrentWeatherService currentWeatherService;
 
-    public ScoreService(TimeWeightCalculator timeWeightCalculator, DayWeightCalculator dayWeightCalculator) {
+    public ScoreService(TimeWeightCalculator timeWeightCalculator,
+                        DayWeightCalculator dayWeightCalculator,
+                        CurrentWeatherWeightCalculator currentWeatherWeightCalculator,
+                        CurrentWeatherService currentWeatherService) {
         this.timeWeightCalculator = timeWeightCalculator;
-        this.dayWeightCalculator = new DayWeightCalculator();
+        this.dayWeightCalculator = dayWeightCalculator;
+        this.currentWeatherWeightCalculator = currentWeatherWeightCalculator;
+        this.currentWeatherService = currentWeatherService;
     }
 
 
@@ -29,15 +40,42 @@ public class ScoreService {
         TimeDemandLevel timeDemandLevel = timeWeightCalculator.calculate(LocalTime.now());
         DayDemandLevel dayDemandLevel = dayWeightCalculator.calculate(LocalDate.now());
 
-        int score = capScore(baseScore + timeDemandLevel.getWeight() + dayDemandLevel.getWeight());
+        // TODO: 현재는 대시보드 새로고침 시마다 기상청 API를 호출하는 구조.
+        //  추후에는 baseDate, baseTime, nx, ny 조합을 기준으로 기존 수집 데이터가 있는지 먼저 확인한다.
+        //  같은 baseDate/baseTime/nx/ny 데이터가 DB에 있으면 기존 데이터를 재사용하고,
+        //  없을 때만 기상청 API를 호출한 뒤 CurrentWeatherObservation을 저장하도록 변경한다.
+        CurrentWeatherObservation weather = currentWeatherService.getCurrentWeather(store);
+        CurrentWeatherDemandLevel currentWeatherDemandLevel = currentWeatherWeightCalculator.calculate(weather);
+
+
+        int score = capScore(
+                baseScore +
+                timeDemandLevel.getWeight() +
+                dayDemandLevel.getWeight()+
+                currentWeatherDemandLevel.getWeight());
 
         String status = calculateStatus(score);
         String message = createMessage(score);
 
-        System.out.println("timeWeight = " + timeDemandLevel.getWeight());
-        System.out.println("dayWeight = " + dayDemandLevel.getWeight());
+        String timeFactor = timeDemandLevel.getTimeFactor();
+        String timeDescription = timeDemandLevel.getTimeDescription();
 
-        return new ScoreResult(score, status, message);
+        String dayFactor = dayDemandLevel.getDayFactor();
+        String dayDescription = dayDemandLevel.getDayDescription();
+
+        String currentWeatherFactor = currentWeatherDemandLevel.getFactor();
+        String currentWeatherDescription = currentWeatherDemandLevel.getDescription();
+
+        return new ScoreResult(score,
+                status,
+                message,
+                timeFactor,
+                timeDescription,
+                dayFactor,
+                dayDescription,
+                currentWeatherFactor,
+                currentWeatherDescription
+                );
     }
 
     private int capScore(int score) {

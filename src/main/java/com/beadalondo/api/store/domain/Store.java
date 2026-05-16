@@ -20,6 +20,8 @@ public class Store {
     private String address; // 주소
     private Double latitude; // 위도
     private Double longitude; // 경도
+    private Integer nx ; // 기상청 API 격자 X좌표
+    private Integer ny ; // 기상청 API 격자 Y좌표
 
     private String district; // 자치구
     private String dongCode; // 행정동 코드
@@ -29,14 +31,22 @@ public class Store {
     protected Store() {
     }
 
-    public Store(String name, String businessType, String address,
-                 Double latitude, Double longitude,
-                 String district, String dongCode) {
+    public Store(String name,
+                 String businessType,
+                 String address,
+                 Double latitude,
+                 Double longitude,
+                 Integer nx,
+                 Integer ny,
+                 String district,
+                 String dongCode) {
         this.name = name;
         this.businessType = businessType;
         this.address = address;
         this.latitude = latitude;
         this.longitude = longitude;
+        this.nx = nx;
+        this.ny = ny;
         this.district = district;
         this.dongCode = dongCode;
         this.createdAt = LocalDateTime.now();
@@ -64,6 +74,14 @@ public class Store {
 
     public Double getLongitude() {
         return longitude;
+    }
+
+    public Integer getNx() {
+        return nx;
+    }
+
+    public Integer getNy() {
+        return ny;
     }
 
     public String getDistrict() {

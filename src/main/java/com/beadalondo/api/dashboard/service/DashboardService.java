@@ -27,7 +27,13 @@ public class DashboardService {
                 store,
                 scoreResult.getScore(),
                 scoreResult.getStatus(),
-                scoreResult.getMessage()
+                scoreResult.getMessage(),
+                scoreResult.getTimeFactor(),
+                scoreResult.getTimeDescription(),
+                scoreResult.getDayFactor(),
+                scoreResult.getDayDescription(),
+                scoreResult.getCurrentWeatherFactor(),
+                scoreResult.getCurrentWeatherDescription()
         );
     }
 
