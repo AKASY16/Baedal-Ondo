@@ -1,4 +1,7 @@
 spring:
+  config:
+    import: optional:classpath:application-secret.yaml
+
   datasource:
     url: jdbc:h2:~/beadalondo
     driver-class-name: org.h2.Driver
@@ -22,4 +25,6 @@ logging:
   level:
     org.hibernate.SQL: debug
 
-
+kma:
+  api:
+    base-url: https://apihub.kma.go.kr/api/typ02/openApi/VilageFcstInfoService_2.0
