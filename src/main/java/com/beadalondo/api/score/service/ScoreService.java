@@ -1,15 +1,18 @@
 package com.beadalondo.api.score.service;
 
 import com.beadalondo.api.score.ScoreResult;
-import com.beadalondo.api.score.calculator.CurrentWeatherWeightCalculator;
 import com.beadalondo.api.score.calculator.DayWeightCalculator;
 import com.beadalondo.api.score.status.CurrentWeatherDemandLevel;
 import com.beadalondo.api.score.status.DayDemandLevel;
 import com.beadalondo.api.score.status.TimeDemandLevel;
 import com.beadalondo.api.score.calculator.TimeWeightCalculator;
 import com.beadalondo.api.store.domain.Store;
-import com.beadalondo.api.weather.CurrentWeatherObservation;
+import com.beadalondo.api.weather.calculator.CurrentWeatherWeightCalculator;
+import com.beadalondo.api.weather.domain.CurrentWeatherObservation;
+import com.beadalondo.api.weather.exception.KmaWeatherApiException;
 import com.beadalondo.api.weather.service.CurrentWeatherService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -44,8 +47,15 @@ public class ScoreService {
         //  추후에는 baseDate, baseTime, nx, ny 조합을 기준으로 기존 수집 데이터가 있는지 먼저 확인한다.
         //  같은 baseDate/baseTime/nx/ny 데이터가 DB에 있으면 기존 데이터를 재사용하고,
         //  없을 때만 기상청 API를 호출한 뒤 CurrentWeatherObservation을 저장하도록 변경한다.
-        CurrentWeatherObservation weather = currentWeatherService.getCurrentWeather(store);
-        CurrentWeatherDemandLevel currentWeatherDemandLevel = currentWeatherWeightCalculator.calculate(weather);
+        CurrentWeatherDemandLevel currentWeatherDemandLevel;
+
+        try {
+            CurrentWeatherObservation weather = currentWeatherService.getCurrentWeather(store);
+            currentWeatherDemandLevel = currentWeatherWeightCalculator.calculate(weather);
+        } catch (KmaWeatherApiException e) {
+            log.warn("기상청 API 에러. 날씨 보정 점수를 제외합니다. storeId={}", store.getId(), e);
+            currentWeatherDemandLevel = CurrentWeatherDemandLevel.UNAVAILABLE;
+        }
 
 
         int score = capScore(
@@ -113,4 +123,7 @@ public class ScoreService {
 
         return "기대 수요가 매우 낮습니다. 유지 비용을 고려해 조기 마감을 검토하세요.";
     }
+
+    private static final Logger log = LoggerFactory.getLogger(ScoreService.class);
+
 }

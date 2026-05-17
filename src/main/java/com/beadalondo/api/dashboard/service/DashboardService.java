@@ -23,18 +23,7 @@ public class DashboardService {
         Store store = storeService.getCurrentStore();
         ScoreResult scoreResult = scoreService.calculateCurrentScore(store);
 
-        return new DashboardView(
-                store,
-                scoreResult.getScore(),
-                scoreResult.getStatus(),
-                scoreResult.getMessage(),
-                scoreResult.getTimeFactor(),
-                scoreResult.getTimeDescription(),
-                scoreResult.getDayFactor(),
-                scoreResult.getDayDescription(),
-                scoreResult.getCurrentWeatherFactor(),
-                scoreResult.getCurrentWeatherDescription()
-        );
+        return DashboardView.from(store, scoreResult);
     }
 
 

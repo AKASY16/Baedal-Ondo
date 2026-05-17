@@ -1,34 +1,27 @@
-package com.beadalondo.api.score.calculator;
+package com.beadalondo.api.weather.calculator;
 
 import com.beadalondo.api.score.status.CurrentWeatherDemandLevel;
-import com.beadalondo.api.weather.CurrentWeatherObservation;
+import com.beadalondo.api.weather.domain.CurrentWeatherObservation;
 import org.springframework.stereotype.Component;
 
 @Component
 public class CurrentWeatherWeightCalculator {
-
     public CurrentWeatherDemandLevel calculate(CurrentWeatherObservation weather) {
-
         if (isSnow(weather)) {
             return CurrentWeatherDemandLevel.SNOW;
         }
-
         if (isRain(weather)) {
             return CurrentWeatherDemandLevel.RAIN;
         }
-
         if (isExtremeTemperature(weather)) {
             return CurrentWeatherDemandLevel.EXTREME_TEMP;
         }
-
         if (isHumid(weather)) {
             return CurrentWeatherDemandLevel.HUMID;
         }
-
         if (isStrongWind(weather)) {
             return CurrentWeatherDemandLevel.STRONG_WIND;
         }
-
         return CurrentWeatherDemandLevel.NORMAL;
     }
 

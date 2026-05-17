@@ -1,4 +1,4 @@
-package com.beadalondo.api.weather;
+package com.beadalondo.api.weather.domain;
 
 public class CurrentWeatherObservation {
 

@@ -1,5 +1,6 @@
 package com.beadalondo.api.dashboard.dto;
 
+import com.beadalondo.api.score.ScoreResult;
 import com.beadalondo.api.store.domain.Store;
 
 public class DashboardView {
@@ -35,6 +36,20 @@ public class DashboardView {
         this.currentWeatherFactor = currentWeatherFactor;
         this.currentWeatherDescription = currentWeatherDescription;
     }
+
+    public static DashboardView from(Store store, ScoreResult scoreResult) {
+        return new DashboardView(store,
+                scoreResult.getScore(),
+                scoreResult.getStatus(),
+                scoreResult.getMessage(),
+                scoreResult.getTimeFactor(),
+                scoreResult.getTimeDescription(),
+                scoreResult.getDayFactor(),
+                scoreResult.getDayDescription(),
+                scoreResult.getCurrentWeatherFactor(),
+                scoreResult.getCurrentWeatherDescription());
+    }
+
 
     public Store getStore() {
         return store;
