@@ -1,13 +1,19 @@
 package com.beadalondo.api.weather.domain;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 
 @Entity
+@Table(
+        name = "current_weather_record",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_current_weather_record_location_time",
+                        columnNames = {"nx", "ny", "base_date", "base_time"}
+                )
+        }
+)
 public class CurrentWeatherRecord {
 
     @Id
@@ -16,7 +22,6 @@ public class CurrentWeatherRecord {
 
     private int nx; // 기상청 API NX값
     private int ny; // 기상청 API NY값
-
     private String baseDate; // 요청 날짜
     private String baseTime; // 요청 시각
 
