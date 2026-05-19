@@ -49,7 +49,7 @@ public class KmaCurrentWeatherClient {
 
     private CurrentWeatherObservation parseCurrentWeather(JsonNode root) {
         if (root == null) {
-            throw new KmaWeatherApiException("기상청 API가 비어있습니다.");
+            throw new KmaWeatherApiException("기상청 API 응답이 비어있습니다.");
         }
 
         String resultCode = root.path("response")
@@ -113,8 +113,6 @@ public class KmaCurrentWeatherClient {
                     hasWsd = true;
                 }
             }
-
-
         }
 
         if (!(hasPty && hasRn1 && hasT1h && hasReh && hasWsd)) {

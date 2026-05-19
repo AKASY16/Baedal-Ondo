@@ -14,6 +14,9 @@ public class DashboardView {
     private final String dayDescription;
     private final String currentWeatherFactor;
     private final String currentWeatherDescription;
+    private final String airQualityFactor;
+    private final String airQualityDescription;
+    private final String airQualityDetail;
 
     public DashboardView(Store store,
                          int score,
@@ -21,10 +24,13 @@ public class DashboardView {
                          String message,
                          String timeFactor,
                          String timeDescription,
-                         String dayFactor,
-                         String dayDescription,
-                         String currentWeatherFactor,
-                         String currentWeatherDescription) {
+                          String dayFactor,
+                          String dayDescription,
+                          String currentWeatherFactor,
+                          String currentWeatherDescription,
+                          String airQualityFactor,
+                          String airQualityDescription,
+                          String airQualityDetail) {
         this.store = store;
         this.score = score;
         this.status = status;
@@ -35,6 +41,9 @@ public class DashboardView {
         this.dayDescription = dayDescription;
         this.currentWeatherFactor = currentWeatherFactor;
         this.currentWeatherDescription = currentWeatherDescription;
+        this.airQualityFactor = airQualityFactor;
+        this.airQualityDescription = airQualityDescription;
+        this.airQualityDetail = airQualityDetail;
     }
 
     public static DashboardView from(Store store, ScoreResult scoreResult) {
@@ -47,7 +56,10 @@ public class DashboardView {
                 scoreResult.getDayFactor(),
                 scoreResult.getDayDescription(),
                 scoreResult.getCurrentWeatherFactor(),
-                scoreResult.getCurrentWeatherDescription());
+                scoreResult.getCurrentWeatherDescription(),
+                scoreResult.getAirQualityFactor(),
+                scoreResult.getAirQualityDescription(),
+                scoreResult.getAirQualityDetail());
     }
 
 
@@ -89,5 +101,17 @@ public class DashboardView {
 
     public String getCurrentWeatherDescription() {
         return currentWeatherDescription;
+    }
+
+    public String getAirQualityFactor() {
+        return airQualityFactor;
+    }
+
+    public String getAirQualityDescription() {
+        return airQualityDescription;
+    }
+
+    public String getAirQualityDetail() {
+        return airQualityDetail;
     }
 }

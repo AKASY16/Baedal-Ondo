@@ -12,6 +12,9 @@ public class ScoreResult {
     private final String dayDescription;
     private final String currentWeatherFactor;
     private final String currentWeatherDescription;
+    private final String airQualityFactor;
+    private final String airQualityDescription;
+    private final String airQualityDetail;
 
     public ScoreResult(int score,
                        String status,
@@ -21,7 +24,10 @@ public class ScoreResult {
                        String dayFactor,
                        String dayDescription,
                        String currentWeatherFactor,
-                       String currentWeatherDescription) {
+                       String currentWeatherDescription,
+                       String airQualityFactor,
+                       String airQualityDescription,
+                       String airQualityDetail) {
         this.score = score;
         this.status = status;
         this.message = message;
@@ -31,6 +37,9 @@ public class ScoreResult {
         this.dayDescription = dayDescription;
         this.currentWeatherFactor = currentWeatherFactor;
         this.currentWeatherDescription = currentWeatherDescription;
+        this.airQualityFactor = airQualityFactor;
+        this.airQualityDescription = airQualityDescription;
+        this.airQualityDetail = airQualityDetail;
     }
 
     public int getScore() {
@@ -67,5 +76,17 @@ public class ScoreResult {
 
     public String getCurrentWeatherDescription() {
         return currentWeatherDescription;
+    }
+
+    public String getAirQualityFactor() {
+        return airQualityFactor;
+    }
+
+    public String getAirQualityDescription() {
+        return airQualityDescription;
+    }
+
+    public String getAirQualityDetail() {
+        return airQualityDetail;
     }
 }

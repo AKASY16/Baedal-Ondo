@@ -417,8 +417,10 @@
             </li>
             <li class="factor">
                 <span class="factor-icon">🙂</span>
-                <span class="factor-label">미세먼지 좋음</span>
-                <span class="impact down">↓</span>
+                <span class="factor-label" th:text="${dashboard.airQualityDescription}">대기질</span>
+                <span class="impact"
+                      th:text="${dashboard.airQualityFactor}"
+                      th:classappend="${#strings.contains(dashboard.airQualityFactor, '↑') ? ' up' : (#strings.contains(dashboard.airQualityFactor, '↓') ? ' down' : '')}">↓</span>
             </li>
             <li class="factor">
                 <span class="factor-icon">🌡</span>
@@ -480,6 +482,13 @@
                 <div>
                     <span>CREATED_AT: </span>
                     <span th:text="${dashboard.store.createdAt}">생성 시간</span>
+                </div>
+            </div>
+            <div class="store-debug-box">
+                <h3>Air Quality Detail</h3>
+                <div>
+                    <span>DETAIL: </span>
+                    <span th:text="${dashboard.airQualityDetail}">미세먼지 45, 초미세먼지 33, 오존 0.0487</span>
                 </div>
             </div>
         </ul>

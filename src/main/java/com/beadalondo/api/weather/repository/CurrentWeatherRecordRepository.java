@@ -7,9 +7,6 @@ import java.util.Optional;
 
 public interface CurrentWeatherRecordRepository
         extends JpaRepository<CurrentWeatherRecord, Long> {
-
-
-
     Optional<CurrentWeatherRecord> findByNxAndNyAndBaseDateAndBaseTime(
             int nx,
             int ny,

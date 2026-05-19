@@ -25,6 +25,7 @@ public class CurrentWeatherRecord {
     private String baseDate; // 요청 날짜
     private String baseTime; // 요청 시각
 
+    //아래 5개는 CurrentWeatherObservation구조와 동일
     private int precipitationType; // 강수량
     private double rainfall; // 비 여부
     private double temperature; // 온도

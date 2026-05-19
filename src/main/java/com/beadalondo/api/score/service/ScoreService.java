@@ -1,5 +1,9 @@
 package com.beadalondo.api.score.service;
 
+import com.beadalondo.api.airquality.calculator.AirQualityCalculator;
+import com.beadalondo.api.airquality.domain.CurrentAirQualityObservation;
+import com.beadalondo.api.airquality.exception.AirKoreaApiException;
+import com.beadalondo.api.airquality.service.CurrentAirQualityService;
 import com.beadalondo.api.score.ScoreResult;
 import com.beadalondo.api.score.calculator.DayWeightCalculator;
 import com.beadalondo.api.score.status.CurrentWeatherDemandLevel;
@@ -25,20 +29,29 @@ public class ScoreService {
     private final DayWeightCalculator dayWeightCalculator;
     private final CurrentWeatherWeightCalculator currentWeatherWeightCalculator;
     private final CurrentWeatherService currentWeatherService;
+    private final CurrentAirQualityService currentAirQualityService;
+    private final AirQualityCalculator airQualityCalculator;
 
     public ScoreService(TimeWeightCalculator timeWeightCalculator,
                         DayWeightCalculator dayWeightCalculator,
                         CurrentWeatherWeightCalculator currentWeatherWeightCalculator,
-                        CurrentWeatherService currentWeatherService) {
+                        CurrentWeatherService currentWeatherService,
+                        CurrentAirQualityService currentAirQualityService, AirQualityCalculator airQualityCalculator) {
         this.timeWeightCalculator = timeWeightCalculator;
         this.dayWeightCalculator = dayWeightCalculator;
         this.currentWeatherWeightCalculator = currentWeatherWeightCalculator;
         this.currentWeatherService = currentWeatherService;
+        this.currentAirQualityService = currentAirQualityService;
+        this.airQualityCalculator = airQualityCalculator;
     }
 
 
     public ScoreResult calculateCurrentScore(Store store) {
         int baseScore = 40;
+        int airQualityScore = 0;
+        String airQualityFactor = "영향 없음";
+        String airQualityDescription = "대기질";
+        String airQualityDetail = "대기질 정보 없음";
 
         TimeDemandLevel timeDemandLevel = timeWeightCalculator.calculate(LocalTime.now());
         DayDemandLevel dayDemandLevel = dayWeightCalculator.calculate(LocalDate.now());
@@ -57,12 +70,22 @@ public class ScoreService {
             currentWeatherDemandLevel = CurrentWeatherDemandLevel.UNAVAILABLE;
         }
 
+        try{
+            CurrentAirQualityObservation airQuality = currentAirQualityService.getCurrentAirQuality(store);
+            airQualityScore = airQualityCalculator.getWeight(airQuality);
+            airQualityFactor = createAirQualityFactor(airQualityScore);
+            airQualityDetail = createAirQualityDetail(airQuality);
+        }catch (AirKoreaApiException | IllegalStateException | IllegalArgumentException e) {
+            log.warn("공기질 데이터 처리 실패. 공기질 보정 점수를 제외합니다. storeId={}", store.getId(), e);
+        }
+
 
         int score = capScore(
                 baseScore +
                 timeDemandLevel.getWeight() +
                 dayDemandLevel.getWeight()+
-                currentWeatherDemandLevel.getWeight());
+                currentWeatherDemandLevel.getWeight()+
+                airQualityScore);
 
         String status = calculateStatus(score);
         String message = createMessage(score);
@@ -84,8 +107,37 @@ public class ScoreService {
                 dayFactor,
                 dayDescription,
                 currentWeatherFactor,
-                currentWeatherDescription
+                currentWeatherDescription,
+                airQualityFactor,
+                airQualityDescription,
+                airQualityDetail
                 );
+    }
+
+    private String createAirQualityFactor(int airQualityScore) {
+        if (airQualityScore <= 0) {
+            return "영향 없음";
+        }
+
+        return "↑ +" + airQualityScore;
+    }
+
+    private String createAirQualityDetail(CurrentAirQualityObservation airQuality) {
+        if (airQuality == null) {
+            return "대기질 정보 없음";
+        }
+
+        return "미세먼지 " + formatNullableValue(airQuality.getPm10Value())
+                + ", 초미세먼지 " + formatNullableValue(airQuality.getPm25Value())
+                + ", 오존 " + formatNullableValue(airQuality.getO3Value());
+    }
+
+    private String formatNullableValue(Object value) {
+        if (value == null) {
+            return "정보 없음";
+        }
+
+        return value.toString();
     }
 
     private int capScore(int score) {
