@@ -116,10 +116,10 @@ public class ScoreService {
 
     private String createAirQualityFactor(int airQualityScore) {
         if (airQualityScore <= 0) {
-            return "영향 없음";
+            return "•";
         }
 
-        return "↑ +" + airQualityScore;
+        return "↑";
     }
 
     private String createAirQualityDetail(CurrentAirQualityObservation airQuality) {

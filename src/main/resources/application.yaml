@@ -28,3 +28,7 @@ logging:
 kma:
   api:
     base-url: https://apihub.kma.go.kr/api/typ02/openApi/VilageFcstInfoService_2.0
+
+dataportal:
+  api:
+    base-url:

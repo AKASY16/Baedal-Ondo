@@ -342,8 +342,8 @@
     <header class="store-header">
         <div class="location">
             <span class="pin"></span>
-            <span th:text="${dashboard.store.district}">궁뎅동</span>
-            <span th:text="${dashboard.store.district}">궁뎅동 좌표x</span>
+            <span th:text="${dashboard.store.sigunguName}">송파구</span>
+            <span th:text="${dashboard.store.dongName}">잠실동</span>
         </div>
         <h1 class="store-name" th:text="${dashboard.store.name}">궁뎅이 스시</h1>
     </header>
@@ -440,33 +440,83 @@
                 </div>
 
                 <div>
-                    <span>ADDRESS: </span>
-                    <span th:text="${dashboard.store.address}">주소</span>
-                </div>
-
-                <div>
-                    <span>DISTRICT: </span>
-                    <span th:text="${dashboard.store.district}">동네</span>
-                </div>
-
-                <div>
-                    <span>DONG_CODE: </span>
-                    <span th:text="${dashboard.store.dongCode}">동코드</span>
-                </div>
-
-                <div>
                     <span>BUSINESS_TYPE: </span>
                     <span th:text="${dashboard.store.businessType}">업종</span>
                 </div>
 
                 <div>
-                    <span>LATITUDE: </span>
-                    <span th:text="${dashboard.store.latitude}">위도</span>
+                    <span>ADDRESS: </span>
+                    <span th:text="${dashboard.store.address}">주소</span>
                 </div>
 
                 <div>
-                    <span>LONGITUDE: </span>
-                    <span th:text="${dashboard.store.longitude}">경도</span>
+                    <span>ROAD_ADDRESS: </span>
+                    <span th:text="${dashboard.store.roadAddress}">도로명주소</span>
+                </div>
+
+                <div>
+                    <span>JIBUN_ADDRESS: </span>
+                    <span th:text="${dashboard.store.jibunAddress}">지번주소</span>
+                </div>
+
+                <div>
+                    <span>ADDRESS_DETAIL: </span>
+                    <span th:text="${dashboard.store.addressDetail}">상세주소</span>
+                </div>
+
+                <div>
+                    <span>POSTAL_CODE: </span>
+                    <span th:text="${dashboard.store.postalCode}">우편번호</span>
+                </div>
+
+                <div>
+                    <span>SIDO_NAME: </span>
+                    <span th:text="${dashboard.store.sidoName}">시도명</span>
+                </div>
+
+                <div>
+                    <span>SIGUNGU_NAME: </span>
+                    <span th:text="${dashboard.store.sigunguName}">시군구명</span>
+                </div>
+
+                <div>
+                    <span>DONG_NAME: </span>
+                    <span th:text="${dashboard.store.dongName}">동명</span>
+                </div>
+
+                <div>
+                    <span>ADDRESS_REGION_CODE: </span>
+                    <span th:text="${dashboard.store.addressRegionCode}">행정구역코드</span>
+                </div>
+
+                <div>
+                    <span>ROAD_NAME_CODE: </span>
+                    <span th:text="${dashboard.store.roadNameCode}">도로명코드</span>
+                </div>
+
+                <div>
+                    <span>BUILDING_MANAGEMENT_NUMBER: </span>
+                    <span th:text="${dashboard.store.buildingManagementNumber}">건물관리번호</span>
+                </div>
+
+                <div>
+                    <span>ROAD_NAME: </span>
+                    <span th:text="${dashboard.store.roadName}">도로명</span>
+                </div>
+
+                <div>
+                    <span>UNDERGROUND_YN: </span>
+                    <span th:text="${dashboard.store.undergroundYn}">지하여부</span>
+                </div>
+
+                <div>
+                    <span>BUILDING_MAIN_NUMBER: </span>
+                    <span th:text="${dashboard.store.buildingMainNumber}">건물본번</span>
+                </div>
+
+                <div>
+                    <span>BUILDING_SUB_NUMBER: </span>
+                    <span th:text="${dashboard.store.buildingSubNumber}">건물부번</span>
                 </div>
 
                 <div>

@@ -5,7 +5,6 @@ import com.beadalondo.api.airquality.client.AirKoreaCurrentAirQualityClient;
 import com.beadalondo.api.airquality.domain.CurrentAirQualityObservation;
 import com.beadalondo.api.airquality.domain.CurrentAirQualityRecord;
 import com.beadalondo.api.airquality.repository.CurrentAirQualityRecordRepository;
-import com.beadalondo.api.airquality.util.KoreanAddressParser;
 import com.beadalondo.api.store.domain.Store;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,25 +36,25 @@ public class CurrentAirQualityService {
             throw new IllegalArgumentException("가게 정보가 없습니다.");
         }
 
-        if(store.getAddress()==null){
+        if(store.getSidoName()==null || store.getSigunguName()==null){
             throw new IllegalArgumentException("가게 주소 정보가 없습니다.");
         }
 
         LocalDateTime baseTimeData = airQualityCalculator.getSafeAirQualityBaseTime();
-        String sidoName = KoreanAddressParser.extractSidoName(store.getAddress());
-        String districtName = KoreanAddressParser.extractDistrictName(store.getAddress());
+        String sidoName = store.getSidoName();
+        String sigunguName = store.getSigunguName();
 
         Optional<CurrentAirQualityRecord> savedAirQuality =
                 currentAirQualityRecordRepository.findTopBySidoNameAndDistrictNameOrderByMeasuredAtDescCreatedAtDesc(
                         sidoName,
-                        districtName
+                        sigunguName
                 );
 
         if(savedAirQuality.isPresent()
                 && isReusable(savedAirQuality.get())){
-            log.info("저장된 대기질 데이터 재사용: sidoName={}, districtName={}, baseTimeData={}",
+            log.info("저장된 대기질 데이터 재사용: sidoName={}, sigunguName={}, baseTimeData={}",
                     sidoName,
-                    districtName,
+                    sigunguName,
                     baseTimeData);
 
             return savedAirQuality.get().toObservation();
@@ -67,7 +66,7 @@ public class CurrentAirQualityService {
         saveAllAirQualityRecords(airQualities);
 
         CurrentAirQualityObservation targetAirQuality =
-                selectTargetAirQuality(airQualities, districtName);
+                selectTargetAirQuality(airQualities, sigunguName);
 
         return targetAirQuality;
     }

@@ -23,7 +23,7 @@ public class AirKoreaCurrentAirQualityClient {
     private final String authKey;
 
     public AirKoreaCurrentAirQualityClient(RestClient.Builder restClientBuilder,
-                                           @Value("http://apis.data.go.kr/B552584/ArpltnInforInqireSvc") String baseUrl,
+                                           @Value("${dataportal.api.base-url}") String baseUrl,
                                            @Value("${dataportal.api.auth-key}") String authKey) {
         this.restClient = restClientBuilder
                 .baseUrl(baseUrl)
