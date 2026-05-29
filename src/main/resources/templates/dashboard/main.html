@@ -422,11 +422,6 @@
                       th:text="${dashboard.airQualityFactor}"
                       th:classappend="${#strings.contains(dashboard.airQualityFactor, '↑') ? ' up' : (#strings.contains(dashboard.airQualityFactor, '↓') ? ' down' : '')}">↓</span>
             </li>
-            <li class="factor">
-                <span class="factor-icon">🌡</span>
-                <span class="factor-label">기온 (18도, 쾌적)</span>
-                <span class="impact down">↓</span>
-            </li>
             <div class="store-debug-box">
                 <h3>Store Debug Info</h3>
                 <div>

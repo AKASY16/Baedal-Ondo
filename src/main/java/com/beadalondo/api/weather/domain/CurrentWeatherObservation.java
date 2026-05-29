@@ -2,11 +2,11 @@ package com.beadalondo.api.weather.domain;
 
 public class CurrentWeatherObservation {
 
-    private final int precipitationType; // PTY
-    private final double rainfall;       // RN1
-    private final double temperature;    // T1H
-    private final int humidity;          // REH
-    private final double windSpeed;      // WSD
+    private final int precipitationType; // PTY, 강수형태
+    private final double rainfall;       // RN1, 1시간 강수량
+    private final double temperature;    // T1H, 기온
+    private final int humidity;          // REH, 습도
+    private final double windSpeed;      // WSD, 풍속
 
     public CurrentWeatherObservation(int precipitationType,
                                      double rainfall,

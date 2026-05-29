@@ -9,6 +9,14 @@ import java.time.LocalDate;
 @Component
 public class DayWeightCalculator {
 
+    public DayDemandLevel calculate(LocalDate date, boolean holiday) {
+        if (holiday) {
+            return DayDemandLevel.HOLIDAY;
+        }
+
+        return calculate(date);
+    }
+
     public DayDemandLevel calculate(LocalDate date) {
         DayOfWeek dayOfWeek = date.getDayOfWeek();
 

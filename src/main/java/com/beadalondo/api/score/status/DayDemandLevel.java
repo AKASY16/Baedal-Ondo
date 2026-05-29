@@ -3,12 +3,12 @@ package com.beadalondo.api.score.status;
 public enum DayDemandLevel {
     WEEKDAY(0, "평일", "•"),
     FRIDAY(5, "금요일", "↑"),
-    WEEKEND(10, "주말", "↑");
+    WEEKEND(10, "주말", "↑"),
+    HOLIDAY(10, "공휴일", "↑");
 
-    private int weight;
-    private String dayDescription;
-    private String dayFactor;
-
+    private final int weight;
+    private final String dayDescription;
+    private final String dayFactor;
 
     DayDemandLevel(int weight, String dayDescription, String dayFactor) {
         this.weight = weight;
@@ -27,5 +27,4 @@ public enum DayDemandLevel {
     public String getDayFactor() {
         return dayFactor;
     }
-
 }

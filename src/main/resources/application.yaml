@@ -32,3 +32,4 @@ kma:
 dataportal:
   api:
     base-url: https://apis.data.go.kr/B552584/ArpltnInforInqireSvc
+    holiday-base-url: https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService

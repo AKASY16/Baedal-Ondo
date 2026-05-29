@@ -4,15 +4,16 @@ import com.beadalondo.api.airquality.calculator.AirQualityCalculator;
 import com.beadalondo.api.airquality.domain.CurrentAirQualityObservation;
 import com.beadalondo.api.airquality.exception.AirKoreaApiException;
 import com.beadalondo.api.airquality.service.CurrentAirQualityService;
+import com.beadalondo.api.holiday.service.HolidayService;
 import com.beadalondo.api.score.ScoreResult;
 import com.beadalondo.api.score.calculator.DayWeightCalculator;
-import com.beadalondo.api.score.status.CurrentWeatherDemandLevel;
 import com.beadalondo.api.score.status.DayDemandLevel;
 import com.beadalondo.api.score.status.TimeDemandLevel;
 import com.beadalondo.api.score.calculator.TimeWeightCalculator;
 import com.beadalondo.api.store.domain.Store;
 import com.beadalondo.api.weather.calculator.CurrentWeatherWeightCalculator;
 import com.beadalondo.api.weather.domain.CurrentWeatherObservation;
+import com.beadalondo.api.weather.domain.WeatherScoreResult;
 import com.beadalondo.api.weather.exception.KmaWeatherApiException;
 import com.beadalondo.api.weather.service.CurrentWeatherService;
 import org.slf4j.Logger;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 @Service
 public class ScoreService {
@@ -31,18 +33,22 @@ public class ScoreService {
     private final CurrentWeatherService currentWeatherService;
     private final CurrentAirQualityService currentAirQualityService;
     private final AirQualityCalculator airQualityCalculator;
+    private final HolidayService holidayService;
 
     public ScoreService(TimeWeightCalculator timeWeightCalculator,
                         DayWeightCalculator dayWeightCalculator,
                         CurrentWeatherWeightCalculator currentWeatherWeightCalculator,
                         CurrentWeatherService currentWeatherService,
-                        CurrentAirQualityService currentAirQualityService, AirQualityCalculator airQualityCalculator) {
+                        CurrentAirQualityService currentAirQualityService,
+                        AirQualityCalculator airQualityCalculator,
+                        HolidayService holidayService) {
         this.timeWeightCalculator = timeWeightCalculator;
         this.dayWeightCalculator = dayWeightCalculator;
         this.currentWeatherWeightCalculator = currentWeatherWeightCalculator;
         this.currentWeatherService = currentWeatherService;
         this.currentAirQualityService = currentAirQualityService;
         this.airQualityCalculator = airQualityCalculator;
+        this.holidayService = holidayService;
     }
 
 
@@ -61,24 +67,25 @@ public class ScoreService {
             DayDemandLevel dayDemandLevel;
             long baseStart = System.nanoTime();
             try {
+                LocalDate currentDate = LocalDate.now();
                 timeDemandLevel = timeWeightCalculator.calculate(LocalTime.now());
-                dayDemandLevel = dayWeightCalculator.calculate(LocalDate.now());
+                dayDemandLevel = dayWeightCalculator.calculate(currentDate, isHoliday(currentDate, storeId));
             } finally {
                 logTiming("baseScore", baseStart, storeId);
             }
 
-            // TODO: 현재는 대시보드 새로고침 시마다 기상청 API를 호출하는 구조.
-            //  추후에는 baseDate, baseTime, nx, ny 조합을 기준으로 기존 수집 데이터가 있는지 먼저 확인한다.
-            //  같은 baseDate/baseTime/nx/ny 데이터가 DB에 있으면 기존 데이터를 재사용하고,
-            //  없을 때만 기상청 API를 호출한 뒤 CurrentWeatherObservation을 저장하도록 변경한다.
-            CurrentWeatherDemandLevel currentWeatherDemandLevel;
+            WeatherScoreResult weatherScoreResult;
             long weatherStart = System.nanoTime();
             try {
                 CurrentWeatherObservation weather = currentWeatherService.getCurrentWeather(store);
-                currentWeatherDemandLevel = currentWeatherWeightCalculator.calculate(weather);
+                weatherScoreResult = currentWeatherWeightCalculator.calculate(weather);
             } catch (KmaWeatherApiException e) {
                 log.warn("기상청 API 에러. 날씨 보정 점수를 제외합니다. storeId={}", storeId, e);
-                currentWeatherDemandLevel = CurrentWeatherDemandLevel.UNAVAILABLE;
+                weatherScoreResult = new WeatherScoreResult(
+                        0,
+                        List.of("날씨 정보 없음"),
+                        "날씨 정보 없음"
+                );
             } finally {
                 logTiming("weatherScore", weatherStart, storeId);
             }
@@ -101,7 +108,7 @@ public class ScoreService {
                         baseScore +
                         timeDemandLevel.getWeight() +
                         dayDemandLevel.getWeight()+
-                        currentWeatherDemandLevel.getWeight()+
+                        weatherScoreResult.getWeatherScore()+
                         airQualityScore);
 
                 String status = calculateStatus(score);
@@ -113,8 +120,8 @@ public class ScoreService {
                 String dayFactor = dayDemandLevel.getDayFactor();
                 String dayDescription = dayDemandLevel.getDayDescription();
 
-                String currentWeatherFactor = currentWeatherDemandLevel.getFactor();
-                String currentWeatherDescription = currentWeatherDemandLevel.getDescription();
+                String currentWeatherFactor = createWeatherFactor(weatherScoreResult);
+                String currentWeatherDescription = weatherScoreResult.getDescription();
 
                 return new ScoreResult(score,
                         status,
@@ -134,6 +141,26 @@ public class ScoreService {
             }
         } finally {
             logTiming("scoreTotal", totalStart, storeId);
+        }
+    }
+
+    private String createWeatherFactor(WeatherScoreResult weatherScoreResult) {
+        if (weatherScoreResult.getWeatherScore() <= 0) {
+            return "•";
+        }
+
+        return "↑";
+    }
+
+    private boolean isHoliday(LocalDate date, Long storeId) {
+        try {
+            return holidayService.isHoliday(date);
+        } catch (RuntimeException e) {
+            log.warn("공휴일 데이터 처리 실패. 기존 요일 기준으로 점수를 계산합니다. date={}, storeId={}",
+                    date,
+                    storeId,
+                    e);
+            return false;
         }
     }
 
