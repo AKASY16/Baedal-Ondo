@@ -5,6 +5,8 @@ import com.beadalondo.api.score.service.ScoreService;
 import com.beadalondo.api.store.domain.Store;
 import com.beadalondo.api.dashboard.dto.DashboardView;
 import com.beadalondo.api.store.service.StoreService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,11 +22,51 @@ public class DashboardService {
 
 
     public DashboardView getDashboard() {
-        Store store = storeService.getCurrentStore();
-        ScoreResult scoreResult = scoreService.calculateCurrentScore(store);
+        long totalStart = System.nanoTime();
+        Store store = null;
 
-        return DashboardView.from(store, scoreResult);
+        try {
+            long storeStart = System.nanoTime();
+            try {
+                store = storeService.getCurrentStore();
+            } finally {
+                logTiming("getCurrentStore", storeStart, storeId(store));
+            }
+
+            ScoreResult scoreResult;
+            long scoreStart = System.nanoTime();
+            try {
+                scoreResult = scoreService.calculateCurrentScore(store);
+            } finally {
+                logTiming("calculateCurrentScore", scoreStart, storeId(store));
+            }
+
+            long viewStart = System.nanoTime();
+            try {
+                return DashboardView.from(store, scoreResult);
+            } finally {
+                logTiming("dashboardView", viewStart, storeId(store));
+            }
+        } finally {
+            logTiming("dashboardTotal", totalStart, storeId(store));
+        }
     }
 
+    private void logTiming(String step, long startNanos, Long storeId) {
+        log.info("dashboard timing step={} elapsedMs={} storeId={}",
+                step,
+                elapsedMs(startNanos),
+                storeId);
+    }
+
+    private long elapsedMs(long startNanos) {
+        return (System.nanoTime() - startNanos) / 1_000_000;
+    }
+
+    private Long storeId(Store store) {
+        return store == null ? null : store.getId();
+    }
+
+    private static final Logger log = LoggerFactory.getLogger(DashboardService.class);
 
 }

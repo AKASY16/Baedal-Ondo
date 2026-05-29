@@ -2,25 +2,25 @@ package com.beadalondo.api.location.dto;
 
 public class JusoAddressRequest {
 
-    private String roadFullAddr;
-    private String roadAddrPart1;
-    private String roadAddrPart2;
-    private String addrDetail;
-    private String jibunAddr;
-    private String zipNo;
+    private String roadFullAddr; // 전체 도로명
+    private String roadAddrPart1; // 도로명주소(참고항목 제외)
+    private String roadAddrPart2; // 도로명주소 참고 항목
+    private String addrDetail; // 고객 입력 상세 주소
+    private String jibunAddr; // 지번주소
+    private String zipNo; // 우편번호
 
-    private String siNm;
-    private String sggNm;
-    private String emdNm;
+    private String siNm; // 시도명
+    private String sggNm; // 시군구명
+    private String emdNm; // 읍면동명
 
-    private String admCd;
-    private String rnMgtSn;
-    private String bdMgtSn;
+    private String admCd; // 행정구역코드
+    private String rnMgtSn; // 도로명코드
+    private String bdMgtSn; // 건물관리번호
 
-    private String rn;
-    private String udrtYn;
-    private String buldMnnm;
-    private String buldSlno;
+    private String rn; // 도로명
+    private String udrtYn; // 지하여부 (0:지상,1:지하)
+    private String buldMnnm; // 건물 본번
+    private String buldSlno; // 건물 부번
 
     public String getRoadFullAddr() {
         return roadFullAddr;

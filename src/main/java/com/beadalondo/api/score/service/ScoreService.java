@@ -47,71 +47,94 @@ public class ScoreService {
 
 
     public ScoreResult calculateCurrentScore(Store store) {
-        int baseScore = 40;
-        int airQualityScore = 0;
-        String airQualityFactor = "영향 없음";
-        String airQualityDescription = "대기질";
-        String airQualityDetail = "대기질 정보 없음";
-
-        TimeDemandLevel timeDemandLevel = timeWeightCalculator.calculate(LocalTime.now());
-        DayDemandLevel dayDemandLevel = dayWeightCalculator.calculate(LocalDate.now());
-
-        // TODO: 현재는 대시보드 새로고침 시마다 기상청 API를 호출하는 구조.
-        //  추후에는 baseDate, baseTime, nx, ny 조합을 기준으로 기존 수집 데이터가 있는지 먼저 확인한다.
-        //  같은 baseDate/baseTime/nx/ny 데이터가 DB에 있으면 기존 데이터를 재사용하고,
-        //  없을 때만 기상청 API를 호출한 뒤 CurrentWeatherObservation을 저장하도록 변경한다.
-        CurrentWeatherDemandLevel currentWeatherDemandLevel;
+        long totalStart = System.nanoTime();
+        Long storeId = storeId(store);
 
         try {
-            CurrentWeatherObservation weather = currentWeatherService.getCurrentWeather(store);
-            currentWeatherDemandLevel = currentWeatherWeightCalculator.calculate(weather);
-        } catch (KmaWeatherApiException e) {
-            log.warn("기상청 API 에러. 날씨 보정 점수를 제외합니다. storeId={}", store.getId(), e);
-            currentWeatherDemandLevel = CurrentWeatherDemandLevel.UNAVAILABLE;
+            int baseScore = 40;
+            int airQualityScore = 0;
+            String airQualityFactor = "영향 없음";
+            String airQualityDescription = "대기질";
+            String airQualityDetail = "대기질 정보 없음";
+
+            TimeDemandLevel timeDemandLevel;
+            DayDemandLevel dayDemandLevel;
+            long baseStart = System.nanoTime();
+            try {
+                timeDemandLevel = timeWeightCalculator.calculate(LocalTime.now());
+                dayDemandLevel = dayWeightCalculator.calculate(LocalDate.now());
+            } finally {
+                logTiming("baseScore", baseStart, storeId);
+            }
+
+            // TODO: 현재는 대시보드 새로고침 시마다 기상청 API를 호출하는 구조.
+            //  추후에는 baseDate, baseTime, nx, ny 조합을 기준으로 기존 수집 데이터가 있는지 먼저 확인한다.
+            //  같은 baseDate/baseTime/nx/ny 데이터가 DB에 있으면 기존 데이터를 재사용하고,
+            //  없을 때만 기상청 API를 호출한 뒤 CurrentWeatherObservation을 저장하도록 변경한다.
+            CurrentWeatherDemandLevel currentWeatherDemandLevel;
+            long weatherStart = System.nanoTime();
+            try {
+                CurrentWeatherObservation weather = currentWeatherService.getCurrentWeather(store);
+                currentWeatherDemandLevel = currentWeatherWeightCalculator.calculate(weather);
+            } catch (KmaWeatherApiException e) {
+                log.warn("기상청 API 에러. 날씨 보정 점수를 제외합니다. storeId={}", storeId, e);
+                currentWeatherDemandLevel = CurrentWeatherDemandLevel.UNAVAILABLE;
+            } finally {
+                logTiming("weatherScore", weatherStart, storeId);
+            }
+
+            long airQualityStart = System.nanoTime();
+            try {
+                CurrentAirQualityObservation airQuality = currentAirQualityService.getCurrentAirQuality(store);
+                airQualityScore = airQualityCalculator.getWeight(airQuality);
+                airQualityFactor = createAirQualityFactor(airQualityScore);
+                airQualityDetail = createAirQualityDetail(airQuality);
+            } catch (AirKoreaApiException | IllegalStateException | IllegalArgumentException e) {
+                log.warn("공기질 데이터 처리 실패. 공기질 보정 점수를 제외합니다. storeId={}", storeId, e);
+            } finally {
+                logTiming("airQualityScore", airQualityStart, storeId);
+            }
+
+            long assemblyStart = System.nanoTime();
+            try {
+                int score = capScore(
+                        baseScore +
+                        timeDemandLevel.getWeight() +
+                        dayDemandLevel.getWeight()+
+                        currentWeatherDemandLevel.getWeight()+
+                        airQualityScore);
+
+                String status = calculateStatus(score);
+                String message = createMessage(score);
+
+                String timeFactor = timeDemandLevel.getTimeFactor();
+                String timeDescription = timeDemandLevel.getTimeDescription();
+
+                String dayFactor = dayDemandLevel.getDayFactor();
+                String dayDescription = dayDemandLevel.getDayDescription();
+
+                String currentWeatherFactor = currentWeatherDemandLevel.getFactor();
+                String currentWeatherDescription = currentWeatherDemandLevel.getDescription();
+
+                return new ScoreResult(score,
+                        status,
+                        message,
+                        timeFactor,
+                        timeDescription,
+                        dayFactor,
+                        dayDescription,
+                        currentWeatherFactor,
+                        currentWeatherDescription,
+                        airQualityFactor,
+                        airQualityDescription,
+                        airQualityDetail
+                        );
+            } finally {
+                logTiming("scoreAssembly", assemblyStart, storeId);
+            }
+        } finally {
+            logTiming("scoreTotal", totalStart, storeId);
         }
-
-        try{
-            CurrentAirQualityObservation airQuality = currentAirQualityService.getCurrentAirQuality(store);
-            airQualityScore = airQualityCalculator.getWeight(airQuality);
-            airQualityFactor = createAirQualityFactor(airQualityScore);
-            airQualityDetail = createAirQualityDetail(airQuality);
-        }catch (AirKoreaApiException | IllegalStateException | IllegalArgumentException e) {
-            log.warn("공기질 데이터 처리 실패. 공기질 보정 점수를 제외합니다. storeId={}", store.getId(), e);
-        }
-
-
-        int score = capScore(
-                baseScore +
-                timeDemandLevel.getWeight() +
-                dayDemandLevel.getWeight()+
-                currentWeatherDemandLevel.getWeight()+
-                airQualityScore);
-
-        String status = calculateStatus(score);
-        String message = createMessage(score);
-
-        String timeFactor = timeDemandLevel.getTimeFactor();
-        String timeDescription = timeDemandLevel.getTimeDescription();
-
-        String dayFactor = dayDemandLevel.getDayFactor();
-        String dayDescription = dayDemandLevel.getDayDescription();
-
-        String currentWeatherFactor = currentWeatherDemandLevel.getFactor();
-        String currentWeatherDescription = currentWeatherDemandLevel.getDescription();
-
-        return new ScoreResult(score,
-                status,
-                message,
-                timeFactor,
-                timeDescription,
-                dayFactor,
-                dayDescription,
-                currentWeatherFactor,
-                currentWeatherDescription,
-                airQualityFactor,
-                airQualityDescription,
-                airQualityDetail
-                );
     }
 
     private String createAirQualityFactor(int airQualityScore) {
@@ -174,6 +197,21 @@ public class ScoreService {
         }
 
         return "기대 수요가 매우 낮습니다. 유지 비용을 고려해 조기 마감을 검토하세요.";
+    }
+
+    private void logTiming(String step, long startNanos, Long storeId) {
+        log.info("dashboard timing step={} elapsedMs={} storeId={}",
+                step,
+                elapsedMs(startNanos),
+                storeId);
+    }
+
+    private long elapsedMs(long startNanos) {
+        return (System.nanoTime() - startNanos) / 1_000_000;
+    }
+
+    private Long storeId(Store store) {
+        return store == null ? null : store.getId();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ScoreService.class);

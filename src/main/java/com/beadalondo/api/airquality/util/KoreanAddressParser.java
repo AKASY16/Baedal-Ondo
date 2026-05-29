@@ -1,5 +1,8 @@
 package com.beadalondo.api.airquality.util;
 
+import org.springframework.stereotype.Component;
+
+@Component
 public class KoreanAddressParser {
 
     public static String extractSidoName(String address) {

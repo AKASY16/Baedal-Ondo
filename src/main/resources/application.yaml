@@ -31,4 +31,4 @@ kma:
 
 dataportal:
   api:
-    base-url:
+    base-url: https://apis.data.go.kr/B552584/ArpltnInforInqireSvc

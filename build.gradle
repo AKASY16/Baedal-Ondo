@@ -24,6 +24,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springframework.boot:spring-boot-starter-restclient'
+
+	implementation 'org.locationtech.proj4j:proj4j:1.4.1'
+	implementation 'org.locationtech.proj4j:proj4j-epsg:1.4.1'
+
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.h2database:h2'
 	annotationProcessor 'org.projectlombok:lombok'
