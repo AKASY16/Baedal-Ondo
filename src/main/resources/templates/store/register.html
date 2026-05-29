@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store 등록</title>
+    <style>
+        :root {
+            --bg: #f5f6f8;
+            --surface: #ffffff;
+            --line: #d9dee7;
+            --text: #202735;
+            --muted: #667085;
+            --primary: #1f6feb;
+            --primary-dark: #1a5fc7;
+            --danger: #b42318;
+            --readonly: #f8fafc;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            letter-spacing: 0;
+        }
+
+        .page {
+            width: min(1040px, 100%);
+            margin: 0 auto;
+            padding: 28px;
+        }
+
+        .header {
+            margin-bottom: 22px;
+        }
+
+        h1 {
+            margin: 0 0 6px;
+            font-size: 26px;
+            line-height: 1.25;
+        }
+
+        .description {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.55;
+        }
+
+        .panel {
+            margin-bottom: 18px;
+            padding: 20px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface);
+        }
+
+        .panel-title {
+            margin: 0 0 14px;
+            font-size: 18px;
+            line-height: 1.35;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .wide {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            display: grid;
+            gap: 6px;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        input {
+            width: 100%;
+            min-height: 40px;
+            padding: 9px 10px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: #ffffff;
+            color: var(--text);
+            font: inherit;
+            letter-spacing: 0;
+        }
+
+        input[readonly] {
+            background: var(--readonly);
+        }
+
+        .address-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        button {
+            min-height: 40px;
+            padding: 9px 15px;
+            border: 0;
+            border-radius: 6px;
+            background: var(--primary);
+            color: #ffffff;
+            font: inherit;
+            font-weight: 800;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        button:hover {
+            background: var(--primary-dark);
+        }
+
+        .secondary-button {
+            background: #344054;
+        }
+
+        .secondary-button:hover {
+            background: #1d2939;
+        }
+
+        .note {
+            margin: 12px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.55;
+        }
+
+        .required {
+            color: var(--danger);
+        }
+
+        .popup-message {
+            display: none;
+            min-height: 100vh;
+            place-items: center;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .popup-message strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+
+        pre {
+            max-width: 100%;
+            overflow: auto;
+            padding: 14px;
+            border-radius: 8px;
+            background: #111827;
+            color: #d1fae5;
+            text-align: left;
+            white-space: pre-wrap;
+        }
+
+        @media (max-width: 760px) {
+            .page {
+                padding: 20px;
+            }
+
+            .grid,
+            .address-row {
+                grid-template-columns: 1fr;
+            }
+
+            .wide {
+                grid-column: auto;
+            }
+
+            .actions {
+                justify-content: stretch;
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+<form id="juso-popup-form" method="post" style="display: none;">
+    <input type="hidden" id="popup-confmKey" name="confmKey">
+    <input type="hidden" id="popup-returnUrl" name="returnUrl">
+    <input type="hidden" id="popup-resultType" name="resultType">
+    <input type="hidden" id="popup-useDetailAddr" name="useDetailAddr">
+</form>
+
+<div id="callback-values" style="display: none;">
+    <input id="callback-inputYn" th:value="${param.inputYn != null ? param.inputYn[0] : ''}">
+    <input id="callback-roadFullAddr" th:value="${param.roadFullAddr != null ? param.roadFullAddr[0] : ''}">
+    <input id="callback-roadAddrPart1" th:value="${param.roadAddrPart1 != null ? param.roadAddrPart1[0] : ''}">
+    <input id="callback-roadAddrPart2" th:value="${param.roadAddrPart2 != null ? param.roadAddrPart2[0] : ''}">
+    <input id="callback-addrDetail" th:value="${param.addrDetail != null ? param.addrDetail[0] : ''}">
+    <input id="callback-jibunAddr" th:value="${param.jibunAddr != null ? param.jibunAddr[0] : ''}">
+    <input id="callback-zipNo" th:value="${param.zipNo != null ? param.zipNo[0] : ''}">
+    <input id="callback-siNm" th:value="${param.siNm != null ? param.siNm[0] : ''}">
+    <input id="callback-sggNm" th:value="${param.sggNm != null ? param.sggNm[0] : ''}">
+    <input id="callback-emdNm" th:value="${param.emdNm != null ? param.emdNm[0] : ''}">
+    <input id="callback-admCd" th:value="${param.admCd != null ? param.admCd[0] : ''}">
+    <input id="callback-rnMgtSn" th:value="${param.rnMgtSn != null ? param.rnMgtSn[0] : ''}">
+    <input id="callback-bdMgtSn" th:value="${param.bdMgtSn != null ? param.bdMgtSn[0] : ''}">
+    <input id="callback-rn" th:value="${param.rn != null ? param.rn[0] : ''}">
+    <input id="callback-udrtYn" th:value="${param.udrtYn != null ? param.udrtYn[0] : ''}">
+    <input id="callback-buldMnnm" th:value="${param.buldMnnm != null ? param.buldMnnm[0] : ''}">
+    <input id="callback-buldSlno" th:value="${param.buldSlno != null ? param.buldSlno[0] : ''}">
+</div>
+
+<div id="juso-values" style="display: none;">
+    <input id="juso-roadFullAddr">
+    <input id="juso-roadAddrPart1">
+    <input id="juso-roadAddrPart2">
+    <input id="juso-addrDetail">
+    <input id="juso-jibunAddr">
+    <input id="juso-zipNo">
+    <input id="juso-siNm">
+    <input id="juso-sggNm">
+    <input id="juso-emdNm">
+    <input id="juso-admCd">
+    <input id="juso-rnMgtSn">
+    <input id="juso-bdMgtSn">
+    <input id="juso-rn">
+    <input id="juso-udrtYn">
+    <input id="juso-buldMnnm">
+    <input id="juso-buldSlno">
+</div>
+
+<div id="popup-message" class="popup-message">
+    <div>
+        <strong>주소 검색 팝업을 준비하고 있습니다.</strong>
+        <span>잠시 후 도로명주소 검색 화면으로 이동합니다.</span>
+    </div>
+</div>
+
+<main id="page" class="page">
+    <header class="header">
+        <h1>Store 등록</h1>
+        <p class="description">
+            도로명주소 팝업에서 받은 주소 정보와 직접 입력한 매장 정보를 조합해 등록 payload를 확인합니다.
+        </p>
+    </header>
+
+    <section class="panel">
+        <h2 class="panel-title">기본 정보</h2>
+        <div class="grid">
+            <label>
+                매장명 <span class="required">*</span>
+                <input id="store-name" autocomplete="organization" placeholder="예: 온도분식">
+            </label>
+            <label>
+                업종 <span class="required">*</span>
+                <input id="store-businessType" autocomplete="off" placeholder="예: 분식">
+            </label>
+        </div>
+    </section>
+
+    <section class="panel">
+        <h2 class="panel-title">주소 정보</h2>
+        <div class="address-row">
+            <label>
+                전체 도로명주소
+                <input id="store-address" readonly placeholder="주소 검색으로 자동 입력">
+            </label>
+            <button id="juso-search-button" type="button">주소검색</button>
+        </div>
+
+        <div class="grid" style="margin-top: 12px;">
+            <label class="wide">
+                도로명주소
+                <input id="store-roadAddress" readonly>
+            </label>
+            <label class="wide">
+                지번주소
+                <input id="store-jibunAddress" readonly>
+            </label>
+            <label class="wide">
+                상세주소
+                <input id="store-addressDetail" placeholder="주소 검색 결과를 수정하거나 직접 입력">
+            </label>
+            <label>
+                우편번호
+                <input id="store-postalCode" readonly>
+            </label>
+            <label>
+                시도명
+                <input id="store-sidoName" readonly>
+            </label>
+            <label>
+                시군구명
+                <input id="store-sigunguName" readonly>
+            </label>
+            <label>
+                읍면동명
+                <input id="store-dongName" readonly>
+            </label>
+            <label>
+                행정구역코드
+                <input id="store-addressRegionCode" readonly>
+            </label>
+            <label>
+                도로명코드
+                <input id="store-roadNameCode" readonly>
+            </label>
+            <label>
+                건물관리번호
+                <input id="store-buildingManagementNumber" readonly>
+            </label>
+            <label>
+                도로명
+                <input id="store-roadName" readonly>
+            </label>
+            <label>
+                지하여부
+                <input id="store-undergroundYn" readonly>
+            </label>
+            <label>
+                건물본번
+                <input id="store-buildingMainNumber" readonly>
+            </label>
+            <label>
+                건물부번
+                <input id="store-buildingSubNumber" readonly>
+            </label>
+        </div>
+        <p class="note">nx, ny는 이후 백엔드 좌표 처리에서 계산하고, createdAt은 서버에서 생성합니다.</p>
+    </section>
+
+    <section class="panel">
+        <h2 class="panel-title">등록</h2>
+        <p class="note">현재 단계에서는 실제 저장 API를 호출하지 않고, 브라우저 콘솔에 payload만 출력합니다.</p>
+        <div class="actions">
+            <button id="payload-check-button" type="button" class="secondary-button">Payload 확인</button>
+            <button id="register-button" type="button">등록하기</button>
+        </div>
+        <pre id="payload-output">{}</pre>
+    </section>
+</main>
+
+<script th:inline="javascript">
+    const defaultJusoPopupAuthKey = /*[[${jusoPopupAuthKey}]]*/ "TESTJUSOGOKR";
+
+    const jusoFieldNames = [
+        "roadFullAddr",
+        "roadAddrPart1",
+        "roadAddrPart2",
+        "addrDetail",
+        "jibunAddr",
+        "zipNo",
+        "siNm",
+        "sggNm",
+        "emdNm",
+        "admCd",
+        "rnMgtSn",
+        "bdMgtSn",
+        "rn",
+        "udrtYn",
+        "buldMnnm",
+        "buldSlno"
+    ];
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const params = new URLSearchParams(window.location.search);
+
+        if (params.get("popup") === "Y") {
+            runPopupBridge(params);
+            return;
+        }
+
+        window.jusoCallBack = receiveJusoResult;
+        document.getElementById("juso-search-button").addEventListener("click", goJusoPopup);
+        document.getElementById("payload-check-button").addEventListener("click", logPayload);
+        document.getElementById("register-button").addEventListener("click", registerStore);
+    });
+
+    function goJusoPopup() {
+        const confmKey = defaultJusoPopupAuthKey;
+        const url = "/store/register?popup=Y"
+            + "&confmKey=" + encodeURIComponent(confmKey)
+            + "&resultType=4"
+            + "&useDetailAddr=Y";
+
+        window.open(url, "jusoPopup", "width=570,height=620,scrollbars=yes,resizable=yes");
+    }
+
+    function runPopupBridge(params) {
+        document.getElementById("page").style.display = "none";
+        document.getElementById("popup-message").style.display = "grid";
+
+        const inputYn = readCallbackValue("inputYn");
+
+        if (inputYn === "Y") {
+            const result = readCallbackResult();
+
+            if (window.opener && !window.opener.closed && typeof window.opener.jusoCallBack === "function") {
+                window.opener.jusoCallBack(result);
+                window.close();
+                return;
+            }
+
+            document.getElementById("popup-message").innerHTML =
+                "<div><strong>부모 창을 찾을 수 없습니다.</strong><pre>"
+                + escapeHtml(JSON.stringify(result, null, 2))
+                + "</pre></div>";
+            return;
+        }
+
+        const form = document.getElementById("juso-popup-form");
+        document.getElementById("popup-confmKey").value = params.get("confmKey") || defaultJusoPopupAuthKey;
+        document.getElementById("popup-returnUrl").value = window.location.origin + window.location.pathname + "?popup=Y";
+        document.getElementById("popup-resultType").value = params.get("resultType") || "4";
+        document.getElementById("popup-useDetailAddr").value = params.get("useDetailAddr") || "Y";
+        form.action = "https://business.juso.go.kr/addrlink/addrLinkUrl.do";
+        form.submit();
+    }
+
+    function readCallbackResult() {
+        const result = {};
+
+        jusoFieldNames.forEach(function (name) {
+            result[name] = readCallbackValue(name);
+        });
+
+        return result;
+    }
+
+    function readCallbackValue(name) {
+        const input = document.getElementById("callback-" + name);
+        return input ? input.value : "";
+    }
+
+    function receiveJusoResult(result) {
+        jusoFieldNames.forEach(function (name) {
+            setValue("juso-" + name, result[name]);
+        });
+
+        setValue("store-address", result.roadFullAddr);
+        setValue("store-roadAddress", result.roadAddrPart1);
+        setValue("store-jibunAddress", result.jibunAddr);
+        setValue("store-addressDetail", result.addrDetail);
+        setValue("store-postalCode", result.zipNo);
+        setValue("store-sidoName", result.siNm);
+        setValue("store-sigunguName", result.sggNm);
+        setValue("store-dongName", result.emdNm);
+        setValue("store-addressRegionCode", result.admCd);
+        setValue("store-roadNameCode", result.rnMgtSn);
+        setValue("store-buildingManagementNumber", result.bdMgtSn);
+        setValue("store-roadName", result.rn);
+        setValue("store-undergroundYn", result.udrtYn);
+        setValue("store-buildingMainNumber", result.buldMnnm);
+        setValue("store-buildingSubNumber", result.buldSlno);
+    }
+
+    function buildPayload() {
+        return {
+            name: getValue("store-name"),
+            businessType: getValue("store-businessType"),
+            jusoAddress: {
+                roadFullAddr: getValue("juso-roadFullAddr"),
+                roadAddrPart1: getValue("juso-roadAddrPart1"),
+                roadAddrPart2: getValue("juso-roadAddrPart2"),
+                addrDetail: getValue("store-addressDetail"),
+                jibunAddr: getValue("juso-jibunAddr"),
+                zipNo: getValue("juso-zipNo"),
+                siNm: getValue("juso-siNm"),
+                sggNm: getValue("juso-sggNm"),
+                emdNm: getValue("juso-emdNm"),
+                admCd: getValue("juso-admCd"),
+                rnMgtSn: getValue("juso-rnMgtSn"),
+                bdMgtSn: getValue("juso-bdMgtSn"),
+                rn: getValue("juso-rn"),
+                udrtYn: getValue("juso-udrtYn"),
+                buldMnnm: getValue("juso-buldMnnm"),
+                buldSlno: getValue("juso-buldSlno")
+            }
+        };
+    }
+
+    function logPayload() {
+        const payload = buildPayload();
+
+        printPayload(payload);
+        alert("등록 payload를 console.log로 출력했습니다.");
+    }
+
+    function registerStore() {
+        const payload = buildPayload();
+
+        if (!payload.name) {
+            alert("매장명을 입력해주세요.");
+            return;
+        }
+
+        if (!payload.businessType) {
+            alert("업종을 입력해주세요.");
+            return;
+        }
+
+        if (!payload.jusoAddress.admCd || !payload.jusoAddress.rnMgtSn
+            || !payload.jusoAddress.udrtYn || !payload.jusoAddress.buldMnnm
+            || !payload.jusoAddress.buldSlno) {
+            alert("주소검색을 먼저 완료해주세요.");
+            return;
+        }
+
+        printPayload(payload);
+
+        fetch("/api/stores", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        })
+            .then(async function (response) {
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || "가게 등록에 실패했습니다.");
+                }
+
+                return response.json();
+            })
+            .then(function (storeId) {
+                alert("가게 등록이 완료되었습니다. storeId=" + storeId);
+
+                // 원하면 등록 후 대시보드로 이동
+                // window.location.href = "/dashboard/main";
+            })
+            .catch(function (error) {
+                console.error(error);
+                alert(error.message);
+            });
+    }
+
+    function printPayload(payload) {
+        const payloadJson = JSON.stringify(payload, null, 2);
+
+        window.lastStoreRegisterPayload = payload;
+        console.log("store register payload", payload);
+        console.log("store register payload JSON\n" + payloadJson);
+        document.getElementById("payload-output").textContent = payloadJson;
+    }
+
+    function setValue(id, value) {
+        document.getElementById(id).value = value || "";
+    }
+
+    function getValue(id) {
+        return document.getElementById(id).value.trim();
+    }
+
+    function escapeHtml(value) {
+        return value
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+</script>
+</body>
+</html>
