@@ -5,6 +5,7 @@ import com.beadalondo.api.airquality.domain.CurrentAirQualityObservation;
 import com.beadalondo.api.airquality.exception.AirKoreaApiException;
 import com.beadalondo.api.airquality.service.CurrentAirQualityService;
 import com.beadalondo.api.holiday.service.HolidayService;
+import com.beadalondo.api.score.factory.ScoreMessageFactory;
 import com.beadalondo.api.score.ScoreResult;
 import com.beadalondo.api.score.calculator.DayWeightCalculator;
 import com.beadalondo.api.score.status.DayDemandLevel;
@@ -34,6 +35,7 @@ public class ScoreService {
     private final CurrentAirQualityService currentAirQualityService;
     private final AirQualityCalculator airQualityCalculator;
     private final HolidayService holidayService;
+    private final ScoreMessageFactory scoreMessageFactory;
 
     public ScoreService(TimeWeightCalculator timeWeightCalculator,
                         DayWeightCalculator dayWeightCalculator,
@@ -41,7 +43,8 @@ public class ScoreService {
                         CurrentWeatherService currentWeatherService,
                         CurrentAirQualityService currentAirQualityService,
                         AirQualityCalculator airQualityCalculator,
-                        HolidayService holidayService) {
+                        HolidayService holidayService,
+                        ScoreMessageFactory scoreMessageFactory) {
         this.timeWeightCalculator = timeWeightCalculator;
         this.dayWeightCalculator = dayWeightCalculator;
         this.currentWeatherWeightCalculator = currentWeatherWeightCalculator;
@@ -49,6 +52,7 @@ public class ScoreService {
         this.currentAirQualityService = currentAirQualityService;
         this.airQualityCalculator = airQualityCalculator;
         this.holidayService = holidayService;
+        this.scoreMessageFactory = scoreMessageFactory;
     }
 
 
@@ -94,8 +98,8 @@ public class ScoreService {
             try {
                 CurrentAirQualityObservation airQuality = currentAirQualityService.getCurrentAirQuality(store);
                 airQualityScore = airQualityCalculator.getWeight(airQuality);
-                airQualityFactor = createAirQualityFactor(airQualityScore);
-                airQualityDetail = createAirQualityDetail(airQuality);
+                airQualityFactor = scoreMessageFactory.createAirQualityFactor(airQualityScore);
+                airQualityDetail = scoreMessageFactory.createAirQualityDetail(airQuality);
             } catch (AirKoreaApiException | IllegalStateException | IllegalArgumentException e) {
                 log.warn("공기질 데이터 처리 실패. 공기질 보정 점수를 제외합니다. storeId={}", storeId, e);
             } finally {
@@ -111,8 +115,8 @@ public class ScoreService {
                         weatherScoreResult.getWeatherScore()+
                         airQualityScore);
 
-                String status = calculateStatus(score);
-                String message = createMessage(score);
+                String status = scoreMessageFactory.calculateStatus(score);
+                String message = scoreMessageFactory.createMessage(score);
 
                 String timeFactor = timeDemandLevel.getTimeFactor();
                 String timeDescription = timeDemandLevel.getTimeDescription();
@@ -120,7 +124,7 @@ public class ScoreService {
                 String dayFactor = dayDemandLevel.getDayFactor();
                 String dayDescription = dayDemandLevel.getDayDescription();
 
-                String currentWeatherFactor = createWeatherFactor(weatherScoreResult);
+                String currentWeatherFactor = scoreMessageFactory.createWeatherFactor(weatherScoreResult);
                 String currentWeatherDescription = weatherScoreResult.getDescription();
 
                 return new ScoreResult(score,
@@ -144,13 +148,7 @@ public class ScoreService {
         }
     }
 
-    private String createWeatherFactor(WeatherScoreResult weatherScoreResult) {
-        if (weatherScoreResult.getWeatherScore() <= 0) {
-            return "•";
-        }
 
-        return "↑";
-    }
 
     private boolean isHoliday(LocalDate date, Long storeId) {
         try {
@@ -164,66 +162,8 @@ public class ScoreService {
         }
     }
 
-    private String createAirQualityFactor(int airQualityScore) {
-        if (airQualityScore <= 0) {
-            return "•";
-        }
-
-        return "↑";
-    }
-
-    private String createAirQualityDetail(CurrentAirQualityObservation airQuality) {
-        if (airQuality == null) {
-            return "대기질 정보 없음";
-        }
-
-        return "미세먼지 " + formatNullableValue(airQuality.getPm10Value())
-                + ", 초미세먼지 " + formatNullableValue(airQuality.getPm25Value())
-                + ", 오존 " + formatNullableValue(airQuality.getO3Value());
-    }
-
-    private String formatNullableValue(Object value) {
-        if (value == null) {
-            return "정보 없음";
-        }
-
-        return value.toString();
-    }
-
     private int capScore(int score) {
         return Math.max(0, Math.min(100, score));
-    }
-
-    private String calculateStatus(int score) {
-        if (score >= 80) {
-            return "상 · 수요 급등 구간";
-        }
-
-        if (score >= 40) {
-            return "중 · 평시 운영 구간";
-        }
-
-        if (score >= 20) {
-            return "하 · 수요 둔화 구간";
-        }
-
-        return "마감 · 조기 마감 검토";
-    }
-
-    private String createMessage(int score) {
-        if (score >= 80) {
-            return "오늘은 배달 수요가 높을 가능성이 큽니다. 연장 영업과 재료 추가 준비를 고려하세요.";
-        }
-
-        if (score >= 40) {
-            return "평상시 영업을 유지하세요. 피크 시간대 주문 흐름을 지켜보세요.";
-        }
-
-        if (score >= 20) {
-            return "현재 수요가 낮은 편입니다. 식자재 선조리와 인력 운영을 보수적으로 가져가세요.";
-        }
-
-        return "기대 수요가 매우 낮습니다. 유지 비용을 고려해 조기 마감을 검토하세요.";
     }
 
     private void logTiming(String step, long startNanos, Long storeId) {

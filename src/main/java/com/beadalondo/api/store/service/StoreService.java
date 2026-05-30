@@ -1,12 +1,9 @@
 package com.beadalondo.api.store.service;
 import com.beadalondo.api.airquality.util.KoreanAddressParser;
-import com.beadalondo.api.location.calculator.Epsg5179ToWgs84Converter;
-import com.beadalondo.api.location.calculator.Wgs84ToWeatherGridConverter;
-import com.beadalondo.api.location.client.JusoCoordinateClient;
+import com.beadalondo.api.location.AddressCoordinateResolver;
 import com.beadalondo.api.location.dto.JusoAddressRequest;
-import com.beadalondo.api.location.dto.EntCoordinateResult;
 import com.beadalondo.api.location.dto.WeatherGridResult;
-import com.beadalondo.api.location.dto.Wgs84CoordinateResult;
+import com.beadalondo.api.store.factory.StoreFactory;
 import com.beadalondo.api.store.domain.Store;
 import com.beadalondo.api.store.dto.StoreRegisterRequest;
 import com.beadalondo.api.store.repository.StoreRepository;
@@ -21,21 +18,15 @@ import java.util.concurrent.ThreadLocalRandom;
 public class StoreService {
 
     private final StoreRepository storeRepository;
-    private final JusoCoordinateClient jusoCoordinateClient;
-    private final Epsg5179ToWgs84Converter epsg5179ToWgs84Converter;
-    private final Wgs84ToWeatherGridConverter wgs84ToWeatherGridConverter;
-    private final KoreanAddressParser koreanAddressParser;
+    private final AddressCoordinateResolver addressCoordinateResolver;
+    private final StoreFactory storeFactory;
 
     public StoreService(StoreRepository storeRepository,
-                        JusoCoordinateClient jusoCoordinateClient,
-                        Epsg5179ToWgs84Converter epsg5179ToWgs84Converter,
-                        Wgs84ToWeatherGridConverter wgs84ToWeatherGridConverter,
-                        KoreanAddressParser koreanAddressParser) {
+                        KoreanAddressParser koreanAddressParser,
+                        AddressCoordinateResolver addressCoordinateResolver, StoreFactory storeFactory) {
         this.storeRepository = storeRepository;
-        this.jusoCoordinateClient = jusoCoordinateClient;
-        this.epsg5179ToWgs84Converter = epsg5179ToWgs84Converter;
-        this.wgs84ToWeatherGridConverter = wgs84ToWeatherGridConverter;
-        this.koreanAddressParser = koreanAddressParser;
+        this.addressCoordinateResolver = addressCoordinateResolver;
+        this.storeFactory = storeFactory;
     }
 
     public Store registerStore(StoreRegisterRequest request) {
@@ -44,41 +35,10 @@ public class StoreService {
 
         JusoAddressRequest jusoAddress =  request.getJusoAddress();
 
-        EntCoordinateResult entCoordinate =
-                jusoCoordinateClient.getCoordinate(jusoAddress);
-
-        Wgs84CoordinateResult wgsCoordinate =
-                epsg5179ToWgs84Converter.epsg5179ToWgs84Converter(entCoordinate.getEntX(), entCoordinate.getEntY());
-
         WeatherGridResult weatherGridCoordinate =
-                wgs84ToWeatherGridConverter.wgs84ToWeatherGridConverter(wgsCoordinate.getWgsX(), wgsCoordinate.getWgsY());
+                addressCoordinateResolver.addressCoordinateResolver(jusoAddress);
 
-        Store store = new Store(
-                request.getName(),
-                request.getBusinessType(),
-
-                jusoAddress.getRoadFullAddr(),   // address: 대표 표시 주소
-                jusoAddress.getRoadAddrPart1(),  // roadAddress: 도로명주소
-                jusoAddress.getJibunAddr(),      // jibunAddress: 지번주소
-                jusoAddress.getAddrDetail(),
-                jusoAddress.getZipNo(),
-
-                koreanAddressParser.extractSidoName(jusoAddress.getSiNm()),
-                jusoAddress.getSggNm(),
-                jusoAddress.getEmdNm(),
-
-                jusoAddress.getAdmCd(),
-                jusoAddress.getRnMgtSn(),
-                jusoAddress.getBdMgtSn(),
-
-                jusoAddress.getRn(),
-                jusoAddress.getUdrtYn(),
-                jusoAddress.getBuldMnnm(),
-                jusoAddress.getBuldSlno(),
-
-                weatherGridCoordinate.getNx(),
-                weatherGridCoordinate.getNy()
-        );
+        Store store = storeFactory.storeCreate(request, weatherGridCoordinate);
 
         return storeRepository.save(store);
 

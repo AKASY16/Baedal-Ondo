@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class KoreanAddressParser {
 
-    public static String extractSidoName(String address) {
+    public String extractSidoName(String address) {
         String[] parts = split(address);
         String sido = parts[0];
 
