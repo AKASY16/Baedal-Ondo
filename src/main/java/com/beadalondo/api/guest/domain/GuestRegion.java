@@ -1,19 +1,15 @@
-package com.beadalondo.api.store.domain;
+package com.beadalondo.api.guest.domain;
 
-import com.beadalondo.api.user.domain.UserAccount;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 
 @Entity
-public class Store {
+public class GuestRegion {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    private String name; // 가게명
-    private String businessType; // 업종
 
     private String address; // 대표 표시 주소
     private String roadAddress; // 도로명주소
@@ -38,36 +34,29 @@ public class Store {
     private Integer nx; // 기상청 API 격자 X좌표
     private Integer ny; // 기상청 API 격자 Y좌표
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_account_id")
-    private UserAccount owner;
+    private Boolean active; // 게스트 모드에서 사용할 지역인지 여부
 
     private LocalDateTime createdAt; // 생성 시간
 
-    protected Store() {
-    }
+    protected GuestRegion() {}
 
-    public Store(String name,
-                 String businessType,
-                 String address,
-                 String roadAddress,
-                 String jibunAddress,
-                 String addressDetail,
-                 String postalCode,
-                 String sidoName,
-                 String sigunguName,
-                 String dongName,
-                 String addressRegionCode,
-                 String roadNameCode,
-                 String buildingManagementNumber,
-                 String roadName,
-                 String undergroundYn,
-                 String buildingMainNumber,
-                 String buildingSubNumber,
-                 Integer nx,
-                 Integer ny) {
-        this.name = name;
-        this.businessType = businessType;
+    public GuestRegion(String address,
+                       String roadAddress,
+                       String jibunAddress,
+                       String addressDetail,
+                       String postalCode,
+                       String sidoName,
+                       String sigunguName,
+                       String dongName,
+                       String addressRegionCode,
+                       String roadNameCode,
+                       String buildingManagementNumber,
+                       String roadName,
+                       String undergroundYn,
+                       String buildingMainNumber,
+                       String buildingSubNumber,
+                       Integer nx,
+                       Integer ny){
         this.address = address;
         this.roadAddress = roadAddress;
         this.jibunAddress = jibunAddress;
@@ -85,19 +74,20 @@ public class Store {
         this.buildingSubNumber = buildingSubNumber;
         this.nx = nx;
         this.ny = ny;
+        this.active = true;
+    }
+
+    @PrePersist
+    public void prePersist() {
         this.createdAt = LocalDateTime.now();
+
+        if (this.active == null) {
+            this.active = true;
+        }
     }
 
     public Long getId() {
         return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getBusinessType() {
-        return businessType;
     }
 
     public String getAddress() {
@@ -168,93 +158,81 @@ public class Store {
         return ny;
     }
 
-    public UserAccount getOwner() {
-        return owner;
+    public Boolean getActive() {
+        return active;
     }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setOwner(UserAccount owner) {
-        this.owner = owner;
+    public String setAddress() {
+        return address;
+    }
+
+    public String setRoadAddress() {
+        return roadAddress;
+    }
+
+    public String setJibunAddress() {
+        return jibunAddress;
+    }
+
+    public String setAddressDetail() {
+        return addressDetail;
+    }
+
+    public String setPostalCode() {
+        return postalCode;
+    }
+
+    public String setSidoName() {
+        return sidoName;
+    }
+
+    public String setSigunguName() {
+        return sigunguName;
+    }
+
+    public String setDongName(){
+        return dongName;
+    }
+
+    public String setAddressRegionCode() {
+        return addressRegionCode;
+    }
+
+    public String setRoadNameCode() {
+        return roadNameCode;
+    }
+
+    public String setBuildingManagementNumber() {
+        return buildingManagementNumber;
+    }
+
+    public String setRoadName(){
+        return roadName;
+    }
+
+    public String setUndergroundYn(){
+        return undergroundYn;
+    }
+
+    public String setBuildingMainNumber(){
+        return buildingMainNumber;
+    }
+
+    public String setBuildingSubNumber(){
+        return buildingSubNumber;
+    }
+
+    public String setNx(){
+        return String.valueOf(nx);
+    }
+
+    public String setNy(){
+        return String.valueOf(ny);
     }
 
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setBusinessType(String businessType) {
-        this.businessType = businessType;
-    }
-
-    public void setAddress(String address) {
-        this.address = address;
-    }
-
-    public void setRoadAddress(String roadAddress) {
-        this.roadAddress = roadAddress;
-    }
-
-    public void setJibunAddress(String jibunAddress) {
-        this.jibunAddress = jibunAddress;
-    }
-
-    public void setAddressDetail(String addressDetail) {
-        this.addressDetail = addressDetail;
-    }
-
-    public void setPostalCode(String postalCode) {
-        this.postalCode = postalCode;
-    }
-
-    public void setSidoName(String sidoName) {
-        this.sidoName = sidoName;
-    }
-
-    public void setSigunguName(String sigunguName) {
-        this.sigunguName = sigunguName;
-    }
-
-    public void setDongName(String dongName) {
-        this.dongName = dongName;
-    }
-
-    public void setAddressRegionCode(String addressRegionCode) {
-        this.addressRegionCode = addressRegionCode;
-    }
-
-    public void setRoadNameCode(String roadNameCode) {
-        this.roadNameCode = roadNameCode;
-    }
-
-    public void setBuildingManagementNumber(String buildingManagementNumber) {
-        this.buildingManagementNumber = buildingManagementNumber;
-    }
-
-    public void setRoadName(String roadName) {
-        this.roadName = roadName;
-    }
-
-    public void setUndergroundYn(String undergroundYn) {
-        this.undergroundYn = undergroundYn;
-    }
-
-    public void setBuildingMainNumber(String buildingMainNumber) {
-        this.buildingMainNumber = buildingMainNumber;
-    }
-
-    public void setBuildingSubNumber(String buildingSubNumber) {
-        this.buildingSubNumber = buildingSubNumber;
-    }
-
-    public void setNx(Integer nx) {
-        this.nx = nx;
-    }
-
-    public void setNy(Integer ny) {
-        this.ny = ny;
-    }
 }
-
