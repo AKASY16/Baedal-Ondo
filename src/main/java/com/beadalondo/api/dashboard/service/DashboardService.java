@@ -9,6 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class DashboardService {
 
@@ -50,6 +52,41 @@ public class DashboardService {
         } finally {
             logTiming("dashboardTotal", totalStart, storeId(store));
         }
+    }
+
+    public DashboardView getDashboardById(Long storeId) {
+        long totalStart = System.nanoTime();
+        Store store = null;
+
+        try {
+            long storeStart = System.nanoTime();
+            try {
+                store = storeService.getStoreById(storeId);
+            } finally {
+                logTiming("getCurrentStore", storeStart, storeId(store));
+            }
+
+            ScoreResult scoreResult;
+            long scoreStart = System.nanoTime();
+            try {
+                scoreResult = scoreService.calculateCurrentScore(store);
+            } finally {
+                logTiming("calculateCurrentScore", scoreStart, storeId(store));
+            }
+
+            long viewStart = System.nanoTime();
+            try {
+                return DashboardView.from(store, scoreResult);
+            } finally {
+                logTiming("dashboardView", viewStart, storeId(store));
+            }
+        } finally {
+            logTiming("dashboardTotal", totalStart, storeId(store));
+        }
+    }
+
+    public List<Store> getStores() {
+        return storeService.getStores();
     }
 
     private void logTiming(String step, long startNanos, Long storeId) {

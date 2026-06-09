@@ -4,7 +4,7 @@ import com.beadalondo.api.weather.domain.CurrentWeatherObservation;
 import com.beadalondo.api.weather.domain.WeatherScoreResult;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class CurrentWeatherWeightCalculatorTest {
 

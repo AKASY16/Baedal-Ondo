@@ -49,6 +49,7 @@ public class HolidayService {
         LocalDate endDate = LocalDate.of(year, 12, 31);
 
         holidayRepository.deleteByDateBetween(startDate, endDate);
+        holidayRepository.flush();
 
         Map<LocalDate, Holiday> holidaysByDate = new LinkedHashMap<>();
         for (int month = 1; month <= 12; month++) {
@@ -67,6 +68,7 @@ public class HolidayService {
         LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
 
         holidayRepository.deleteByDateBetween(startDate, endDate);
+        holidayRepository.flush();
 
         List<Holiday> holidays = holidayClient.fetchHolidays(year, month);
         Map<LocalDate, Holiday> holidaysByDate = new LinkedHashMap<>();

@@ -44,6 +44,56 @@
             margin-bottom: 22px;
         }
 
+        .store-picker {
+            display: grid;
+            justify-items: start;
+            gap: 6px;
+            margin-bottom: 14px;
+        }
+
+        .store-picker label {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .store-select {
+            min-width: 132px;
+            min-height: 34px;
+            padding: 6px 28px 6px 10px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: #20211f;
+            color: var(--text);
+            font: inherit;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0;
+        }
+
+        .debug-toggle {
+            min-height: 32px;
+            padding: 6px 10px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: transparent;
+            color: var(--muted-strong);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0;
+            cursor: pointer;
+        }
+
+        .debug-toggle:hover {
+            border-color: rgba(255, 255, 255, 0.28);
+            color: #ffffff;
+        }
+
+        .debug-hidden {
+            display: none;
+        }
+
         .location {
             display: flex;
             align-items: center;
@@ -340,6 +390,16 @@
 <body>
 <main class="page" aria-label="배달온도 대시보드">
     <header class="store-header">
+        <div class="store-picker" th:if="${stores != null}">
+            <label for="store-select">Store ID</label>
+            <select id="store-select" class="store-select" aria-label="Store ID 선택">
+                <option th:each="store : ${stores}"
+                        th:value="${store.id}"
+                        th:selected="${store.id == selectedStoreId}"
+                        th:text="|Store ID ${store.id}|">Store ID 1</option>
+            </select>
+        </div>
+        <button id="debug-toggle" class="debug-toggle" type="button" aria-expanded="false">Debug</button>
         <div class="location">
             <span class="pin"></span>
             <span th:text="${dashboard.store.sigunguName}">송파구</span>
@@ -422,7 +482,7 @@
                       th:text="${dashboard.airQualityFactor}"
                       th:classappend="${#strings.contains(dashboard.airQualityFactor, '↑') ? ' up' : (#strings.contains(dashboard.airQualityFactor, '↓') ? ' down' : '')}">↓</span>
             </li>
-            <div class="store-debug-box">
+            <div class="store-debug-box debug-hidden">
                 <h3>Store Debug Info</h3>
                 <div>
                     <span>ID: </span>
@@ -529,7 +589,7 @@
                     <span th:text="${dashboard.store.createdAt}">생성 시간</span>
                 </div>
             </div>
-            <div class="store-debug-box">
+            <div class="store-debug-box debug-hidden">
                 <h3>Air Quality Detail</h3>
                 <div>
                     <span>DETAIL: </span>
@@ -539,5 +599,33 @@
         </ul>
     </section>
 </main>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const storeSelect = document.getElementById("store-select");
+        const debugToggle = document.getElementById("debug-toggle");
+        const debugBoxes = document.querySelectorAll(".store-debug-box");
+
+        if (debugToggle) {
+            debugToggle.addEventListener("click", function () {
+                const shouldShow = this.getAttribute("aria-expanded") !== "true";
+
+                debugBoxes.forEach(function (debugBox) {
+                    debugBox.classList.toggle("debug-hidden", !shouldShow);
+                });
+
+                this.setAttribute("aria-expanded", String(shouldShow));
+                this.textContent = shouldShow ? "Hide Debug" : "Debug";
+            });
+        }
+
+        if (storeSelect) {
+            storeSelect.addEventListener("change", function () {
+                if (this.value) {
+                    window.location.href = "/dashboard/main/" + encodeURIComponent(this.value);
+                }
+            });
+        }
+    });
+</script>
 </body>
 </html>

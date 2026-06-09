@@ -7,6 +7,7 @@ import com.beadalondo.api.store.factory.StoreFactory;
 import com.beadalondo.api.store.domain.Store;
 import com.beadalondo.api.store.dto.StoreRegisterRequest;
 import com.beadalondo.api.store.repository.StoreRepository;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,6 +58,18 @@ public class StoreService {
         int randomIndex = ThreadLocalRandom.current().nextInt(stores.size());
 
         return stores.get(randomIndex);
+    }
+
+    @Transactional(readOnly = true)
+    public Store getStoreById(Long id) {
+        return storeRepository.findById(id)
+                .orElseThrow(() -> new IllegalStateException("등록된 가게가 없습니다."));
+    }
+
+
+    @Transactional(readOnly = true)
+    public List<Store> getStores() {
+        return storeRepository.findAll(Sort.by(Sort.Direction.ASC, "id"));
     }
 
 
