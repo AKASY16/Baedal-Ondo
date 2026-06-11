@@ -4,6 +4,7 @@ import com.beadalondo.api.dashboard.dto.DashboardView;
 import com.beadalondo.api.guest.domain.GuestRegion;
 import com.beadalondo.api.guest.service.GuestRegionService;
 import com.beadalondo.api.score.ScoreResult;
+import com.beadalondo.api.score.dto.ScoreTarget;
 import com.beadalondo.api.score.service.ScoreService;
 import com.beadalondo.api.store.domain.Store;
 import com.beadalondo.api.store.service.StoreService;
@@ -32,14 +33,24 @@ public class DashboardService {
         long totalStart = System.nanoTime();
         Store guestStore = null;
 
+        // 게스트 지역은 화면 표시를 위해 각 구청 데이터를 임시 Store로 변환하고,
+        // 점수 계산에는 ScoreTarget을 사용한다.
+
         try {
             GuestRegion region = guestRegionService.getGuestRegion(guestRegionId);
             guestStore = createGuestStore(region);
+            ScoreTarget scoreTarget = new ScoreTarget(
+                    region.getId(),
+                    region.getSidoName(),
+                    region.getSigunguName(),
+                    region.getNx(),
+                    region.getNy()
+            );
 
             ScoreResult scoreResult;
             long scoreStart = System.nanoTime();
             try {
-                scoreResult = scoreService.calculateCurrentScore(guestStore);
+                scoreResult = scoreService.calculateCurrentScore(scoreTarget);
             } finally {
                 logTiming("calculateGuestScore", scoreStart, guestRegionId);
             }
@@ -55,11 +66,19 @@ public class DashboardService {
     public DashboardView getDashboard() {
         long totalStart = System.nanoTime();
         Store store = null;
+        ScoreTarget scoreTarget = null;
 
         try {
             long storeStart = System.nanoTime();
             try {
                 store = storeService.getCurrentStore();
+                scoreTarget = new ScoreTarget(
+                        store.getId(),
+                        store.getSidoName(),
+                        store.getSigunguName(),
+                        store.getNx(),
+                        store.getNy()
+                );
             } finally {
                 logTiming("getCurrentStore", storeStart, storeId(store));
             }
@@ -67,7 +86,7 @@ public class DashboardService {
             ScoreResult scoreResult;
             long scoreStart = System.nanoTime();
             try {
-                scoreResult = scoreService.calculateCurrentScore(store);
+                scoreResult = scoreService.calculateCurrentScore(scoreTarget);
             } finally {
                 logTiming("calculateCurrentScore", scoreStart, storeId(store));
             }
@@ -86,11 +105,19 @@ public class DashboardService {
     public DashboardView getDashboardById(Long storeId) {
         long totalStart = System.nanoTime();
         Store store = null;
+        ScoreTarget scoreTarget = null;
 
         try {
             long storeStart = System.nanoTime();
             try {
                 store = storeService.getStoreById(storeId);
+                scoreTarget = new ScoreTarget(
+                        store.getId(),
+                        store.getSidoName(),
+                        store.getSigunguName(),
+                        store.getNx(),
+                        store.getNy()
+                );
             } finally {
                 logTiming("getCurrentStore", storeStart, storeId(store));
             }
@@ -98,7 +125,7 @@ public class DashboardService {
             ScoreResult scoreResult;
             long scoreStart = System.nanoTime();
             try {
-                scoreResult = scoreService.calculateCurrentScore(store);
+                scoreResult = scoreService.calculateCurrentScore(scoreTarget);
             } finally {
                 logTiming("calculateCurrentScore", scoreStart, storeId(store));
             }

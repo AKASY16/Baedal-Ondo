@@ -1,7 +1,7 @@
 package com.beadalondo.api.weather.service;
 
 import com.beadalondo.api.score.calculator.KmaTimeCalculator;
-import com.beadalondo.api.store.domain.Store;
+import com.beadalondo.api.score.dto.ScoreTarget;
 import com.beadalondo.api.weather.domain.CurrentWeatherObservation;
 import com.beadalondo.api.weather.client.KmaCurrentWeatherClient;
 import com.beadalondo.api.weather.domain.CurrentWeatherRecord;
@@ -29,28 +29,28 @@ public class CurrentWeatherService {
         this.currentWeatherRecordRepository = currentWeatherRecordRepository;
     }
 
-    public CurrentWeatherObservation getCurrentWeather(Store store) {
+    public CurrentWeatherObservation getCurrentWeather(ScoreTarget scoreTarget) {
         long totalStart = System.nanoTime();
-        Long storeId = storeId(store);
+        Long scoreTargetId = scoreTargetId(scoreTarget);
 
         try {
-        if (store == null) {
+        if (scoreTarget == null) {
             throw new IllegalArgumentException("가게 정보가 없습니다.");
         }
 
-        if (store.getNx() == null || store.getNy() == null) {
+        if (scoreTarget.getNx() == null || scoreTarget.getNy() == null) {
             throw new IllegalStateException("가게의 기상청 격자 좌표가 없습니다.");
         }
 
-        int nx = store.getNx();
-        int ny = store.getNy();
+        int nx = scoreTarget.getNx();
+        int ny = scoreTarget.getNy();
 
         LocalDateTime baseDateTime;
         long baseTimeStart = System.nanoTime();
         try {
             baseDateTime = kmaTimeCalculator.getSafeBaseDateTime();
         } finally {
-            logTiming("weatherBaseTime", baseTimeStart, storeId);
+            logTiming("weatherBaseTime", baseTimeStart, scoreTargetId);
         }
 
         String baseDate = baseDateTime.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
@@ -75,7 +75,7 @@ public class CurrentWeatherService {
         try {
             savedWeather = currentWeatherRecordRepository.findByNxAndNyAndBaseDateAndBaseTime(nx, ny, baseDate, baseTime);
         } finally {
-            logTiming("weatherDbLookup", dbLookupStart, storeId);
+            logTiming("weatherDbLookup", dbLookupStart, scoreTargetId);
         }
 
         if (savedWeather.isPresent()) {
@@ -94,7 +94,7 @@ public class CurrentWeatherService {
                     baseTime
             );
         } finally {
-            logTiming("weatherApi", apiStart, storeId);
+            logTiming("weatherApi", apiStart, scoreTargetId);
         }
 
         CurrentWeatherRecord record = CurrentWeatherRecord.from(
@@ -112,7 +112,7 @@ public class CurrentWeatherService {
         try {
             currentWeatherRecordRepository.save(record);
         } finally {
-            logTiming("weatherDbSave", dbSaveStart, storeId);
+            logTiming("weatherDbSave", dbSaveStart, scoreTargetId);
         }
 
         log.info("현재 날씨 데이터 저장 완료: nx={}, ny={}, baseDate={}, baseTime={}",
@@ -120,7 +120,7 @@ public class CurrentWeatherService {
 
         return weather;
         } finally {
-            logTiming("weatherTotal", totalStart, storeId);
+            logTiming("weatherTotal", totalStart, scoreTargetId);
         }
     }
 
@@ -135,8 +135,8 @@ public class CurrentWeatherService {
         return (System.nanoTime() - startNanos) / 1_000_000;
     }
 
-    private Long storeId(Store store) {
-        return store == null ? null : store.getId();
+    private Long scoreTargetId(ScoreTarget scoreTarget) {
+        return scoreTarget == null ? null : scoreTarget.getId();
     }
 
     private static final Logger log = LoggerFactory.getLogger(CurrentWeatherService.class);

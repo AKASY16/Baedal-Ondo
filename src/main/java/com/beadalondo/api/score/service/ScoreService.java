@@ -5,13 +5,13 @@ import com.beadalondo.api.airquality.domain.CurrentAirQualityObservation;
 import com.beadalondo.api.airquality.exception.AirKoreaApiException;
 import com.beadalondo.api.airquality.service.CurrentAirQualityService;
 import com.beadalondo.api.holiday.service.HolidayService;
+import com.beadalondo.api.score.dto.ScoreTarget;
 import com.beadalondo.api.score.factory.ScoreMessageFactory;
 import com.beadalondo.api.score.ScoreResult;
 import com.beadalondo.api.score.calculator.DayWeightCalculator;
 import com.beadalondo.api.score.status.DayDemandLevel;
 import com.beadalondo.api.score.status.TimeDemandLevel;
 import com.beadalondo.api.score.calculator.TimeWeightCalculator;
-import com.beadalondo.api.store.domain.Store;
 import com.beadalondo.api.weather.calculator.CurrentWeatherWeightCalculator;
 import com.beadalondo.api.weather.domain.CurrentWeatherObservation;
 import com.beadalondo.api.weather.domain.WeatherScoreResult;
@@ -56,9 +56,9 @@ public class ScoreService {
     }
 
 
-    public ScoreResult calculateCurrentScore(Store store) {
+    public ScoreResult calculateCurrentScore(ScoreTarget scoreTarget) {
         long totalStart = System.nanoTime();
-        Long storeId = storeId(store);
+        Long scoreTargetId = scoreTargetId(scoreTarget);
 
         try {
             int baseScore = 40;
@@ -73,37 +73,37 @@ public class ScoreService {
             try {
                 LocalDate currentDate = LocalDate.now();
                 timeDemandLevel = timeWeightCalculator.calculate(LocalTime.now());
-                dayDemandLevel = dayWeightCalculator.calculate(currentDate, isHoliday(currentDate, storeId));
+                dayDemandLevel = dayWeightCalculator.calculate(currentDate, isHoliday(currentDate, scoreTargetId));
             } finally {
-                logTiming("baseScore", baseStart, storeId);
+                logTiming("baseScore", baseStart, scoreTargetId);
             }
 
             WeatherScoreResult weatherScoreResult;
             long weatherStart = System.nanoTime();
             try {
-                CurrentWeatherObservation weather = currentWeatherService.getCurrentWeather(store);
+                CurrentWeatherObservation weather = currentWeatherService.getCurrentWeather(scoreTarget);
                 weatherScoreResult = currentWeatherWeightCalculator.calculate(weather);
             } catch (KmaWeatherApiException e) {
-                log.warn("기상청 API 에러. 날씨 보정 점수를 제외합니다. storeId={}", storeId, e);
+                log.warn("기상청 API 에러. 날씨 보정 점수를 제외합니다. storeId={}", scoreTargetId, e);
                 weatherScoreResult = new WeatherScoreResult(
                         0,
                         List.of("날씨 정보 없음"),
                         "날씨 정보 없음"
                 );
             } finally {
-                logTiming("weatherScore", weatherStart, storeId);
+                logTiming("weatherScore", weatherStart, scoreTargetId);
             }
 
             long airQualityStart = System.nanoTime();
             try {
-                CurrentAirQualityObservation airQuality = currentAirQualityService.getCurrentAirQuality(store);
+                CurrentAirQualityObservation airQuality = currentAirQualityService.getCurrentAirQuality(scoreTarget);
                 airQualityScore = airQualityCalculator.getWeight(airQuality);
                 airQualityFactor = scoreMessageFactory.createAirQualityFactor(airQualityScore);
                 airQualityDetail = scoreMessageFactory.createAirQualityDetail(airQuality);
             } catch (AirKoreaApiException | IllegalStateException | IllegalArgumentException e) {
-                log.warn("공기질 데이터 처리 실패. 공기질 보정 점수를 제외합니다. storeId={}", storeId, e);
+                log.warn("공기질 데이터 처리 실패. 공기질 보정 점수를 제외합니다. storeId={}", scoreTargetId, e);
             } finally {
-                logTiming("airQualityScore", airQualityStart, storeId);
+                logTiming("airQualityScore", airQualityStart, scoreTargetId);
             }
 
             long assemblyStart = System.nanoTime();
@@ -141,22 +141,22 @@ public class ScoreService {
                         airQualityDetail
                         );
             } finally {
-                logTiming("scoreAssembly", assemblyStart, storeId);
+                logTiming("scoreAssembly", assemblyStart, scoreTargetId);
             }
         } finally {
-            logTiming("scoreTotal", totalStart, storeId);
+            logTiming("scoreTotal", totalStart, scoreTargetId);
         }
     }
 
 
 
-    private boolean isHoliday(LocalDate date, Long storeId) {
+    private boolean isHoliday(LocalDate date, Long scoreTargetId) {
         try {
             return holidayService.isHoliday(date);
         } catch (RuntimeException e) {
             log.warn("공휴일 데이터 처리 실패. 기존 요일 기준으로 점수를 계산합니다. date={}, storeId={}",
                     date,
-                    storeId,
+                    scoreTargetId,
                     e);
             return false;
         }
@@ -166,19 +166,19 @@ public class ScoreService {
         return Math.max(0, Math.min(100, score));
     }
 
-    private void logTiming(String step, long startNanos, Long storeId) {
+    private void logTiming(String step, long startNanos, Long scoreTargetId) {
         log.info("dashboard timing step={} elapsedMs={} storeId={}",
                 step,
                 elapsedMs(startNanos),
-                storeId);
+                scoreTargetId);
     }
 
     private long elapsedMs(long startNanos) {
         return (System.nanoTime() - startNanos) / 1_000_000;
     }
 
-    private Long storeId(Store store) {
-        return store == null ? null : store.getId();
+    private Long scoreTargetId(ScoreTarget scoreTarget) {
+        return scoreTarget == null ? null : scoreTarget.getId();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ScoreService.class);

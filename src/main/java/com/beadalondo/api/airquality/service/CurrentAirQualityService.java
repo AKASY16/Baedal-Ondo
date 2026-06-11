@@ -5,7 +5,7 @@ import com.beadalondo.api.airquality.client.AirKoreaCurrentAirQualityClient;
 import com.beadalondo.api.airquality.domain.CurrentAirQualityObservation;
 import com.beadalondo.api.airquality.domain.CurrentAirQualityRecord;
 import com.beadalondo.api.airquality.repository.CurrentAirQualityRecordRepository;
-import com.beadalondo.api.store.domain.Store;
+import com.beadalondo.api.score.dto.ScoreTarget;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -30,19 +30,19 @@ public class CurrentAirQualityService {
         this.currentAirQualityRecordRepository = currentAirQualityRecordRepository;
     }
 
-    public CurrentAirQualityObservation getCurrentAirQuality(Store store) {
+    public CurrentAirQualityObservation getCurrentAirQuality(ScoreTarget scoreTarget) {
 
-        if (store == null) {
+        if (scoreTarget == null) {
             throw new IllegalArgumentException("가게 정보가 없습니다.");
         }
 
-        if(store.getSidoName()==null || store.getSigunguName()==null){
+        if(scoreTarget.getSidoName()==null || scoreTarget.getSigunguName()==null){
             throw new IllegalArgumentException("가게 주소 정보가 없습니다.");
         }
 
         LocalDateTime baseTimeData = airQualityCalculator.getSafeAirQualityBaseTime();
-        String sidoName = store.getSidoName();
-        String sigunguName = store.getSigunguName();
+        String sidoName = scoreTarget.getSidoName();
+        String sigunguName = scoreTarget.getSigunguName();
 
         Optional<CurrentAirQualityRecord> savedAirQuality =
                 currentAirQualityRecordRepository.findTopBySidoNameAndDistrictNameOrderByMeasuredAtDescCreatedAtDesc(
