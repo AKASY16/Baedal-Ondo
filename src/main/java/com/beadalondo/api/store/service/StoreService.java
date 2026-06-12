@@ -1,5 +1,6 @@
 package com.beadalondo.api.store.service;
 import com.beadalondo.api.airquality.util.KoreanAddressParser;
+import com.beadalondo.api.auth.service.CurrentUserService;
 import com.beadalondo.api.location.AddressCoordinateResolver;
 import com.beadalondo.api.location.dto.JusoAddressRequest;
 import com.beadalondo.api.location.dto.WeatherGridResult;
@@ -7,11 +8,13 @@ import com.beadalondo.api.store.factory.StoreFactory;
 import com.beadalondo.api.store.domain.Store;
 import com.beadalondo.api.store.dto.StoreRegisterRequest;
 import com.beadalondo.api.store.repository.StoreRepository;
+import com.beadalondo.api.user.domain.UserAccount;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
@@ -21,13 +24,16 @@ public class StoreService {
     private final StoreRepository storeRepository;
     private final AddressCoordinateResolver addressCoordinateResolver;
     private final StoreFactory storeFactory;
+    private final CurrentUserService currentUserService;
 
     public StoreService(StoreRepository storeRepository,
-                        KoreanAddressParser koreanAddressParser,
-                        AddressCoordinateResolver addressCoordinateResolver, StoreFactory storeFactory) {
+                        AddressCoordinateResolver addressCoordinateResolver,
+                        StoreFactory storeFactory,
+                        CurrentUserService currentUserService) {
         this.storeRepository = storeRepository;
         this.addressCoordinateResolver = addressCoordinateResolver;
         this.storeFactory = storeFactory;
+        this.currentUserService = currentUserService;
     }
 
     public Store registerStore(StoreRegisterRequest request) {
@@ -61,9 +67,12 @@ public class StoreService {
     }
 
     @Transactional(readOnly = true)
-    public Store getStoreById(Long id) {
-        return storeRepository.findById(id)
-                .orElseThrow(() -> new IllegalStateException("등록된 가게가 없습니다."));
+    public Store getCurrentUserStoreById(Long storeId) {
+
+        Long currentUserAccountId = currentUserService.getCurrentUserAccountId();
+
+        return storeRepository.findByIdAndOwnerId(storeId, currentUserAccountId)
+                .orElseThrow(() -> new IllegalArgumentException("접근할 수 없는 가게입니다."));
     }
 
 

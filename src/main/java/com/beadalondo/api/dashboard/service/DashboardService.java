@@ -31,21 +31,14 @@ public class DashboardService {
 
     public DashboardView getGuestDashboard(Long guestRegionId) {
         long totalStart = System.nanoTime();
-        Store guestStore = null;
 
         // 게스트 지역은 화면 표시를 위해 각 구청 데이터를 임시 Store로 변환하고,
         // 점수 계산에는 ScoreTarget을 사용한다.
 
         try {
             GuestRegion region = guestRegionService.getGuestRegion(guestRegionId);
-            guestStore = createGuestStore(region);
-            ScoreTarget scoreTarget = new ScoreTarget(
-                    region.getId(),
-                    region.getSidoName(),
-                    region.getSigunguName(),
-                    region.getNx(),
-                    region.getNy()
-            );
+            Store guestStore = createGuestStore(region);
+            ScoreTarget scoreTarget = ScoreTarget.from(region);
 
             ScoreResult scoreResult;
             long scoreStart = System.nanoTime();
@@ -72,19 +65,14 @@ public class DashboardService {
             long storeStart = System.nanoTime();
             try {
                 store = storeService.getCurrentStore();
-                scoreTarget = new ScoreTarget(
-                        store.getId(),
-                        store.getSidoName(),
-                        store.getSigunguName(),
-                        store.getNx(),
-                        store.getNy()
-                );
+                scoreTarget = ScoreTarget.from(store);
             } finally {
                 logTiming("getCurrentStore", storeStart, storeId(store));
             }
 
             ScoreResult scoreResult;
             long scoreStart = System.nanoTime();
+
             try {
                 scoreResult = scoreService.calculateCurrentScore(scoreTarget);
             } finally {
@@ -110,14 +98,8 @@ public class DashboardService {
         try {
             long storeStart = System.nanoTime();
             try {
-                store = storeService.getStoreById(storeId);
-                scoreTarget = new ScoreTarget(
-                        store.getId(),
-                        store.getSidoName(),
-                        store.getSigunguName(),
-                        store.getNx(),
-                        store.getNy()
-                );
+                store = storeService.getCurrentUserStoreById(storeId);
+                scoreTarget = ScoreTarget.from(store);
             } finally {
                 logTiming("getCurrentStore", storeStart, storeId(store));
             }

@@ -1,5 +1,8 @@
 package com.beadalondo.api.score.dto;
 
+import com.beadalondo.api.guest.domain.GuestRegion;
+import com.beadalondo.api.store.domain.Store;
+
 public class ScoreTarget {
 
     private final Long id;
@@ -39,4 +42,31 @@ public class ScoreTarget {
     public Integer getNy() {
         return ny;
     }
+
+
+    public static ScoreTarget from(Store store) {
+        return new ScoreTarget(
+                store.getId(),
+                store.getSidoName(),
+                store.getSigunguName(),
+                store.getNx(),
+                store.getNy()
+        );
+    }
+
+    public static ScoreTarget from(GuestRegion region) {
+        return new ScoreTarget(
+                region.getId(),
+                region.getSidoName(),
+                region.getSigunguName(),
+                region.getNx(),
+                region.getNy()
+        );
+    }
+
+
+
+
+
+
 }
