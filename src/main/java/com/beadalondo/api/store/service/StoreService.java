@@ -9,6 +9,7 @@ import com.beadalondo.api.store.domain.Store;
 import com.beadalondo.api.store.dto.StoreRegisterRequest;
 import com.beadalondo.api.store.repository.StoreRepository;
 import com.beadalondo.api.user.domain.UserAccount;
+import com.beadalondo.api.user.repository.UserAccountRepository;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,15 +26,18 @@ public class StoreService {
     private final AddressCoordinateResolver addressCoordinateResolver;
     private final StoreFactory storeFactory;
     private final CurrentUserService currentUserService;
+    private final UserAccountRepository userAccountRepository;
 
     public StoreService(StoreRepository storeRepository,
                         AddressCoordinateResolver addressCoordinateResolver,
                         StoreFactory storeFactory,
-                        CurrentUserService currentUserService) {
+                        CurrentUserService currentUserService,
+                        UserAccountRepository userAccountRepository) {
         this.storeRepository = storeRepository;
         this.addressCoordinateResolver = addressCoordinateResolver;
         this.storeFactory = storeFactory;
         this.currentUserService = currentUserService;
+        this.userAccountRepository = userAccountRepository;
     }
 
     public Store registerStore(StoreRegisterRequest request) {
@@ -47,23 +51,15 @@ public class StoreService {
 
         Store store = storeFactory.storeCreate(request, weatherGridCoordinate);
 
+        Long currentUserAccountId = currentUserService.getCurrentUserAccountId();
+
+        UserAccount owner = userAccountRepository.findById(currentUserAccountId)
+                .orElseThrow(() -> new IllegalStateException("로그인 사용자를 찾을 수 없습니다."));
+
+        store.setOwner(owner);
+
         return storeRepository.save(store);
 
-    }
-
-    @Transactional(readOnly = true)
-    public Store getCurrentStore() {
-        // TODO: 추후, 로그인 한 사람의 가게 정보를 반환해주는 메서드로 변경
-        //  현재는 테스트용으로 DB에 등록된 가게 중 랜덤 1개 반환
-        List<Store> stores = storeRepository.findAll();
-
-        if (stores.isEmpty()) {
-            throw new IllegalStateException("등록된 가게가 없습니다.");
-        }
-
-        int randomIndex = ThreadLocalRandom.current().nextInt(stores.size());
-
-        return stores.get(randomIndex);
     }
 
     @Transactional(readOnly = true)
@@ -79,6 +75,12 @@ public class StoreService {
     @Transactional(readOnly = true)
     public List<Store> getStores() {
         return storeRepository.findAll(Sort.by(Sort.Direction.ASC, "id"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<Store> getCurrentLoginUserStores() {
+        Long currentUserAccountId = currentUserService.getCurrentUserAccountId();
+        return storeRepository.findByOwnerIdOrderByIdAsc(currentUserAccountId);
     }
 
 

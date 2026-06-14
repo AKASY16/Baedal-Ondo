@@ -77,8 +77,9 @@ public class DashboardController {
 
     private void addDashboardModel(Model model, DashboardView dashboard, Principal principal) {
         model.addAttribute("dashboard", dashboard);
-        model.addAttribute("stores", dashboardService.getStores());
-        model.addAttribute("selectedStoreId", dashboard.getStore().getId());
+        model.addAttribute("stores", dashboardService.getCurrentUserStores());
+        model.addAttribute("selectedStoreId",
+                dashboard.getStore() == null ? null : dashboard.getStore().getId());
         model.addAttribute("authenticated", principal != null);
     }
 
@@ -86,7 +87,11 @@ public class DashboardController {
         Object selectedStoreId = session.getAttribute(SELECTED_STORE_ID_SESSION_KEY);
 
         if (selectedStoreId instanceof Long storeId) {
-            return dashboardService.getDashboardById(storeId);
+            try {
+                return dashboardService.getDashboardById(storeId);
+            } catch (IllegalArgumentException e) {
+                session.removeAttribute(SELECTED_STORE_ID_SESSION_KEY);
+            }
         }
 
         return dashboardService.getDashboard();

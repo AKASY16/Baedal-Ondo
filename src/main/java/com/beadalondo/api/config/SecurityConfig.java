@@ -23,8 +23,6 @@ public class SecurityConfig {
                                 "/testingpage/**",
                                 "/api/guest-regions",
                                 "/api/guest-regions/**",
-                                "/store/register",
-                                "/store/register/**",
                                 "/css/**",
                                 "/js/**",
                                 "/images/**",

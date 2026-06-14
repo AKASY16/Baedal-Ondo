@@ -59,12 +59,21 @@ public class DashboardService {
     public DashboardView getDashboard() {
         long totalStart = System.nanoTime();
         Store store = null;
+        List<Store> storeList = null;
         ScoreTarget scoreTarget = null;
 
         try {
             long storeStart = System.nanoTime();
+
             try {
-                store = storeService.getCurrentStore();
+                storeList = storeService.getCurrentLoginUserStores();
+
+                if(storeList.isEmpty()){
+                    return getGuestFallbackDashboard();
+                }
+
+                store = storeList.get(0);
+
                 scoreTarget = ScoreTarget.from(store);
             } finally {
                 logTiming("getCurrentStore", storeStart, storeId(store));
@@ -125,6 +134,10 @@ public class DashboardService {
 
     public List<Store> getStores() {
         return storeService.getStores();
+    }
+
+    public List<Store> getCurrentUserStores() {
+        return storeService.getCurrentLoginUserStores();
     }
 
     private Store createGuestStore(GuestRegion region) {
@@ -226,6 +239,11 @@ public class DashboardService {
 
     private Long storeId(Store store) {
         return store == null ? null : store.getId();
+    }
+
+    private DashboardView getGuestFallbackDashboard() {
+        GuestRegion region = guestRegionService.getRandomSeoulRegion();
+        return getGuestDashboard(region.getId());
     }
 
     private static final Logger log = LoggerFactory.getLogger(DashboardService.class);

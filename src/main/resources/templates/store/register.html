@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
     <title>Store 등록</title>
     <style>
         :root {
@@ -524,9 +526,7 @@
 
         fetch("/api/stores", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
+            headers: createJsonHeaders(),
             body: JSON.stringify(payload)
         })
             .then(async function (response) {
@@ -540,13 +540,27 @@
             .then(function (storeId) {
                 alert("가게 등록이 완료되었습니다. storeId=" + storeId);
 
-                // 원하면 등록 후 대시보드로 이동
-                // window.location.href = "/dashboard/main";
+                // 등록한 매장을 선택한 대시보드로 이동
+                window.location.href = "/dashboard/main/" + encodeURIComponent(storeId);
             })
             .catch(function (error) {
                 console.error(error);
                 alert(error.message);
             });
+    }
+
+    function createJsonHeaders() {
+        const headers = {
+            "Content-Type": "application/json"
+        };
+        const csrfToken = document.querySelector("meta[name='_csrf']")?.content;
+        const csrfHeader = document.querySelector("meta[name='_csrf_header']")?.content;
+
+        if (csrfToken && csrfHeader) {
+            headers[csrfHeader] = csrfToken;
+        }
+
+        return headers;
     }
 
     function printPayload(payload) {

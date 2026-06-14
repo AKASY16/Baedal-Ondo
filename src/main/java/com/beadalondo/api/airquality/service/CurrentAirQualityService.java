@@ -5,6 +5,7 @@ import com.beadalondo.api.airquality.client.AirKoreaCurrentAirQualityClient;
 import com.beadalondo.api.airquality.domain.CurrentAirQualityObservation;
 import com.beadalondo.api.airquality.domain.CurrentAirQualityRecord;
 import com.beadalondo.api.airquality.repository.CurrentAirQualityRecordRepository;
+import com.beadalondo.api.airquality.util.KoreanAddressParser;
 import com.beadalondo.api.score.dto.ScoreTarget;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,13 +22,16 @@ public class CurrentAirQualityService {
     private final AirKoreaCurrentAirQualityClient airKoreaCurrentAirQualityClient;
     private final AirQualityCalculator airQualityCalculator;
     private final CurrentAirQualityRecordRepository currentAirQualityRecordRepository;
+    private final KoreanAddressParser koreanAddressParser;
 
     public CurrentAirQualityService(AirKoreaCurrentAirQualityClient airKoreaCurrentAirQualityClient,
                                     AirQualityCalculator airQualityCalculator,
-                                    CurrentAirQualityRecordRepository currentAirQualityRecordRepository) {
+                                    CurrentAirQualityRecordRepository currentAirQualityRecordRepository,
+                                    KoreanAddressParser koreanAddressParser) {
         this.airKoreaCurrentAirQualityClient = airKoreaCurrentAirQualityClient;
         this.airQualityCalculator = airQualityCalculator;
         this.currentAirQualityRecordRepository = currentAirQualityRecordRepository;
+        this.koreanAddressParser = koreanAddressParser;
     }
 
     public CurrentAirQualityObservation getCurrentAirQuality(ScoreTarget scoreTarget) {
@@ -41,7 +45,7 @@ public class CurrentAirQualityService {
         }
 
         LocalDateTime baseTimeData = airQualityCalculator.getSafeAirQualityBaseTime();
-        String sidoName = scoreTarget.getSidoName();
+        String sidoName = koreanAddressParser.extractSidoName(scoreTarget.getSidoName());
         String sigunguName = scoreTarget.getSigunguName();
 
         Optional<CurrentAirQualityRecord> savedAirQuality =
