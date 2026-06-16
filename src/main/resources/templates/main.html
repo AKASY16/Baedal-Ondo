@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BeadalOndo</title>
+    <link rel="icon" href="/images/beadal-ondo-icon.svg" type="image/svg+xml">
     <style>
         :root {
             --bg: #f6f7f9;
@@ -48,9 +49,36 @@
         }
 
         .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 11px;
             margin: 0 0 36px;
-            font-size: 24px;
+            color: #ffffff;
+            text-decoration: none;
+        }
+
+        .brand-icon {
+            width: 40px;
+            height: 40px;
+            flex: 0 0 auto;
+        }
+
+        .brand-copy {
+            display: grid;
+            gap: 1px;
+        }
+
+        .brand-name {
+            font-size: 21px;
             font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .brand-subtitle {
+            color: #cbd5e1;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.2;
         }
 
         .nav {
@@ -387,11 +415,18 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="/css/common.css">
 </head>
 <body>
 <div class="layout">
     <aside class="sidebar">
-        <h1 class="brand">BeadalOndo</h1>
+        <a class="brand" href="/" aria-label="배달온도 홈">
+            <img class="brand-icon" src="/images/beadal-ondo-icon.svg" alt="">
+            <span class="brand-copy">
+                <span class="brand-name">배달온도</span>
+                <span class="brand-subtitle">Beadal Ondo</span>
+            </span>
+        </a>
         <nav class="nav" aria-label="대시보드 메뉴">
             <a class="active" href="/">대시보드</a>
             <a href="#">수요 예측</a>

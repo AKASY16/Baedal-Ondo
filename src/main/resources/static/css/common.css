@@ -1,0 +1,86 @@
+@font-face {
+    font-family: "SUIT";
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+    src: url("/fonts/SUIT-Variable.woff2") format("woff2-variations");
+}
+
+:root {
+    --app-font-family: "SUIT", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+html,
+body,
+button,
+input,
+select,
+textarea {
+    font-family: var(--app-font-family);
+}
+
+body {
+    font-weight: 400;
+}
+
+p,
+li,
+td,
+input,
+textarea,
+select,
+option,
+.description,
+.subtitle,
+.helper,
+.note,
+.store-meta,
+.message {
+    font-weight: 400 !important;
+}
+
+label,
+button,
+.nav a,
+.badge,
+.store-select,
+.logout-button,
+.debug-toggle,
+.menu-button,
+.location,
+.score span,
+.scale-labels,
+.factor,
+.factor-label {
+    font-weight: 600 !important;
+}
+
+h1,
+h2,
+h3,
+strong,
+b,
+th,
+.logo,
+.brand-name,
+.page-title,
+.store-name,
+.panel-title,
+.temperature h2,
+.panel h2,
+.table-panel h2,
+.status-card,
+.impact,
+.metric strong {
+    font-weight: 700 !important;
+}
+
+.score-value strong,
+.score strong,
+.score .score-label {
+    font-weight: 700 !important;
+}
+
+.score-total {
+    font-weight: 600 !important;
+}

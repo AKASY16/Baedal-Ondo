@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>로그인 - 배달온도</title>
+    <link rel="icon" href="/images/beadal-ondo-icon.svg" type="image/svg+xml">
     <style>
         * {
             box-sizing: border-box;
@@ -33,11 +34,19 @@
         }
 
         .logo {
+            display: grid;
+            justify-items: center;
+            gap: 8px;
             margin-bottom: 8px;
             font-size: 28px;
             font-weight: 800;
             color: #ff6b35;
             text-align: center;
+        }
+
+        .logo img {
+            width: 48px;
+            height: 48px;
         }
 
         .subtitle {
@@ -118,11 +127,15 @@
             text-align: center;
         }
     </style>
+    <link rel="stylesheet" href="/css/common.css">
 </head>
 <body>
 <div class="page">
     <div class="login-card">
-        <div class="logo">배달온도</div>
+        <div class="logo">
+            <img src="/images/beadal-ondo-icon.svg" alt="">
+            <span>배달온도</span>
+        </div>
         <div class="subtitle">
             사장님의 오늘 배달 수요를<br>
             한눈에 확인하세요

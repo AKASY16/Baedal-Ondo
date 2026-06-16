@@ -1,0 +1,29 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">배달온도 아이콘</title>
+  <desc id="desc">둥근 벌브와 연결된 빨간 온도 표시가 있는 체온계 모양의 배달온도 아이콘</desc>
+  <defs>
+    <linearGradient id="glassFill" x1="32" y1="6" x2="32" y2="59" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#FFF2EE"/>
+    </linearGradient>
+    <linearGradient id="temperatureFill" x1="32" y1="15" x2="32" y2="55" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF8A7A"/>
+      <stop offset="1" stop-color="#F04438"/>
+    </linearGradient>
+    <filter id="softShadow" x="12" y="3" width="40" height="59" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#D92D20" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <g filter="url(#softShadow)">
+    <path d="M32 7C26.477 7 22 11.477 22 17V35.4C19.52 38.02 18 41.56 18 45.45C18 53.48 24.52 60 32.55 60C40.58 60 47.1 53.48 47.1 45.45C47.1 41.56 45.58 38.02 43.1 35.4V17C43.1 11.477 38.623 7 33.1 7H32Z" fill="url(#glassFill)"/>
+    <path d="M32 7C26.477 7 22 11.477 22 17V35.4C19.52 38.02 18 41.56 18 45.45C18 53.48 24.52 60 32.55 60C40.58 60 47.1 53.48 47.1 45.45C47.1 41.56 45.58 38.02 43.1 35.4V17C43.1 11.477 38.623 7 33.1 7H32Z" stroke="#F04438" stroke-width="3.4" stroke-linejoin="round"/>
+    <path d="M29.55 18.2C29.55 16.543 30.893 15.2 32.55 15.2C34.207 15.2 35.55 16.543 35.55 18.2V45.5H29.55V18.2Z" fill="url(#temperatureFill)"/>
+    <circle cx="32.55" cy="45.45" r="8.7" fill="url(#temperatureFill)"/>
+    <path d="M38.6 18.6H41.2" stroke="#F97066" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M38.6 23.4H41.2" stroke="#F97066" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M38.6 28.2H41.2" stroke="#F97066" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M38.6 33H41.2" stroke="#F97066" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M27.4 43.5C27.4 40.85 29.55 38.7 32.2 38.7" stroke="#FFD8D1" stroke-width="2.3" stroke-linecap="round"/>
+    <path d="M26.2 18.2C26.2 15.3 28.4 13 31.2 13" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round" opacity="0.82"/>
+  </g>
+</svg>

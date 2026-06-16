@@ -24,6 +24,7 @@ public class SecurityConfig {
                                 "/api/guest-regions",
                                 "/api/guest-regions/**",
                                 "/css/**",
+                                "/fonts/**",
                                 "/js/**",
                                 "/images/**",
                                 "/h2-console/**"
