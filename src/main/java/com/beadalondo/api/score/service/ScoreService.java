@@ -8,7 +8,9 @@ import com.beadalondo.api.holiday.service.HolidayService;
 import com.beadalondo.api.score.dto.ScoreTarget;
 import com.beadalondo.api.score.factory.ScoreMessageFactory;
 import com.beadalondo.api.score.ScoreResult;
+import com.beadalondo.api.score.ScoreBreakdown;
 import com.beadalondo.api.score.calculator.DayWeightCalculator;
+import com.beadalondo.api.score.calculator.WeightedScoreCalculator;
 import com.beadalondo.api.score.status.DayDemandLevel;
 import com.beadalondo.api.score.status.TimeDemandLevel;
 import com.beadalondo.api.score.calculator.TimeWeightCalculator;
@@ -36,6 +38,7 @@ public class ScoreService {
     private final AirQualityCalculator airQualityCalculator;
     private final HolidayService holidayService;
     private final ScoreMessageFactory scoreMessageFactory;
+    private final WeightedScoreCalculator weightedScoreCalculator;
 
     public ScoreService(TimeWeightCalculator timeWeightCalculator,
                         DayWeightCalculator dayWeightCalculator,
@@ -44,7 +47,8 @@ public class ScoreService {
                         CurrentAirQualityService currentAirQualityService,
                         AirQualityCalculator airQualityCalculator,
                         HolidayService holidayService,
-                        ScoreMessageFactory scoreMessageFactory) {
+                        ScoreMessageFactory scoreMessageFactory,
+                        WeightedScoreCalculator weightedScoreCalculator) {
         this.timeWeightCalculator = timeWeightCalculator;
         this.dayWeightCalculator = dayWeightCalculator;
         this.currentWeatherWeightCalculator = currentWeatherWeightCalculator;
@@ -53,6 +57,7 @@ public class ScoreService {
         this.airQualityCalculator = airQualityCalculator;
         this.holidayService = holidayService;
         this.scoreMessageFactory = scoreMessageFactory;
+        this.weightedScoreCalculator = weightedScoreCalculator;
     }
 
 
@@ -61,11 +66,11 @@ public class ScoreService {
         Long scoreTargetId = scoreTargetId(scoreTarget);
 
         try {
-            int baseScore = 40;
             int airQualityScore = 0;
             String airQualityFactor = "영향 없음";
             String airQualityDescription = "대기질";
             String airQualityDetail = "대기질 정보 없음";
+            CurrentWeatherObservation weather = null;
 
             TimeDemandLevel timeDemandLevel;
             DayDemandLevel dayDemandLevel;
@@ -81,7 +86,7 @@ public class ScoreService {
             WeatherScoreResult weatherScoreResult;
             long weatherStart = System.nanoTime();
             try {
-                CurrentWeatherObservation weather = currentWeatherService.getCurrentWeather(scoreTarget);
+                weather = currentWeatherService.getCurrentWeather(scoreTarget);
                 weatherScoreResult = currentWeatherWeightCalculator.calculate(weather);
             } catch (KmaWeatherApiException e) {
                 log.warn("기상청 API 에러. 날씨 보정 점수를 제외합니다. storeId={}", scoreTargetId, e);
@@ -108,12 +113,14 @@ public class ScoreService {
 
             long assemblyStart = System.nanoTime();
             try {
-                int score = capScore(
-                        baseScore +
-                        timeDemandLevel.getWeight() +
-                        dayDemandLevel.getWeight()+
-                        weatherScoreResult.getWeatherScore()+
-                        airQualityScore);
+                ScoreBreakdown scoreBreakdown = weightedScoreCalculator.calculate(
+                        timeDemandLevel,
+                        dayDemandLevel,
+                        weatherScoreResult,
+                        weather,
+                        airQualityScore
+                );
+                int score = scoreBreakdown.score();
 
                 String status = scoreMessageFactory.calculateStatus(score);
                 String message = scoreMessageFactory.createMessage(score);
@@ -126,6 +133,7 @@ public class ScoreService {
 
                 String currentWeatherFactor = scoreMessageFactory.createWeatherFactor(weatherScoreResult);
                 String currentWeatherDescription = weatherScoreResult.getDescription();
+                airQualityFactor = scoreMessageFactory.createAirQualityFactor(scoreBreakdown.airQualityScore());
 
                 return new ScoreResult(score,
                         status,
@@ -160,10 +168,6 @@ public class ScoreService {
                     e);
             return false;
         }
-    }
-
-    private int capScore(int score) {
-        return Math.max(0, Math.min(100, score));
     }
 
     private void logTiming(String step, long startNanos, Long scoreTargetId) {

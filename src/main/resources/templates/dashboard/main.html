@@ -332,15 +332,19 @@
         }
 
         .scale-marker.medium-end {
+            left: 60%;
+        }
+
+        .scale-marker.high-end {
             left: 80%;
         }
 
         .scale-labels {
             display: grid;
-            grid-template-columns: 20fr 20fr 40fr 20fr;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 4px;
             color: #a9a99f;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 800;
             line-height: 1.2;
         }
@@ -591,22 +595,27 @@
                 <span class="scale-marker closed-end" aria-hidden="true"></span>
                 <span class="scale-marker low-end" aria-hidden="true"></span>
                 <span class="scale-marker medium-end" aria-hidden="true"></span>
+                <span class="scale-marker high-end" aria-hidden="true"></span>
             </div>
             <div class="scale-labels">
                 <span class="scale-label">
-                    <span>마감</span>
+                    <span>매우 낮음</span>
                     <span class="scale-range">0-19</span>
                 </span>
                 <span class="scale-label">
-                    <span>하</span>
+                    <span>낮음</span>
                     <span class="scale-range">20-39</span>
                 </span>
                 <span class="scale-label">
-                    <span>중</span>
-                    <span class="scale-range">40-79</span>
+                    <span>보통</span>
+                    <span class="scale-range">40-59</span>
                 </span>
                 <span class="scale-label">
-                    <span>상</span>
+                    <span>높음</span>
+                    <span class="scale-range">60-79</span>
+                </span>
+                <span class="scale-label">
+                    <span>매우 높음</span>
                     <span class="scale-range">80-100</span>
                 </span>
             </div>

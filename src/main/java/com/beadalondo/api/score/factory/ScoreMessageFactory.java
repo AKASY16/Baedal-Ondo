@@ -33,15 +33,19 @@ public class ScoreMessageFactory {
             return "상 · 수요 급등 구간";
         }
 
+        if (score >= 60) {
+            return "상 · 높은 수요 구간";
+        }
+
         if (score >= 40) {
-            return "중 · 평시 운영 구간";
+            return "중 · 평균 수요 구간";
         }
 
         if (score >= 20) {
             return "하 · 수요 둔화 구간";
         }
 
-        return "마감 · 조기 마감 검토";
+        return "마감 · 매우 낮은 수요 구간";
     }
 
     public String createMessage(int score) {
@@ -49,15 +53,19 @@ public class ScoreMessageFactory {
             return "오늘은 배달 수요가 높을 가능성이 큽니다. 연장 영업과 재료 추가 준비를 고려하세요.";
         }
 
+        if (score >= 60) {
+            return "평소보다 주문이 늘 수 있습니다. 피크 시간대 준비를 조금 더 여유 있게 가져가세요.";
+        }
+
         if (score >= 40) {
-            return "평상시 영업을 유지하세요. 피크 시간대 주문 흐름을 지켜보세요.";
+            return "평균적인 수요가 예상됩니다. 평상시 영업 흐름을 유지하세요.";
         }
 
         if (score >= 20) {
             return "현재 수요가 낮은 편입니다. 식자재 선조리와 인력 운영을 보수적으로 가져가세요.";
         }
 
-        return "기대 수요가 매우 낮습니다. 유지 비용을 고려해 조기 마감을 검토하세요.";
+        return "기대 수요가 매우 낮습니다. 운영 비용을 고려해 보수적으로 준비하세요.";
     }
 
     public String createAirQualityDetail(CurrentAirQualityObservation airQuality) {

@@ -8,6 +8,7 @@ import com.beadalondo.api.holiday.service.HolidayService;
 import com.beadalondo.api.score.ScoreResult;
 import com.beadalondo.api.score.calculator.DayWeightCalculator;
 import com.beadalondo.api.score.calculator.TimeWeightCalculator;
+import com.beadalondo.api.score.calculator.WeightedScoreCalculator;
 import com.beadalondo.api.score.dto.ScoreTarget;
 import com.beadalondo.api.score.factory.ScoreMessageFactory;
 import com.beadalondo.api.score.status.DayDemandLevel;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
@@ -61,6 +63,9 @@ class ScoreServiceTest {
     @Mock
     private ScoreMessageFactory scoreMessageFactory;
 
+    @Spy
+    private WeightedScoreCalculator weightedScoreCalculator = new WeightedScoreCalculator();
+
     @InjectMocks
     private ScoreService scoreService;
 
@@ -89,7 +94,7 @@ class ScoreServiceTest {
         ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
 
         // then
-        assertEquals(45, result.getScore());
+        assertEquals(56, result.getScore());
     }
 
     @Test
@@ -114,7 +119,7 @@ class ScoreServiceTest {
 
         ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
 
-        assertEquals(50, result.getScore());
+        assertEquals(42, result.getScore());
     }
 
     @Test
@@ -139,7 +144,7 @@ class ScoreServiceTest {
 
         ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
 
-        assertEquals(50, result.getScore());
+        assertEquals(58, result.getScore());
     }
 
     @Test
@@ -164,7 +169,7 @@ class ScoreServiceTest {
 
         ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
 
-        assertEquals(50, result.getScore());
+        assertEquals(58, result.getScore());
     }
 
     @Test
@@ -189,7 +194,7 @@ class ScoreServiceTest {
 
         ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
 
-        assertEquals(44, result.getScore());
+        assertEquals(55, result.getScore());
     }
 
     @Test
@@ -200,9 +205,9 @@ class ScoreServiceTest {
 
         when(holidayService.isHoliday(any(LocalDate.class))).thenReturn(false);
         when(timeWeightCalculator.calculate(any(LocalTime.class)))
-                .thenReturn(createNoImpactTime()); // 0점
+                .thenReturn(TimeDemandLevel.VERY_HIGH);
         when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
-                .thenReturn(DayDemandLevel.WEEKDAY); // 0점
+                .thenReturn(DayDemandLevel.WEEKEND);
         when(currentWeatherService.getCurrentWeather(any(ScoreTarget.class)))
                 .thenReturn(weather);
         when(currentWeatherWeightCalculator.calculate(any(CurrentWeatherObservation.class)))
@@ -210,7 +215,7 @@ class ScoreServiceTest {
         when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class)))
                 .thenReturn(airQuality);
         when(airQualityCalculator.getWeight(any(CurrentAirQualityObservation.class)))
-                .thenReturn(0);
+                .thenReturn(7);
 
         ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
 
@@ -236,7 +241,7 @@ class ScoreServiceTest {
 
         ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
 
-        assertEquals(40, result.getScore());
+        assertEquals(50, result.getScore());
     }
 
     @Test
@@ -258,7 +263,7 @@ class ScoreServiceTest {
 
         ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
 
-        assertEquals(40, result.getScore());
+        assertEquals(50, result.getScore());
     }
 
     @Test
@@ -284,7 +289,7 @@ class ScoreServiceTest {
 
         ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
 
-        assertEquals(40, result.getScore());
+        assertEquals(50, result.getScore());
     }
 
 
@@ -313,7 +318,7 @@ class ScoreServiceTest {
     }
 
     private TimeDemandLevel createNoImpactTime() {
-        return TimeDemandLevel.CLOSED;
+        return TimeDemandLevel.MEDIUM;
     }
 
 
