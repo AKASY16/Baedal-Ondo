@@ -356,12 +356,12 @@
                 <input id="store-buildingSubNumber" readonly>
             </label>
         </div>
-        <p class="note">nx, ny는 이후 백엔드 좌표 처리에서 계산하고, createdAt은 서버에서 생성합니다.</p>
+        <p class="note">기상청 격자 좌표와 상권 정보는 서버가 주소로부터 계산해 저장합니다.</p>
     </section>
 
     <section class="panel">
         <h2 class="panel-title">등록</h2>
-        <p class="note">현재 단계에서는 실제 저장 API를 호출하지 않고, 브라우저 콘솔에 payload만 출력합니다.</p>
+        <p class="note">등록하기를 누르면 매장이 저장되고 해당 매장 대시보드로 이동합니다. Payload 확인은 저장하지 않고 전송할 내용만 아래에 출력합니다.</p>
         <div class="actions">
             <button id="payload-check-button" type="button" class="secondary-button">Payload 확인</button>
             <button id="register-button" type="button">등록하기</button>

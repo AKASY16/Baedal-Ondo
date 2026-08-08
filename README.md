@@ -73,11 +73,14 @@ src/main/java/com/beadalondo/api
 ├── airquality      # AirKorea API, 미세먼지 기록, 공기질 점수 계산
 ├── auth            # 로그인 화면, 현재 사용자 조회, UserDetailsService
 ├── commercialarea  # 서울시 상권 GeoJSON 로딩, 좌표 기반 상권 판별
+├── config          # Spring Security, 인터셉터, 비밀번호 인코더 설정
 ├── dashboard       # 대시보드 화면, DashboardView 조립
+├── guest           # 게스트 지역 등록 및 조회
 ├── holiday         # 공휴일 API, 공휴일 DB 저장/조회
 ├── location        # 주소 좌표 변환, 기상청 격자 변환
 ├── score           # 최종 점수 조립, 시간/요일 계산기, DayWeight 조회
 ├── store           # 매장 등록, Store 엔티티, BusinessType
+├── user            # UserAccount 엔티티, 사용자 조회
 └── weather         # 기상청 현재 날씨 API, 날씨 기록, 날씨 점수 계산
 
 data-processing/    # 서울시 추정매출 CSV -> DayWeight 오프라인 전처리 (Python)
@@ -93,26 +96,29 @@ cd backend/beadal-ondo-api
 
 ### 2. Secret 설정
 
-`src/main/resources/application-secret.yaml` 파일을 생성하고 API 키를 설정합니다.
+`src/main/resources/application-secret.yaml` 파일을 생성하고 발급받은 API 키를 설정합니다. 이 파일은 `.gitignore`에 등록되어 있어 저장소에 올라가지 않습니다.
 
 ```yaml
 kma:
   api:
-    auth-key: "기상청_API_KEY"
+    auth-key: "기상청_API_KEY"                       # 필수
 
 dataportal:
   api:
-    auth-key: "공공데이터포털_API_KEY"
-    holiday-auth-key: "공휴일_API_KEY"
+    auth-key: "공공데이터포털_API_KEY"                  # 필수
+    holiday-auth-key: "공휴일_API_KEY"               # 선택, 미설정 시 auth-key 사용
 
 jusogokr:
   api:
-    popup-auth-key: "도로명주소_팝업_API_KEY"
+    coordinate-auth-key: "도로명주소_좌표제공_API_KEY"    # 필수
+    popup-auth-key: "도로명주소_팝업_API_KEY"           # 선택, 기본값 TESTJUSOGOKR
 
 kasi:
   api:
-    startup-refresh-enabled: true
+    startup-refresh-enabled: true                   # 선택, 기본값 true
 ```
+
+필수 키 3개가 없으면 애플리케이션이 시작되지 않습니다. 선택 항목은 기본값이 있어 생략할 수 있습니다.
 
 `application.yaml`은 `application-secret.yaml`을 optional import 하도록 설정되어 있습니다.
 
@@ -142,18 +148,21 @@ Windows 환경에서는 다음 명령을 사용할 수 있습니다.
 
 ## 주요 URL
 
-| URL | 설명 |
-| --- | --- |
-| `/` | 인증 상태에 따라 `/dashboard/main` 진입 |
-| `/dashboard/main` | 로그인 사용자 기준 대시보드 메인 화면 |
-| `/dashboard/main/{storeId}` | 선택한 Store ID를 세션에 저장한 뒤 `/dashboard/main`으로 리다이렉트 |
-| `/guest` | 게스트 모드 진입 |
-| `/dashboard/guest` | 게스트 지역 기반 대시보드 화면 |
-| `/store/register` | 매장 등록 화면 |
-| `/api/stores` | 매장 등록 API |
-| `/api/guest-regions` | 게스트 지역 등록 API |
-| `/login` | 로그인 화면 |
-| `/h2-console` | H2 콘솔 |
+| URL | 설명 | 로그인 |
+| --- | --- | --- |
+| `/` | `/dashboard/main`으로 리다이렉트 | 필요 |
+| `/dashboard/main` | 로그인 사용자 기준 대시보드 메인 화면 | 필요 |
+| `/dashboard/main/{storeId}` | 선택한 Store ID를 세션에 저장한 뒤 `/dashboard/main`으로 리다이렉트 | 필요 |
+| `/store/register` | 매장 등록 화면 | 필요 |
+| `/api/stores` | 매장 등록 API | 필요 |
+| `/guest` | 게스트 모드 진입 | 불필요 |
+| `/dashboard/guest` | 게스트 지역 기반 대시보드 화면 | 불필요 |
+| `/api/guest-regions` | 게스트 지역 등록 API | 불필요 |
+| `/testingpage` | 주소 검색 및 Store 매핑 확인용 개발 페이지 | 불필요 |
+| `/login` | 로그인 화면 | 불필요 |
+| `/h2-console` | H2 콘솔 | 불필요 |
+
+로그인이 필요한 URL에 비로그인 상태로 접근하면 `/login`으로 리다이렉트됩니다.
 
 ## 매장 등록 API
 
@@ -250,13 +259,13 @@ commercialAreaCode + businessType + 요일  ->  Local DayWeight
 
 점수 구간:
 
-| 점수 | 상태 |
+| 점수 | 화면에 표시되는 상태 |
 | --- | --- |
-| 0-19 | 매우 낮음 |
-| 20-39 | 낮음 |
-| 40-59 | 보통 |
-| 60-79 | 높음 |
-| 80-100 | 매우 높음 |
+| 0-19 | 마감 · 매우 낮은 수요 구간 |
+| 20-39 | 하 · 수요 둔화 구간 |
+| 40-59 | 중 · 평균 수요 구간 |
+| 60-79 | 상 · 높은 수요 구간 |
+| 80-100 | 상 · 수요 급등 구간 |
 
 외부 API 실패는 전체 대시보드를 중단시키지 않고 해당 요소만 제외하는 방식으로 처리합니다.
 
@@ -290,6 +299,8 @@ commercialAreaCode + businessType + 요일  ->  Local DayWeight
 - 코드 주석의 오래된 TODO 정리
 - 개발용 페이지 및 H2 콘솔 접근 제한 정리
 - 사용하지 않는 빈 LocationController/LocationService 정리
+- 어디에서도 호출하지 않는 DayDemandLevel.getWeight 정리
+- 렌더링되지 않는 templates/main.html 정리
 - CurrentWeatherService, KmaTimeCalculator 등 서비스 계층 테스트 보강
 
 현재 제품 방향에서 제외/보류:
