@@ -1,6 +1,6 @@
 package com.beadalondo.api.score;
 
-public record ScoreBreakdown(
+public record ScoreCalculationResult(
         int score,
         int timeScore,
         int dayScore,

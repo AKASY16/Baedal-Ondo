@@ -20,6 +20,23 @@ public class ScoreMessageFactory {
         return "↑";
     }
 
+    /**
+     요일 화살표는 DayDemandLevel이 아니라 실제 적용된 요일 점수에서 만든다.
+     상권에 따라 주말이나 금요일도 음수가 될 수 있어서,
+     enum에 고정된 화살표를 쓰면 표시와 점수 방향이 어긋난다.
+     */
+    public String createDayFactor(int appliedDayScore) {
+        if (appliedDayScore > 0) {
+            return "↑";
+        }
+
+        if (appliedDayScore < 0) {
+            return "↓";
+        }
+
+        return "•";
+    }
+
     public String createAirQualityFactor(int airQualityScore) {
         if (airQualityScore <= 0) {
             return "•";

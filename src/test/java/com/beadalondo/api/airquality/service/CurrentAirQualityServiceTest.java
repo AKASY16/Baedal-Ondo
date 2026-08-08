@@ -40,7 +40,9 @@ class CurrentAirQualityServiceTest {
                 "서울특별시",
                 "중구",
                 60,
-                127
+                127,
+                null,
+                null
         );
         CurrentAirQualityObservation observation = createObservation("중구");
 

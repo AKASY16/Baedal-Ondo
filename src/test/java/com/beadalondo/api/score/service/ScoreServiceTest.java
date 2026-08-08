@@ -7,6 +7,8 @@ import com.beadalondo.api.airquality.service.CurrentAirQualityService;
 import com.beadalondo.api.holiday.service.HolidayService;
 import com.beadalondo.api.score.ScoreResult;
 import com.beadalondo.api.score.calculator.DayWeightCalculator;
+import com.beadalondo.api.score.dayweight.DayWeightProvider;
+import com.beadalondo.api.store.domain.BusinessType;
 import com.beadalondo.api.score.calculator.TimeWeightCalculator;
 import com.beadalondo.api.score.calculator.WeightedScoreCalculator;
 import com.beadalondo.api.score.dto.ScoreTarget;
@@ -18,6 +20,7 @@ import com.beadalondo.api.weather.domain.CurrentWeatherObservation;
 import com.beadalondo.api.weather.domain.WeatherScoreResult;
 import com.beadalondo.api.weather.exception.KmaWeatherApiException;
 import com.beadalondo.api.weather.service.CurrentWeatherService;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -34,16 +37,22 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ScoreServiceTest {
+
+    private static final String COMMERCIAL_AREA_CODE = "3120029";
 
     @Mock
     private TimeWeightCalculator timeWeightCalculator;
 
     @Mock
     private DayWeightCalculator dayWeightCalculator;
+
+    @Mock
+    private DayWeightProvider dayWeightProvider;
 
     @Mock
     private CurrentWeatherWeightCalculator currentWeatherWeightCalculator;
@@ -123,6 +132,7 @@ class ScoreServiceTest {
     }
 
     @Test
+    @DisplayName("상권 DayWeight가 요일 점수로 그대로 적용된다")
     void dayWeightScoreTest() {
         ScoreTarget scoreTarget = createScoreTarget();
         CurrentWeatherObservation weather = createNoImpactWeather();
@@ -132,7 +142,10 @@ class ScoreServiceTest {
         when(timeWeightCalculator.calculate(any(LocalTime.class)))
                 .thenReturn(createNoImpactTime()); // 0점
         when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
-                .thenReturn(DayDemandLevel.WEEKEND); // +10점
+                .thenReturn(DayDemandLevel.WEEKEND);
+        // 주말 고정 +8이 아니라 상권 값 +6이 적용되어야 한다
+        when(dayWeightProvider.findWeight(any(), any(), any()))
+                .thenReturn(6);
         when(currentWeatherService.getCurrentWeather(any(ScoreTarget.class)))
                 .thenReturn(weather);
         when(currentWeatherWeightCalculator.calculate(any(CurrentWeatherObservation.class)))
@@ -144,7 +157,62 @@ class ScoreServiceTest {
 
         ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
 
-        assertEquals(58, result.getScore());
+        assertEquals(56, result.getScore());
+    }
+
+    @Test
+    @DisplayName("상권 DayWeight가 음수면 주말이라도 점수가 내려간다")
+    void negativeDayWeightScoreTest() {
+        ScoreTarget scoreTarget = createScoreTarget();
+        CurrentWeatherObservation weather = createNoImpactWeather();
+        CurrentAirQualityObservation airQuality = createAirQuality();
+
+        when(holidayService.isHoliday(any(LocalDate.class))).thenReturn(false);
+        when(timeWeightCalculator.calculate(any(LocalTime.class)))
+                .thenReturn(createNoImpactTime());
+        when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
+                .thenReturn(DayDemandLevel.WEEKEND);
+        when(dayWeightProvider.findWeight(any(), any(), any()))
+                .thenReturn(-6);
+        when(currentWeatherService.getCurrentWeather(any(ScoreTarget.class)))
+                .thenReturn(weather);
+        when(currentWeatherWeightCalculator.calculate(any(CurrentWeatherObservation.class)))
+                .thenReturn(new WeatherScoreResult(0, List.of(), "날씨 영향 없음"));
+        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class)))
+                .thenReturn(airQuality);
+        when(airQualityCalculator.getWeight(any(CurrentAirQualityObservation.class)))
+                .thenReturn(0);
+
+        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
+
+        assertEquals(44, result.getScore());
+    }
+
+    @Test
+    @DisplayName("Store의 상권코드와 업종, 오늘 요일로 DayWeight를 조회한다")
+    void passesStoreKeysToDayWeightProvider() {
+        ScoreTarget scoreTarget = createScoreTarget();
+        stubCalmDependencies(DayDemandLevel.WEEKDAY);
+
+        scoreService.calculateCurrentScore(scoreTarget);
+
+        verify(dayWeightProvider).findWeight(
+                COMMERCIAL_AREA_CODE,
+                BusinessType.CHICKEN,
+                LocalDate.now().getDayOfWeek());
+    }
+
+    @Test
+    @DisplayName("게스트 지역은 상권과 업종 없이 조회되어 요일 점수가 0이 된다")
+    void guestTargetHasNoMarketDayWeight() {
+        ScoreTarget guestTarget = createGuestScoreTarget();
+        stubCalmDependencies(DayDemandLevel.WEEKEND);
+
+        ScoreResult result = scoreService.calculateCurrentScore(guestTarget);
+
+        verify(dayWeightProvider).findWeight(null, null, LocalDate.now().getDayOfWeek());
+        // 게스트는 주말이어도 기존 +8을 받지 않는다.
+        assertEquals(50, result.getScore());
     }
 
     @Test
@@ -157,7 +225,10 @@ class ScoreServiceTest {
         when(timeWeightCalculator.calculate(any(LocalTime.class)))
                 .thenReturn(createNoImpactTime()); // 0점
         when(dayWeightCalculator.calculate(any(LocalDate.class), eq(true)))
-                .thenReturn(DayDemandLevel.HOLIDAY); // +10점
+                .thenReturn(DayDemandLevel.HOLIDAY); // +8점
+        // 공휴일에는 상권 DayWeight를 더하지 않으므로 이 값은 무시되어야 한다.
+        when(dayWeightProvider.findWeight(any(), any(), any()))
+                .thenReturn(6);
         when(currentWeatherService.getCurrentWeather(any(ScoreTarget.class)))
                 .thenReturn(weather);
         when(currentWeatherWeightCalculator.calculate(any(CurrentWeatherObservation.class)))
@@ -298,13 +369,45 @@ class ScoreServiceTest {
 
 
 
+    /** 시간/날씨/대기질 영향이 전혀 없는 상태로 만들어 요일 점수만 관찰한다. */
+    private void stubCalmDependencies(DayDemandLevel dayDemandLevel) {
+        when(holidayService.isHoliday(any(LocalDate.class))).thenReturn(false);
+        when(timeWeightCalculator.calculate(any(LocalTime.class)))
+                .thenReturn(createNoImpactTime());
+        when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
+                .thenReturn(dayDemandLevel);
+        when(currentWeatherService.getCurrentWeather(any(ScoreTarget.class)))
+                .thenReturn(createNoImpactWeather());
+        when(currentWeatherWeightCalculator.calculate(any(CurrentWeatherObservation.class)))
+                .thenReturn(new WeatherScoreResult(0, List.of(), "날씨 영향 없음"));
+        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class)))
+                .thenReturn(createAirQuality());
+        when(airQualityCalculator.getWeight(any(CurrentAirQualityObservation.class)))
+                .thenReturn(0);
+    }
+
     private ScoreTarget createScoreTarget() {
         return new ScoreTarget(
                 1L,
                 "서울",
                 "송파구",
                 60,
-                127
+                127,
+                COMMERCIAL_AREA_CODE,
+                BusinessType.CHICKEN
+        );
+    }
+
+    /** 게스트 지역은 상권과 업종이 없다. */
+    private ScoreTarget createGuestScoreTarget() {
+        return new ScoreTarget(
+                2L,
+                "서울",
+                "송파구",
+                60,
+                127,
+                null,
+                null
         );
     }
 

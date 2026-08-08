@@ -9,7 +9,14 @@
 - 매장 등록
   - 도로명주소 검색 팝업 연동
   - 주소 기반 기상청 격자 좌표 `nx`, `ny` 계산
+  - WGS84 좌표로 서울시 상권을 판별해 `commercialAreaCode` 저장
+  - 업종을 `BusinessType` Enum 9종으로 표준화해 저장
   - Store 정보를 H2 DB에 저장
+
+- 상권 x 업종 요일 가중치
+  - 서울시 상권분석서비스 추정매출(2023-2025) 기반 오프라인 전처리 결과 사용
+  - 상권별 값이 있으면 상권별, 없으면 서울 전체 업종 평균으로 fallback
+  - 자세한 계산 근거는 `data-processing/README.md` 참고
 
 - 대시보드
   - 현재 배달온도 점수 표시
@@ -54,21 +61,26 @@
 - Gradle
 - Lombok
 - PROJ4J
+- JTS Topology Suite
 - JUnit 5
 - Mockito
+- Python 3 (오프라인 데이터 전처리, 표준 라이브러리만 사용)
 
 ## 프로젝트 구조
 
 ```text
 src/main/java/com/beadalondo/api
-├── airquality    # AirKorea API, 미세먼지 기록, 공기질 점수 계산
-├── auth          # 로그인 화면, 현재 사용자 조회, UserDetailsService
-├── dashboard     # 대시보드 화면, DashboardView 조립
-├── holiday       # 공휴일 API, 공휴일 DB 저장/조회
-├── location      # 주소 좌표 변환, 기상청 격자 변환
-├── score         # 최종 배달온도 점수 조립, 시간/요일 계산기
-├── store         # 매장 등록, Store 엔티티, StoreRepository
-└── weather       # 기상청 현재 날씨 API, 날씨 기록, 날씨 점수 계산
+├── airquality      # AirKorea API, 미세먼지 기록, 공기질 점수 계산
+├── auth            # 로그인 화면, 현재 사용자 조회, UserDetailsService
+├── commercialarea  # 서울시 상권 GeoJSON 로딩, 좌표 기반 상권 판별
+├── dashboard       # 대시보드 화면, DashboardView 조립
+├── holiday         # 공휴일 API, 공휴일 DB 저장/조회
+├── location        # 주소 좌표 변환, 기상청 격자 변환
+├── score           # 최종 점수 조립, 시간/요일 계산기, DayWeight 조회
+├── store           # 매장 등록, Store 엔티티, BusinessType
+└── weather         # 기상청 현재 날씨 API, 날씨 기록, 날씨 점수 계산
+
+data-processing/    # 서울시 추정매출 CSV -> DayWeight 오프라인 전처리 (Python)
 ```
 
 ## 실행 방법
@@ -155,7 +167,7 @@ Content-Type: application/json
 ```json
 {
   "name": "온도분식",
-  "businessType": "분식",
+  "businessType": "BUNSIK",
   "jusoAddress": {
     "roadFullAddr": "서울특별시 송파구 ...",
     "roadAddrPart1": "서울특별시 송파구 ...",
@@ -183,6 +195,10 @@ Content-Type: application/json
 1
 ```
 
+`businessType`은 아래 9개 값만 허용합니다. 그 외 문자열은 요청 단계에서 거부됩니다.
+
+`KOREAN_FOOD` `CHINESE_FOOD` `JAPANESE_FOOD` `WESTERN_FOOD` `CHICKEN` `FAST_FOOD` `BUNSIK` `CAFE_BEVERAGE` `BAKERY`
+
 ## 점수 계산 개요
 
 최종 배달온도 점수는 평균 수요를 의미하는 50점을 기준으로 두고, 시간대/요일/날씨/대기질/상호작용 요인을 가중치 기반으로 반영한 뒤 0-100 범위로 제한합니다.
@@ -201,10 +217,24 @@ score = 50
 | 요인 | 반영 방식 | 범위 |
 | --- | --- | --- |
 | 시간대 | 점심/저녁/야식/비활성 시간대 구간형 점수 | -18 ~ +24 |
-| 요일/공휴일 | 금요일, 주말, 공휴일 보정 | 0 ~ +8 |
+| 요일 | 상권 x 업종 x 요일 DayWeight (공휴일은 고정 +8) | -6 ~ +8 |
 | 현재 날씨 | 강수량, 강수형태, 기온, 풍속 원점수를 정규화 | 0 ~ +20 |
 | 대기질 | PM10, PM2.5, O3 원점수를 정규화 | 0 ~ +8 |
-| 상호작용 | 피크 시간+주말/금요일, 비+피크 시간 등 조합 보너스 | 0 ~ +10 |
+| 상호작용 | 피크 시간+강한 요일, 비+피크 시간, 공휴일 조합 보너스 | 0 ~ +10 |
+
+### 요일 기여도
+
+요일 점수는 요일 이름이 아니라 **그 상권 그 업종의 실제 요일별 수요 패턴**으로 결정합니다. 같은 일요일이라도 오피스 상권 카페는 -6, 주거지 카페는 +6이 될 수 있습니다.
+
+```text
+commercialAreaCode + businessType + 요일  ->  Local DayWeight
+없으면  businessType + 요일             ->  City DayWeight
+그래도 없으면                            ->  0
+```
+
+공휴일에는 전처리 데이터가 공휴일 효과를 분리하지 못하므로 DayWeight 대신 고정 +8을 사용합니다.
+
+상호작용 보너스도 요일 이름을 조건으로 쓰지 않습니다. 피크 시간대에 DayWeight가 양수일 때만 `ceil(DayWeight / 2)`를 최대 +3까지 더합니다. 수요가 약한 요일을 상호작용이 뒤집지 않도록 음수에는 적용하지 않으며, 공휴일에도 적용하지 않습니다.
 
 날씨와 대기질은 기존 계산기에서 만든 원점수를 그대로 사용하되, 최종 점수에서는 영향 범위를 제한해 특정 요인이 과도하게 점수를 끌어올리지 않도록 합니다.
 또한 시간대 의미가 최종 점수를 압도당하지 않도록 시간대별 상한을 적용합니다.
@@ -249,6 +279,11 @@ score = 50
 - 점수 영향 방향 표시
 - 배달온도 계산기 테스트
 - 대시보드 UI 및 디버그 토글
+- GeoJSON + JTS 기반 서울시 상권 판별 및 저장
+- businessType의 BusinessType Enum 표준화
+- 서울시 추정매출 기반 상권 x 업종 x 요일 DayWeight 전처리
+- DayWeight 런타임 조회 계층 및 Local -> City -> 0 fallback
+- 요일 heuristic을 데이터 기반 DayWeight로 대체
 
 정리 필요:
 

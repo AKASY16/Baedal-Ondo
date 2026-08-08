@@ -8,9 +8,10 @@ import com.beadalondo.api.holiday.service.HolidayService;
 import com.beadalondo.api.score.dto.ScoreTarget;
 import com.beadalondo.api.score.factory.ScoreMessageFactory;
 import com.beadalondo.api.score.ScoreResult;
-import com.beadalondo.api.score.ScoreBreakdown;
+import com.beadalondo.api.score.ScoreCalculationResult;
 import com.beadalondo.api.score.calculator.DayWeightCalculator;
 import com.beadalondo.api.score.calculator.WeightedScoreCalculator;
+import com.beadalondo.api.score.dayweight.DayWeightProvider;
 import com.beadalondo.api.score.status.DayDemandLevel;
 import com.beadalondo.api.score.status.TimeDemandLevel;
 import com.beadalondo.api.score.calculator.TimeWeightCalculator;
@@ -32,6 +33,7 @@ public class ScoreService {
 
     private final TimeWeightCalculator timeWeightCalculator;
     private final DayWeightCalculator dayWeightCalculator;
+    private final DayWeightProvider dayWeightProvider;
     private final CurrentWeatherWeightCalculator currentWeatherWeightCalculator;
     private final CurrentWeatherService currentWeatherService;
     private final CurrentAirQualityService currentAirQualityService;
@@ -42,6 +44,7 @@ public class ScoreService {
 
     public ScoreService(TimeWeightCalculator timeWeightCalculator,
                         DayWeightCalculator dayWeightCalculator,
+                        DayWeightProvider dayWeightProvider,
                         CurrentWeatherWeightCalculator currentWeatherWeightCalculator,
                         CurrentWeatherService currentWeatherService,
                         CurrentAirQualityService currentAirQualityService,
@@ -51,6 +54,7 @@ public class ScoreService {
                         WeightedScoreCalculator weightedScoreCalculator) {
         this.timeWeightCalculator = timeWeightCalculator;
         this.dayWeightCalculator = dayWeightCalculator;
+        this.dayWeightProvider = dayWeightProvider;
         this.currentWeatherWeightCalculator = currentWeatherWeightCalculator;
         this.currentWeatherService = currentWeatherService;
         this.currentAirQualityService = currentAirQualityService;
@@ -74,11 +78,13 @@ public class ScoreService {
 
             TimeDemandLevel timeDemandLevel;
             DayDemandLevel dayDemandLevel;
+            int marketDayWeight;
             long baseStart = System.nanoTime();
             try {
                 LocalDate currentDate = LocalDate.now();
                 timeDemandLevel = timeWeightCalculator.calculate(LocalTime.now());
                 dayDemandLevel = dayWeightCalculator.calculate(currentDate, isHoliday(currentDate, scoreTargetId));
+                marketDayWeight = findMarketDayWeight(scoreTarget, currentDate);
             } finally {
                 logTiming("baseScore", baseStart, scoreTargetId);
             }
@@ -113,14 +119,15 @@ public class ScoreService {
 
             long assemblyStart = System.nanoTime();
             try {
-                ScoreBreakdown scoreBreakdown = weightedScoreCalculator.calculate(
+                ScoreCalculationResult scoreCalculationResult = weightedScoreCalculator.calculate(
                         timeDemandLevel,
                         dayDemandLevel,
+                        marketDayWeight,
                         weatherScoreResult,
                         weather,
                         airQualityScore
                 );
-                int score = scoreBreakdown.score();
+                int score = scoreCalculationResult.score();
 
                 String status = scoreMessageFactory.calculateStatus(score);
                 String message = scoreMessageFactory.createMessage(score);
@@ -128,12 +135,14 @@ public class ScoreService {
                 String timeFactor = timeDemandLevel.getTimeFactor();
                 String timeDescription = timeDemandLevel.getTimeDescription();
 
-                String dayFactor = dayDemandLevel.getDayFactor();
+                // 화살표는 실제 적용된 요일 점수 기준이어야 한다.
+                // 상권에 따라 주말도 음수가 될 수 있어 enum의 고정 화살표를 쓰면 표시가 어긋난다.
+                String dayFactor = scoreMessageFactory.createDayFactor(scoreCalculationResult.dayScore());
                 String dayDescription = dayDemandLevel.getDayDescription();
 
                 String currentWeatherFactor = scoreMessageFactory.createWeatherFactor(weatherScoreResult);
                 String currentWeatherDescription = weatherScoreResult.getDescription();
-                airQualityFactor = scoreMessageFactory.createAirQualityFactor(scoreBreakdown.airQualityScore());
+                airQualityFactor = scoreMessageFactory.createAirQualityFactor(scoreCalculationResult.airQualityScore());
 
                 return new ScoreResult(score,
                         status,
@@ -157,6 +166,22 @@ public class ScoreService {
     }
 
 
+
+    /**
+     상권 x 업종 x 요일 가중치를 조회한다.
+     Local -> City -> 0 fallback은 DayWeightProvider가 처리한다.
+     */
+    private int findMarketDayWeight(ScoreTarget scoreTarget, LocalDate date) {
+        if (scoreTarget == null) {
+            return 0;
+        }
+
+        return dayWeightProvider.findWeight(
+                scoreTarget.getCommercialAreaCode(),
+                scoreTarget.getBusinessType(),
+                date.getDayOfWeek()
+        );
+    }
 
     private boolean isHoliday(LocalDate date, Long scoreTargetId) {
         try {
