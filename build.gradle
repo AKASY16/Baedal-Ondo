@@ -28,6 +28,7 @@ dependencies {
 
 	implementation 'org.locationtech.proj4j:proj4j:1.4.1'
 	implementation 'org.locationtech.proj4j:proj4j-epsg:1.4.1'
+	implementation 'org.locationtech.jts:jts-core:1.20.0'
 
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.h2database:h2'

@@ -1,8 +1,11 @@
 package com.beadalondo.api.store.service;
 import com.beadalondo.api.airquality.util.KoreanAddressParser;
 import com.beadalondo.api.auth.service.CurrentUserService;
+import com.beadalondo.api.commercialarea.dto.CommercialAreaMatch;
+import com.beadalondo.api.commercialarea.locator.CommercialAreaLocator;
 import com.beadalondo.api.location.AddressCoordinateResolver;
 import com.beadalondo.api.location.dto.JusoAddressRequest;
+import com.beadalondo.api.location.dto.ResolvedCoordinateResult;
 import com.beadalondo.api.location.dto.WeatherGridResult;
 import com.beadalondo.api.store.factory.StoreFactory;
 import com.beadalondo.api.store.domain.Store;
@@ -24,17 +27,20 @@ public class StoreService {
 
     private final StoreRepository storeRepository;
     private final AddressCoordinateResolver addressCoordinateResolver;
+    private final CommercialAreaLocator commercialAreaLocator;
     private final StoreFactory storeFactory;
     private final CurrentUserService currentUserService;
     private final UserAccountRepository userAccountRepository;
 
     public StoreService(StoreRepository storeRepository,
                         AddressCoordinateResolver addressCoordinateResolver,
+                        CommercialAreaLocator commercialAreaLocator,
                         StoreFactory storeFactory,
                         CurrentUserService currentUserService,
                         UserAccountRepository userAccountRepository) {
         this.storeRepository = storeRepository;
         this.addressCoordinateResolver = addressCoordinateResolver;
+        this.commercialAreaLocator = commercialAreaLocator;
         this.storeFactory = storeFactory;
         this.currentUserService = currentUserService;
         this.userAccountRepository = userAccountRepository;
@@ -46,10 +52,17 @@ public class StoreService {
 
         JusoAddressRequest jusoAddress =  request.getJusoAddress();
 
-        WeatherGridResult weatherGridCoordinate =
-                addressCoordinateResolver.addressCoordinateResolver(jusoAddress);
+        // WGS84 좌표는 격자 계산과 상권 판별에만 쓰고 Store에 저장하지 않는다.
+        ResolvedCoordinateResult resolvedCoordinate =
+                addressCoordinateResolver.resolveCoordinate(jusoAddress);
 
-        Store store = storeFactory.storeCreate(request, weatherGridCoordinate);
+        WeatherGridResult weatherGridCoordinate = resolvedCoordinate.getWeatherGrid();
+
+        CommercialAreaMatch commercialAreaMatch = commercialAreaLocator
+                .find(resolvedCoordinate.getLatitude(), resolvedCoordinate.getLongitude())
+                .orElse(null);
+
+        Store store = storeFactory.storeCreate(request, weatherGridCoordinate, commercialAreaMatch);
 
         Long currentUserAccountId = currentUserService.getCurrentUserAccountId();
 
@@ -93,7 +106,7 @@ public class StoreService {
             throw new IllegalArgumentException("가게명이 없습니다.");
         }
 
-        if (isBlank(request.getBusinessType())) {
+        if (request.getBusinessType() == null) {
             throw new IllegalArgumentException("업종이 없습니다.");
         }
 

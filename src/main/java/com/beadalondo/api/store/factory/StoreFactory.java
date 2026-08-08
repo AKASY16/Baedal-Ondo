@@ -1,6 +1,7 @@
 package com.beadalondo.api.store.factory;
 
 import com.beadalondo.api.airquality.util.KoreanAddressParser;
+import com.beadalondo.api.commercialarea.dto.CommercialAreaMatch;
 import com.beadalondo.api.location.dto.JusoAddressRequest;
 import com.beadalondo.api.location.dto.WeatherGridResult;
 import com.beadalondo.api.store.domain.Store;
@@ -19,9 +20,20 @@ public class StoreFactory {
     public Store storeCreate(StoreRegisterRequest request,
                               WeatherGridResult weatherGridCoordinate){
 
+        return storeCreate(request, weatherGridCoordinate, null);
+    }
+
+    /**
+     * commercialAreaMatch는 상권을 찾지 못한 경우 null이며,
+     * 이때 매장은 상권 정보 없이 정상 등록된다.
+     */
+    public Store storeCreate(StoreRegisterRequest request,
+                              WeatherGridResult weatherGridCoordinate,
+                              CommercialAreaMatch commercialAreaMatch){
+
         JusoAddressRequest jusoAddress =  request.getJusoAddress();
 
-        return new Store(
+        Store store = new Store(
                 request.getName(),
                 request.getBusinessType(),
 
@@ -47,6 +59,10 @@ public class StoreFactory {
                 weatherGridCoordinate.getNx(),
                 weatherGridCoordinate.getNy()
         );
+
+        store.assignCommercialArea(commercialAreaMatch);
+
+        return store;
     }
 
 }

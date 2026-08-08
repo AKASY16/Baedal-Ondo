@@ -1,18 +1,19 @@
 package com.beadalondo.api.store.dto;
 
 import com.beadalondo.api.location.dto.JusoAddressRequest;
+import com.beadalondo.api.store.domain.BusinessType;
 
 public class StoreRegisterRequest {
 
     private String name;
-    private String businessType;
+    private BusinessType businessType;
     private JusoAddressRequest jusoAddress;
 
     public String getName() {
         return name;
     }
 
-    public String getBusinessType() {
+    public BusinessType getBusinessType() {
         return businessType;
     }
 
@@ -24,7 +25,7 @@ public class StoreRegisterRequest {
         this.name = name;
     }
 
-    public void setBusinessType(String businessType) {
+    public void setBusinessType(BusinessType businessType) {
         this.businessType = businessType;
     }
 

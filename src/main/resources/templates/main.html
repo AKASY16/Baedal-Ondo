@@ -442,7 +442,7 @@
                 <p class="store-meta">
                     <span th:text="${store.sigunguName}">송파구</span>
                     <span> · </span>
-                    <span th:text="${store.businessType}">분식</span>
+                    <span th:text="${store.businessType?.displayName}">분식</span>
                 </p>
             </div>
             <span class="badge">영업 준비 양호</span>

@@ -151,7 +151,7 @@ public class DashboardService {
 
         return new Store(
                 createGuestStoreName(region),
-                "전체",
+                null, // 게스트 지역은 특정 업종의 매장이 아니라 저장되지도 않는다.
                 firstNonBlank(region.getAddress(), region.getRoadAddress()),
                 region.getRoadAddress(),
                 region.getJibunAddress(),

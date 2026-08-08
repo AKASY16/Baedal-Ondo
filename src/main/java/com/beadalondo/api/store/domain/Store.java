@@ -1,5 +1,6 @@
 package com.beadalondo.api.store.domain;
 
+import com.beadalondo.api.commercialarea.dto.CommercialAreaMatch;
 import com.beadalondo.api.user.domain.UserAccount;
 import jakarta.persistence.*;
 
@@ -13,7 +14,9 @@ public class Store {
     private Long id;
 
     private String name; // 가게명
-    private String businessType; // 업종
+
+    @Enumerated(EnumType.STRING)
+    private BusinessType businessType; // 업종
 
     private String address; // 대표 표시 주소
     private String roadAddress; // 도로명주소
@@ -38,6 +41,12 @@ public class Store {
     private Integer nx; // 기상청 API 격자 X좌표
     private Integer ny; // 기상청 API 격자 Y좌표
 
+    // 서울시 상권 정보, 상권 밖 매장이 있을 수 있으므로 nullable 이다.
+    private String commercialAreaCode; // 서울시 상권코드, TRDAR_CD
+    private String commercialAreaName; // 상권명, TRDAR_CD_NM
+    private String commercialAreaTypeCode; // 상권 구분 코드, TRDAR_SE_CD
+    private String commercialAreaTypeName; // 상권 구분명, TRDAR_SE_CD_NM
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_account_id")
     private UserAccount owner;
@@ -48,7 +57,7 @@ public class Store {
     }
 
     public Store(String name,
-                 String businessType,
+                 BusinessType businessType,
                  String address,
                  String roadAddress,
                  String jibunAddress,
@@ -96,7 +105,7 @@ public class Store {
         return name;
     }
 
-    public String getBusinessType() {
+    public BusinessType getBusinessType() {
         return businessType;
     }
 
@@ -168,6 +177,22 @@ public class Store {
         return ny;
     }
 
+    public String getCommercialAreaCode() {
+        return commercialAreaCode;
+    }
+
+    public String getCommercialAreaName() {
+        return commercialAreaName;
+    }
+
+    public String getCommercialAreaTypeCode() {
+        return commercialAreaTypeCode;
+    }
+
+    public String getCommercialAreaTypeName() {
+        return commercialAreaTypeName;
+    }
+
     public UserAccount getOwner() {
         return owner;
     }
@@ -185,7 +210,7 @@ public class Store {
         this.name = name;
     }
 
-    public void setBusinessType(String businessType) {
+    public void setBusinessType(BusinessType businessType) {
         this.businessType = businessType;
     }
 
@@ -255,6 +280,27 @@ public class Store {
 
     public void setNy(Integer ny) {
         this.ny = ny;
+    }
+
+    /**
+     * 상권 판별 결과를 반영한다.
+     *
+     * 상권을 찾지 못한 경우 match가 null이며, 이때 상권 정보는 null로 남는다.
+     * 상권 판별 실패는 매장 등록 실패가 아니다.
+     */
+    public void assignCommercialArea(CommercialAreaMatch match) {
+        if (match == null) {
+            this.commercialAreaCode = null;
+            this.commercialAreaName = null;
+            this.commercialAreaTypeCode = null;
+            this.commercialAreaTypeName = null;
+            return;
+        }
+
+        this.commercialAreaCode = match.getCommercialAreaCode();
+        this.commercialAreaName = match.getCommercialAreaName();
+        this.commercialAreaTypeCode = match.getCommercialAreaTypeCode();
+        this.commercialAreaTypeName = match.getCommercialAreaTypeName();
     }
 }
 
