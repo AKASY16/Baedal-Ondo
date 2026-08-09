@@ -1,4 +1,4 @@
-# 배달온도 BeadalOndo
+# 배달온도 BaedalOndo
 
 배달온도는 매장 위치, 현재 날씨, 미세먼지, 시간대, 요일/공휴일 정보를 조합해 현재 배달 수요 가능성을 0-100점으로 보여주는 Spring Boot 기반 MVP 서비스입니다.
 
@@ -69,7 +69,7 @@
 ## 프로젝트 구조
 
 ```text
-src/main/java/com/beadalondo/api
+src/main/java/com/baedalondo/api
 ├── airquality      # AirKorea API, 미세먼지 기록, 공기질 점수 계산
 ├── auth            # 로그인 화면, 현재 사용자 조회, UserDetailsService
 ├── commercialarea  # 서울시 상권 GeoJSON 로딩, 좌표 기반 상권 판별
@@ -317,7 +317,7 @@ commercialAreaCode + businessType + 요일  ->  Local DayWeight
 ## 개발 참고사항
 
 - 현재 DB는 H2 파일 DB를 사용합니다.
-- 기본 DB 경로는 `jdbc:h2:~/beadalondo`입니다.
+- 기본 DB 경로는 `jdbc:h2:~/baedalondo`입니다.
 - 앱 실행 중에는 H2 파일 DB가 잠길 수 있으므로 테스트 실행 전 실행 중인 서버나 H2 콘솔 연결을 종료해야 합니다.
 - `/dashboard/main/{storeId}`는 URL을 유지하지 않고 선택 Store ID를 세션에 저장한 뒤 `/dashboard/main`으로 리다이렉트합니다.
 - `/dashboard/main`은 로그인 사용자의 Store를 조회하는 정식 진입점입니다.

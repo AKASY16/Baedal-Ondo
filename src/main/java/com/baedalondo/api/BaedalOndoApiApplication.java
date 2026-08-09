@@ -4,10 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class BeadalOndoApiApplication {
+public class BaedalOndoApiApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(BeadalOndoApiApplication.class, args);
+		SpringApplication.run(BaedalOndoApiApplication.class, args);
 	}
 
 }
