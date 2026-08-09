@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class CurrentUserService {
 
-    public Long getCurrentUserAccountId() {
+    public Long getCurrentUserId() {
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();
 
@@ -24,6 +24,6 @@ public class CurrentUserService {
             throw new IllegalStateException("인증 사용자 정보 형식이 올바르지 않습니다.");
         }
 
-        return userDetails.getUserAccountId();
+        return userDetails.getUserId();
     }
 }

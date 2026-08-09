@@ -48,8 +48,8 @@ public class Store {
     private String commercialAreaTypeName; // 상권 구분명, TRDAR_SE_CD_NM
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_account_id")
-    private UserAccount owner;
+    @JoinColumn(name = "user_id")
+    private UserAccount user;
 
     private LocalDateTime createdAt; // 생성 시간
 
@@ -193,16 +193,16 @@ public class Store {
         return commercialAreaTypeName;
     }
 
-    public UserAccount getOwner() {
-        return owner;
+    public UserAccount getUser() {
+        return user;
     }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setOwner(UserAccount owner) {
-        this.owner = owner;
+    public void setUser(UserAccount user) {
+        this.user = user;
     }
 
 

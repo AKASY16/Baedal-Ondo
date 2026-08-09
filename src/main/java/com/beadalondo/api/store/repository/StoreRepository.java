@@ -8,14 +8,8 @@ import java.util.Optional;
 
 public interface StoreRepository extends JpaRepository<Store, Long> {
 
-    List<Store> findByOwnerId(Long ownerId);
+    Optional<Store> findByIdAndUserId(Long storeId, Long userId);
 
-    Optional<Store> findFirstByOwnerId(Long ownerId);
-
-    Optional<Store> findByIdAndOwnerId(Long storeId, Long ownerId);
-
-    Optional<Store> findById(Long storeId);
-
-    List<Store> findByOwnerIdOrderByIdAsc(Long ownerId);
+    List<Store> findByUserIdOrderByIdAsc(Long userId);
 
 }

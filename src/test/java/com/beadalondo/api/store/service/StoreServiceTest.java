@@ -80,9 +80,9 @@ class StoreServiceTest {
                         new WeatherGridResult(60, 127),
                         new Wgs84CoordinateResult(LONGITUDE, LATITUDE)));
 
-        lenient().when(currentUserService.getCurrentUserAccountId()).thenReturn(1L);
-        lenient().when(userAccountRepository.findById(1L))
-                .thenReturn(Optional.of(mock(UserAccount.class)));
+        lenient().when(currentUserService.getCurrentUserId()).thenReturn(1L);
+        lenient().when(userAccountRepository.getReferenceById(1L))
+                .thenReturn(mock(UserAccount.class));
         lenient().when(storeRepository.save(any(Store.class)))
                 .thenAnswer(it -> it.getArgument(0));
     }

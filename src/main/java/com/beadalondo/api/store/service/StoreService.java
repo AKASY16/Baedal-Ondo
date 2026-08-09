@@ -64,12 +64,11 @@ public class StoreService {
 
         Store store = storeFactory.storeCreate(request, weatherGridCoordinate, commercialAreaMatch);
 
-        Long currentUserAccountId = currentUserService.getCurrentUserAccountId();
+        // 인증된 세션의 ID이므로 존재가 보장된다. FK 설정에만 쓰므로 프록시로 조회 쿼리를 생략한다.
+        UserAccount user = userAccountRepository
+                .getReferenceById(currentUserService.getCurrentUserId());
 
-        UserAccount owner = userAccountRepository.findById(currentUserAccountId)
-                .orElseThrow(() -> new IllegalStateException("로그인 사용자를 찾을 수 없습니다."));
-
-        store.setOwner(owner);
+        store.setUser(user);
 
         return storeRepository.save(store);
 
@@ -78,9 +77,9 @@ public class StoreService {
     @Transactional(readOnly = true)
     public Store getCurrentUserStoreById(Long storeId) {
 
-        Long currentUserAccountId = currentUserService.getCurrentUserAccountId();
+        Long currentUserId = currentUserService.getCurrentUserId();
 
-        return storeRepository.findByIdAndOwnerId(storeId, currentUserAccountId)
+        return storeRepository.findByIdAndUserId(storeId, currentUserId)
                 .orElseThrow(() -> new IllegalArgumentException("접근할 수 없는 가게입니다."));
     }
 
@@ -92,8 +91,8 @@ public class StoreService {
 
     @Transactional(readOnly = true)
     public List<Store> getCurrentLoginUserStores() {
-        Long currentUserAccountId = currentUserService.getCurrentUserAccountId();
-        return storeRepository.findByOwnerIdOrderByIdAsc(currentUserAccountId);
+        Long currentUserId = currentUserService.getCurrentUserId();
+        return storeRepository.findByUserIdOrderByIdAsc(currentUserId);
     }
 
 

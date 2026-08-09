@@ -10,20 +10,20 @@ import java.util.List;
 
 public class CustomUserDetails implements UserDetails {
 
-    private final Long userAccountId;
+    private final Long userId;
     private final String loginId;
     private final String password;
     private final String role;
 
     public CustomUserDetails(UserAccount userAccount) {
-        this.userAccountId = userAccount.getId();
+        this.userId = userAccount.getId();
         this.loginId = userAccount.getLoginId();
         this.password = userAccount.getPassword();
         this.role = userAccount.getRole();
     }
 
-    public Long getUserAccountId() {
-        return userAccountId;
+    public Long getUserId() {
+        return userId;
     }
 
     public String getLoginId() {
