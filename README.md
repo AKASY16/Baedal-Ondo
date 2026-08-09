@@ -91,7 +91,7 @@ data-processing/    # 서울시 추정매출 CSV -> DayWeight 오프라인 전�
 ### 1. 저장소 이동
 
 ```bash
-cd backend/beadal-ondo-api
+cd backend/baedal-ondo-api
 ```
 
 ### 2. Secret 설정
