@@ -217,8 +217,19 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="/css/baedal-ui.css">
 </head>
-<body>
+<body class="store-form-page">
+<header class="bo-topbar">
+    <a class="bo-brand" href="/" aria-label="배달온도 홈">
+        <img src="/images/baedal-ondo-icon.svg" alt="">
+        <span class="bo-brand-copy">
+            <span class="bo-brand-name">배달온도</span>
+            <span class="bo-brand-description">오늘의 배달 수요 판단 도구</span>
+        </span>
+    </a>
+    <span class="bo-topbar-note">STORE SETTINGS</span>
+</header>
 <form id="juso-popup-form" method="post" style="display: none;">
     <input type="hidden" id="popup-confmKey" name="confmKey">
     <input type="hidden" id="popup-returnUrl" name="returnUrl">
@@ -274,19 +285,23 @@
 
 <main id="page" class="page">
     <header class="header">
-        <h1>가게 정보 수정</h1>
-        <p class="description">등록된 가게의 기본 정보와 주소를 수정합니다.</p>
+        <p class="form-kicker">STORE SETTINGS</p>
+        <div>
+            <h1>가게 정보를<br>수정합니다.</h1>
+            <p class="description">바뀐 가게 이름과 업종, 주소만 알려주세요. 나머지는 배달온도에서 전부 처리할게요.</p>
+        </div>
     </header>
 
     <section class="panel">
         <h2 class="panel-title">기본 정보</h2>
-        <div class="grid">
+        <div class="panel-content">
+          <div class="grid">
             <label>
-                가게명 <span class="required">*</span>
+                <span class="field-label">가게명 <span class="required">*</span></span>
                 <input id="store-name" th:value="${store.name}" autocomplete="organization" maxlength="100">
             </label>
             <label>
-                업종 <span class="required">*</span>
+                <span class="field-label">업종 <span class="required">*</span></span>
                 <select id="store-businessType">
                     <option value="">업종을 선택하세요</option>
                     <option value="KOREAN_FOOD" th:selected="${store.businessType?.name() == 'KOREAN_FOOD'}">한식</option>
@@ -300,18 +315,20 @@
                     <option value="BAKERY" th:selected="${store.businessType?.name() == 'BAKERY'}">제과·베이커리</option>
                 </select>
             </label>
+          </div>
         </div>
     </section>
 
     <section class="panel">
         <h2 class="panel-title">주소 정보</h2>
-        <div class="address-row">
+        <div class="panel-content">
+          <div class="address-row">
             <label>
-                전체 도로명주소 <span class="required">*</span>
+                <span class="field-label">전체 도로명주소 <span class="required">*</span></span>
                 <input id="store-address" th:value="${store.address}" readonly>
             </label>
             <button id="juso-search-button" type="button">주소 다시 검색</button>
-        </div>
+          </div>
 
         <div class="grid" style="margin-top: 12px;">
             <label class="wide">
@@ -344,17 +361,19 @@
                 <input id="store-dongName" th:value="${store.dongName}" readonly>
             </label>
         </div>
-        <p class="note">주소를 변경하면 격자 좌표와 상권 정보도 서버에서 다시 계산하는 것을 권장합니다.</p>
+        </div>
     </section>
 
     <section class="panel">
-        <h2 class="panel-title">수정 내용 저장</h2>
-        <p class="note">저장 후 해당 가게의 대시보드로 이동합니다.</p>
-        <div id="status-message" class="status-message" role="status" aria-live="polite"></div>
-        <div class="actions">
-            <a class="button-link secondary-button"
-               th:href="@{/dashboard/main/{storeId}(storeId=${store.id})}">취소</a>
-            <button id="update-button" type="button">변경사항 저장</button>
+        <h2 class="panel-title">변경 확인</h2>
+        <div class="panel-content">
+            <p class="note">저장하면 이 가게의 대시보드로 돌아갑니다.</p>
+            <div id="status-message" class="status-message" role="status" aria-live="polite"></div>
+            <div class="actions">
+                <a class="button-link secondary-button"
+                   th:href="@{/dashboard/main/{storeId}(storeId=${store.id})}">취소</a>
+                <button id="update-button" type="button">변경사항 저장</button>
+            </div>
         </div>
     </section>
 </main>

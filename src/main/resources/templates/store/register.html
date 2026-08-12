@@ -200,8 +200,19 @@
         }
     </style>
     <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/baedal-ui.css">
 </head>
-<body>
+<body class="store-form-page">
+<header class="bo-topbar">
+    <a class="bo-brand" href="/" aria-label="배달온도 홈">
+        <img src="/images/baedal-ondo-icon.svg" alt="">
+        <span class="bo-brand-copy">
+            <span class="bo-brand-name">배달온도</span>
+            <span class="bo-brand-description">오늘의 배달 수요 판단 도구</span>
+        </span>
+    </a>
+    <span class="bo-topbar-note">STORE SETUP · 01</span>
+</header>
 <form id="juso-popup-form" method="post" style="display: none;">
     <input type="hidden" id="popup-confmKey" name="confmKey">
     <input type="hidden" id="popup-returnUrl" name="returnUrl">
@@ -257,46 +268,50 @@
 
 <main id="page" class="page">
     <header class="header">
-        <h1>Store 등록</h1>
-        <p class="description">
-            도로명주소 팝업에서 받은 주소 정보와 직접 입력한 매장 정보를 조합해 등록 payload를 확인합니다.
-        </p>
+        <p class="form-kicker">NEW STORE</p>
+        <div>
+            <h1>가게를 등록해<br>오늘의 온도를 엽니다.</h1>
+            <p class="description">가게 이름과 업종, 주소만 알려주세요. 나머지는 배달온도에서 전부 처리할게요.</p>
+        </div>
     </header>
 
     <section class="panel">
         <h2 class="panel-title">기본 정보</h2>
-        <div class="grid">
-            <label>
-                매장명 <span class="required">*</span>
-                <input id="store-name" autocomplete="organization" placeholder="예: 온도분식">
-            </label>
-            <label>
-                업종 <span class="required">*</span>
-                <select id="store-businessType">
-                    <option value="">업종을 선택하세요</option>
-                    <option value="KOREAN_FOOD">한식</option>
-                    <option value="CHINESE_FOOD">중식</option>
-                    <option value="JAPANESE_FOOD">일식</option>
-                    <option value="WESTERN_FOOD">양식</option>
-                    <option value="CHICKEN">치킨</option>
-                    <option value="FAST_FOOD">패스트푸드</option>
-                    <option value="BUNSIK">분식</option>
-                    <option value="CAFE_BEVERAGE">카페·음료</option>
-                    <option value="BAKERY">제과·베이커리</option>
-                </select>
-            </label>
+        <div class="panel-content">
+            <div class="grid">
+                <label>
+                    <span class="field-label">가게명 <span class="required">*</span></span>
+                    <input id="store-name" autocomplete="organization" placeholder="예: 온도분식">
+                </label>
+                <label>
+                    <span class="field-label">업종 <span class="required">*</span></span>
+                    <select id="store-businessType">
+                        <option value="">업종을 선택하세요</option>
+                        <option value="KOREAN_FOOD">한식</option>
+                        <option value="CHINESE_FOOD">중식</option>
+                        <option value="JAPANESE_FOOD">일식</option>
+                        <option value="WESTERN_FOOD">양식</option>
+                        <option value="CHICKEN">치킨</option>
+                        <option value="FAST_FOOD">패스트푸드</option>
+                        <option value="BUNSIK">분식</option>
+                        <option value="CAFE_BEVERAGE">카페·음료</option>
+                        <option value="BAKERY">제과·베이커리</option>
+                    </select>
+                </label>
+            </div>
         </div>
     </section>
 
     <section class="panel">
         <h2 class="panel-title">주소 정보</h2>
-        <div class="address-row">
+        <div class="panel-content">
+          <div class="address-row">
             <label>
                 전체 도로명주소
                 <input id="store-address" readonly placeholder="주소 검색으로 자동 입력">
             </label>
             <button id="juso-search-button" type="button">주소검색</button>
-        </div>
+          </div>
 
         <div class="grid" style="margin-top: 12px;">
             <label class="wide">
@@ -315,58 +330,61 @@
                 우편번호
                 <input id="store-postalCode" readonly>
             </label>
-            <label>
+            <label class="technical-field">
                 시도명
                 <input id="store-sidoName" readonly>
             </label>
-            <label>
+            <label class="technical-field">
                 시군구명
                 <input id="store-sigunguName" readonly>
             </label>
-            <label>
+            <label class="technical-field">
                 읍면동명
                 <input id="store-dongName" readonly>
             </label>
-            <label>
+            <label class="technical-field">
                 행정구역코드
                 <input id="store-addressRegionCode" readonly>
             </label>
-            <label>
+            <label class="technical-field">
                 도로명코드
                 <input id="store-roadNameCode" readonly>
             </label>
-            <label>
+            <label class="technical-field">
                 건물관리번호
                 <input id="store-buildingManagementNumber" readonly>
             </label>
-            <label>
+            <label class="technical-field">
                 도로명
                 <input id="store-roadName" readonly>
             </label>
-            <label>
+            <label class="technical-field">
                 지하여부
                 <input id="store-undergroundYn" readonly>
             </label>
-            <label>
+            <label class="technical-field">
                 건물본번
                 <input id="store-buildingMainNumber" readonly>
             </label>
-            <label>
+            <label class="technical-field">
                 건물부번
                 <input id="store-buildingSubNumber" readonly>
             </label>
         </div>
-        <p class="note">기상청 격자 좌표와 상권 정보는 서버가 주소로부터 계산해 저장합니다.</p>
+          <p class="note">상세주소를 제외한 주소 항목은 검색 결과로 채워집니다. 기상청 격자 좌표와 상권 정보는 서버가 자동으로 계산합니다.</p>
+        </div>
     </section>
 
     <section class="panel">
-        <h2 class="panel-title">등록</h2>
-        <p class="note">등록하기를 누르면 매장이 저장되고 해당 매장 대시보드로 이동합니다. Payload 확인은 저장하지 않고 전송할 내용만 아래에 출력합니다.</p>
-        <div class="actions">
-            <button id="payload-check-button" type="button" class="secondary-button">Payload 확인</button>
-            <button id="register-button" type="button">등록하기</button>
+        <h2 class="panel-title">등록 확인</h2>
+        <div class="panel-content">
+            <p class="note">등록하면 바로 이 가게의 대시보드로 이동합니다. 개발 중에는 전송 데이터를 먼저 확인할 수 있습니다.</p>
+            <div class="actions">
+                <button id="payload-check-button" type="button" class="secondary-button">전송 데이터 확인</button>
+                <button id="register-button" type="button">가게 등록하기</button>
+            </div>
+            <pre id="payload-output" hidden>{}</pre>
         </div>
-        <pre id="payload-output">{}</pre>
     </section>
 </main>
 
@@ -583,7 +601,9 @@
         window.lastStoreRegisterPayload = payload;
         console.log("store register payload", payload);
         console.log("store register payload JSON\n" + payloadJson);
-        document.getElementById("payload-output").textContent = payloadJson;
+        const output = document.getElementById("payload-output");
+        output.textContent = payloadJson;
+        output.hidden = false;
     }
 
     function setValue(id, value) {

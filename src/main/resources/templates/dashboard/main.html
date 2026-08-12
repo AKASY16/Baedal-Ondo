@@ -5,19 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>대시보드 - 배달온도</title>
     <link rel="icon" href="/images/baedal-ondo-icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/css/common.css">
     <style>
         :root {
-            --bg: #282925;
-            --line: rgba(255, 255, 255, 0.13);
-            --line-soft: rgba(255, 255, 255, 0.08);
-            --text: #f6f6ef;
-            --muted: #b8b8ae;
-            --muted-strong: #deded5;
-            --green: #95d960;
-            --green-soft: #aeea80;
-            --green-panel: #165f12;
-            --red: #ff8c8c;
-            --blue: #8abaff;
+            --canvas: #f1efe9;
+            --surface: #faf9f5;
+            --ink: #1d1d1b;
+            --muted: #6e6c65;
+            --line: #cbc8be;
+            --line-strong: #959187;
+            --accent: #e34d3e;
+            --accent-soft: #f8ded9;
+            --positive: #176c4b;
+            --negative: #2f67a8;
+            --status: #e34d3e;
+            --status-soft: #f8ded9;
         }
 
         * {
@@ -27,89 +29,106 @@
         body {
             margin: 0;
             min-height: 100vh;
-            background: var(--bg);
-            color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            letter-spacing: 0;
+            background: var(--canvas);
+            color: var(--ink);
+        }
+
+        button,
+        select,
+        a {
+            -webkit-tap-highlight-color: transparent;
         }
 
         .page {
-            width: 100%;
-            min-height: 100vh;
-            max-width: 560px;
+            width: min(920px, calc(100% - 40px));
             margin: 0 auto;
-            padding: 24px 20px 28px;
+            padding: 28px 0 52px;
         }
 
         .dashboard-topbar {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 14px;
-            margin-bottom: 22px;
-        }
-
-        .topbar-actions {
-            display: flex;
-            align-items: flex-end;
-            gap: 8px;
-            flex: 0 0 auto;
+            gap: 24px;
+            min-height: 54px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--ink);
         }
 
         .brand-area {
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            min-height: 44px;
-            color: #ffffff;
+            gap: 9px;
+            color: var(--ink);
             text-decoration: none;
         }
 
         .brand-icon {
-            width: 40px;
-            height: 40px;
+            width: 34px;
+            height: 34px;
             flex: 0 0 auto;
         }
 
         .brand-copy {
             display: grid;
+            gap: 1px;
         }
 
         .brand-name {
             font-size: 18px;
-            font-weight: 800;
             line-height: 1.1;
         }
 
-        .store-header {
-            margin-bottom: 22px;
+        .brand-description {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.2;
+        }
+
+        .topbar-actions {
+            display: flex;
+            align-items: end;
+            gap: 8px;
         }
 
         .store-picker {
             display: grid;
-            justify-items: end;
-            gap: 6px;
+            grid-template-columns: auto minmax(140px, 190px);
+            align-items: center;
+            gap: 10px;
         }
 
         .store-picker label {
             color: var(--muted);
-            font-size: 12px;
-            font-weight: 800;
-            text-align: right;
+            font-size: 13px;
+        }
+
+        .store-select,
+        .menu-button,
+        .login-link {
+            min-height: 36px;
+            border: 1px solid var(--line-strong);
+            border-radius: 2px;
+            background: transparent;
+            color: var(--ink);
+            font: inherit;
+        }
+
+        .login-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 7px 14px;
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 1;
+            text-decoration: none;
         }
 
         .store-select {
-            min-width: 132px;
-            min-height: 34px;
-            padding: 6px 28px 6px 10px;
-            border: 1px solid var(--line);
-            border-radius: 6px;
-            background: #20211f;
-            color: var(--text);
-            font: inherit;
+            width: 100%;
+            padding: 7px 30px 7px 10px;
             font-size: 13px;
-            font-weight: 800;
-            letter-spacing: 0;
         }
 
         .menu-wrapper {
@@ -117,429 +136,455 @@
         }
 
         .menu-button {
-            display: inline-grid;
+            display: grid;
+            width: 36px;
             place-items: center;
-            width: 34px;
-            height: 34px;
-            border: 1px solid var(--line);
-            border-radius: 6px;
-            background: #20211f;
-            color: var(--muted-strong);
-            font: inherit;
-            font-size: 22px;
-            font-weight: 800;
+            padding: 0;
+            font-size: 20px;
             line-height: 1;
             cursor: pointer;
         }
 
+        .store-select:hover,
         .menu-button:hover,
-        .menu-button[aria-expanded="true"] {
-            border-color: rgba(255, 255, 255, 0.28);
-            color: #ffffff;
+        .menu-button[aria-expanded="true"],
+        .login-link:hover {
+            border-color: var(--ink);
+            background: #ffffff;
         }
 
         .account-menu {
             position: absolute;
-            top: calc(100% + 8px);
+            top: calc(100% + 6px);
             right: 0;
-            z-index: 10;
-            min-width: 132px;
-            padding: 6px;
-            border: 1px solid var(--line);
-            border-radius: 8px;
-            background: #20211f;
-            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.3);
+            z-index: 20;
+            width: 160px;
+            padding: 5px;
+            border: 1px solid var(--ink);
+            border-radius: 2px;
+            background: var(--surface);
         }
 
         .account-menu[hidden] {
             display: none;
         }
 
+        .menu-link,
         .logout-button {
+            display: block;
             width: 100%;
             min-height: 36px;
-            padding: 8px 10px;
+            padding: 9px 10px;
             border: 0;
-            border-radius: 6px;
+            border-radius: 0;
             background: transparent;
-            color: var(--muted-strong);
+            color: var(--ink);
             font: inherit;
-            font-size: 12px;
-            font-weight: 800;
-            letter-spacing: 0;
+            font-size: 14px;
+            line-height: 1.35;
             text-align: left;
+            text-decoration: none;
             cursor: pointer;
         }
 
+        .menu-link:hover,
         .logout-button:hover {
-            background: rgba(255, 255, 255, 0.08);
-            color: #ffffff;
+            background: #ebe9e2;
         }
 
-        .debug-toggle {
-            min-height: 32px;
-            padding: 6px 10px;
-            border: 1px solid var(--line);
-            border-radius: 6px;
-            background: transparent;
-            color: var(--muted-strong);
-            font: inherit;
-            font-size: 12px;
-            font-weight: 800;
-            letter-spacing: 0;
-            cursor: pointer;
+        .store-header {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: end;
+            gap: 24px;
+            padding: 28px 0 18px;
+            border-bottom: 1px solid var(--line);
         }
 
-        .debug-toggle:hover {
-            border-color: rgba(255, 255, 255, 0.28);
-            color: #ffffff;
+        .store-kicker {
+            margin: 0 0 7px;
+            color: var(--accent);
+            font-size: 13px;
+            letter-spacing: 0.04em;
         }
 
-        .debug-hidden {
-            display: none;
+        .store-name {
+            margin: 0;
+            font-size: clamp(27px, 4vw, 38px);
+            line-height: 1.05;
+            letter-spacing: -0.035em;
         }
 
         .location {
             display: flex;
             align-items: center;
-            gap: 6px;
-            margin-bottom: 6px;
+            gap: 5px;
             color: var(--muted);
             font-size: 14px;
-            font-weight: 700;
+            white-space: nowrap;
         }
 
-        .pin {
-            width: 9px;
-            height: 9px;
-            border-radius: 50% 50% 50% 0;
-            background: #f2677e;
-            transform: rotate(-45deg);
-            flex: 0 0 auto;
-        }
-
-        .store-name {
-            margin: 0;
-            color: #ffffff;
-            font-size: 25px;
-            font-weight: 800;
-            line-height: 1.2;
+        .location-separator {
+            color: var(--line-strong);
         }
 
         .temperature-panel {
-            --ondo-main: #95d960;
-            --ondo-soft: #aeea80;
-            --ondo-panel-top: #1d7218;
-            --ondo-panel-bottom: #165f12;
-            --ondo-glow-core: #e7fff4;
-            --ondo-glow-mid: #78d9aa;
-            --ondo-glow-edge: rgba(78, 150, 99, 0.48);
-            --ondo-shadow: rgba(149, 217, 96, 0.38);
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--line);
+            --status: #e34d3e;
+            --status-soft: #f8ded9;
+            display: grid;
+            grid-template-columns: minmax(260px, 0.8fr) minmax(320px, 1.2fr);
+            border-bottom: 1px solid var(--ink);
         }
 
         .temperature-panel.status-high {
-            --ondo-main: #95d960;
-            --ondo-soft: #aeea80;
-            --ondo-panel-top: #1d7218;
-            --ondo-panel-bottom: #165f12;
-            --ondo-glow-core: #e7fff4;
-            --ondo-glow-mid: #78d9aa;
-            --ondo-glow-edge: rgba(78, 150, 99, 0.48);
-            --ondo-shadow: rgba(149, 217, 96, 0.38);
+            --status: #d94335;
+            --status-soft: #f8ded9;
         }
 
         .temperature-panel.status-medium {
-            --ondo-main: #ffd166;
-            --ondo-soft: #ffe39a;
-            --ondo-panel-top: #7a5a0c;
-            --ondo-panel-bottom: #5a4007;
-            --ondo-glow-core: #fff9e5;
-            --ondo-glow-mid: #ffd166;
-            --ondo-glow-edge: rgba(161, 112, 16, 0.52);
-            --ondo-shadow: rgba(255, 209, 102, 0.38);
+            --status: #a86b00;
+            --status-soft: #f4e7c9;
         }
 
         .temperature-panel.status-low {
-            --ondo-main: #8abaff;
-            --ondo-soft: #b8d6ff;
-            --ondo-panel-top: #1d5f93;
-            --ondo-panel-bottom: #16436f;
-            --ondo-glow-core: #edf6ff;
-            --ondo-glow-mid: #8abaff;
-            --ondo-glow-edge: rgba(74, 129, 201, 0.5);
-            --ondo-shadow: rgba(138, 186, 255, 0.38);
+            --status: #356ca8;
+            --status-soft: #dce8f4;
         }
 
         .temperature-panel.status-closed {
-            --ondo-main: #ff8c8c;
-            --ondo-soft: #ffb3b3;
-            --ondo-panel-top: #823232;
-            --ondo-panel-bottom: #5f2424;
-            --ondo-glow-core: #fff0f0;
-            --ondo-glow-mid: #ff8c8c;
-            --ondo-glow-edge: rgba(179, 76, 76, 0.5);
-            --ondo-shadow: rgba(255, 140, 140, 0.38);
+            --status: #686761;
+            --status-soft: #e3e1da;
+        }
+
+        .temperature-reading {
+            display: grid;
+            align-content: space-between;
+            min-height: 330px;
+            padding: 30px 34px 28px 0;
+            border-right: 1px solid var(--line);
+        }
+
+        .reading-label {
+            margin: 0;
+            color: var(--muted);
+            font-size: 13px;
+            letter-spacing: 0.04em;
+        }
+
+        .score {
+            display: flex;
+            align-items: baseline;
+            gap: 5px;
+            margin: 15px 0 20px;
+        }
+
+        .score strong {
+            color: var(--status);
+            font-size: clamp(82px, 13vw, 126px);
+            line-height: 0.82;
+            letter-spacing: -0.075em;
+        }
+
+        .score-total {
+            color: var(--muted);
+            font-size: 18px;
+        }
+
+        .status-line {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            color: var(--ink);
+            font-size: 16px;
+        }
+
+        .status-mark {
+            width: 10px;
+            height: 10px;
+            background: var(--status);
+            flex: 0 0 auto;
         }
 
         .temperature-scale {
             display: grid;
-            gap: 6px;
+            gap: 8px;
         }
 
         .track {
             position: relative;
-            height: 8px;
-            border-radius: 999px;
-            background:
-                repeating-linear-gradient(
-                    to right,
-                    transparent 0 5px,
-                    rgba(255, 255, 255, 0.14) 5px 6px,
-                    transparent 6px 10px
-                ),
-                #20211f;
+            height: 12px;
+            border: 1px solid var(--line-strong);
+            background: transparent;
         }
 
         .fill {
             position: absolute;
             inset: 0 auto 0 0;
             width: 73%;
-            border-radius: inherit;
-            background: linear-gradient(90deg, var(--ondo-soft), var(--ondo-main));
-            box-shadow: 0 0 10px var(--ondo-shadow);
+            background: var(--status);
         }
 
         .scale-marker {
             position: absolute;
-            top: -4px;
-            bottom: -4px;
+            inset: -1px auto -1px;
             width: 1px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.72);
-            box-shadow: 0 0 4px rgba(255, 255, 255, 0.35);
-            transform: translateX(-50%);
-            z-index: 1;
+            background: var(--surface);
         }
 
-        .scale-marker.closed-end {
-            left: 20%;
-        }
-
-        .scale-marker.low-end {
-            left: 40%;
-        }
-
-        .scale-marker.medium-end {
-            left: 60%;
-        }
-
-        .scale-marker.high-end {
-            left: 80%;
-        }
+        .scale-marker.closed-end { left: 20%; }
+        .scale-marker.low-end { left: 40%; }
+        .scale-marker.medium-end { left: 60%; }
+        .scale-marker.high-end { left: 80%; }
 
         .scale-labels {
             display: grid;
             grid-template-columns: repeat(5, minmax(0, 1fr));
-            gap: 4px;
-            color: #a9a99f;
-            font-size: 13px;
-            font-weight: 800;
-            line-height: 1.2;
+            color: var(--muted);
+            font-size: 11px;
         }
 
         .scale-labels span {
             text-align: center;
         }
 
-        .scale-label {
+        .scale-labels span:first-child {
+            text-align: left;
+        }
+
+        .scale-labels span:last-child {
+            text-align: right;
+        }
+
+        .temperature-guidance {
             display: grid;
-            gap: 2px;
+            align-content: center;
+            min-height: 330px;
+            padding: 34px 0 34px 42px;
         }
 
-        .scale-range {
-            color: #7f8078;
-            font-size: 11px;
-            font-weight: 600;
-        }
-
-        .score {
-            margin-top: 22px;
-            text-align: center;
-        }
-
-        .score-value {
-            display: inline-flex;
-            align-items: baseline;
-            justify-content: center;
-            gap: 2px;
-            color: #ffffff;
-            line-height: 1;
-        }
-
-        .score-value strong {
-            display: block;
-            color: #ffffff;
-            font-size: 48px;
-            font-weight: 700;
-            line-height: 1;
-        }
-
-        .score-total {
-            color: var(--muted-strong);
-            font-size: 20px;
-            font-weight: 700;
-            line-height: 1;
-        }
-
-        .score-label {
-            display: block;
-            margin-top: 7px;
-            color: var(--muted-strong);
-            font-size: 15px;
-            font-weight: 700;
-        }
-
-        .status-card {
-            min-height: 48px;
-            margin-top: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            border-radius: 10px;
-            background: linear-gradient(180deg, var(--ondo-panel-top), var(--ondo-panel-bottom));
-            color: var(--ondo-soft);
-            font-size: 17px;
-            font-weight: 800;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-        }
-
-        .glow-dot {
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            background:
-                radial-gradient(circle at center, var(--ondo-glow-core) 0 25%, var(--ondo-glow-mid) 26% 55%, var(--ondo-glow-edge) 56% 100%);
-            box-shadow: 0 0 13px var(--ondo-shadow);
-            flex: 0 0 auto;
+        .guidance-label {
+            margin: 0 0 13px;
+            color: var(--status);
+            font-size: 13px;
+            letter-spacing: 0.04em;
         }
 
         .message {
+            max-width: 500px;
+            margin: 0;
+            font-size: clamp(23px, 3.2vw, 32px);
+            line-height: 1.35;
+            letter-spacing: -0.025em;
+            word-break: keep-all;
+        }
+
+        .guidance-note {
             margin: 18px 0 0;
-            color: #ffffff;
-            font-size: 15px;
-            font-weight: 700;
-            line-height: 1.6;
-            text-align: center;
+            padding-top: 15px;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.55;
         }
 
         .factors {
-            margin-top: 18px;
+            padding-top: 30px;
         }
 
-        .factors h2 {
-            margin: 0 0 10px;
+        .section-heading {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 12px;
+        }
+
+        .section-heading h2 {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: -0.02em;
+        }
+
+        .section-heading p {
+            margin: 0;
             color: var(--muted);
             font-size: 14px;
-            font-weight: 800;
         }
 
         .factor-list {
             margin: 0;
             padding: 0;
+            border-top: 1px solid var(--ink);
             list-style: none;
         }
 
         .factor {
-            min-height: 40px;
             display: grid;
-            grid-template-columns: 32px minmax(0, 1fr) auto;
+            grid-template-columns: 118px minmax(0, 1fr) 72px;
             align-items: center;
-            border-bottom: 1px solid var(--line-soft);
-            color: #ffffff;
-            font-size: 15px;
-            font-weight: 800;
+            min-height: 60px;
+            border-bottom: 1px solid var(--line);
         }
 
-        .factor:last-child {
-            border-bottom: 0;
-        }
-
-        .factor-icon {
-            display: inline-grid;
-            place-items: center;
-            width: 24px;
-            height: 24px;
-            font-size: 17px;
+        .factor-category {
+            color: var(--muted);
+            font-size: 12px;
+            letter-spacing: 0.05em;
         }
 
         .factor-label {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            font-size: 15px;
+            line-height: 1.45;
+            word-break: keep-all;
         }
 
         .impact {
-            min-width: 28px;
-            text-align: right;
-            font-size: 18px;
-            font-weight: 800;
-            letter-spacing: -1px;
+            justify-self: end;
+            min-width: 54px;
+            padding: 4px 6px;
+            border: 1px solid currentColor;
+            border-radius: 2px;
+            color: var(--muted);
+            font-size: 13px;
+            text-align: center;
         }
 
         .impact.up {
-            color: var(--red);
+            color: var(--positive);
         }
 
         .impact.down {
-            color: var(--blue);
+            color: var(--negative);
         }
 
-        @media (min-width: 720px) {
-            body {
-                display: grid;
-                place-items: center;
-                padding: 36px 0;
-                background:
-                    radial-gradient(circle at top, rgba(255, 255, 255, 0.07), transparent 34%),
-                    #171816;
-            }
+        .category-mobile {
+            display: none;
+        }
 
+        .analysis-scope {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 12px 28px;
+            padding: 15px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.55;
+        }
+
+        .analysis-scope p {
+            margin: 0;
+        }
+
+        .scope-signals {
+            display: flex;
+            flex-wrap: wrap;
+            column-gap: 9px;
+        }
+
+        .analysis-scope strong {
+            color: var(--ink);
+            font-size: 12px;
+            letter-spacing: 0.03em;
+        }
+
+        @media (max-width: 720px) {
             .page {
-                min-height: auto;
-                max-height: calc(100vh - 72px);
-                overflow-y: auto;
-                padding: 32px 28px;
-                border: 1px solid rgba(255, 255, 255, 0.08);
-                border-radius: 14px;
-                background: var(--bg);
+                width: min(100% - 28px, 560px);
+                padding-top: 18px;
             }
 
-            .store-debug-box {
-                margin-top: 24px;
-                padding: 16px;
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                border-radius: 12px;
-                font-size: 13px;
-                line-height: 1.8;
-                opacity: 0.9;
+            .dashboard-topbar {
+                align-items: flex-start;
             }
 
-            .store-debug-box h3 {
-                margin: 0 0 8px 0;
-                font-size: 15px;
+            .brand-description,
+            .store-picker label {
+                display: none;
             }
 
-            .store-debug-box span:first-child {
-                font-weight: 700;
-                margin-right: 6px;
+            .store-picker {
+                grid-template-columns: minmax(110px, 150px);
             }
 
+            .store-header {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                padding-top: 24px;
+            }
+
+            .location {
+                grid-row: 1;
+            }
+
+            .store-heading {
+                grid-row: 2;
+            }
+
+            .temperature-panel {
+                grid-template-columns: 1fr;
+            }
+
+            .temperature-reading {
+                min-height: 285px;
+                padding: 28px 0 26px;
+                border-right: 0;
+                border-bottom: 1px solid var(--line);
+            }
+
+            .temperature-guidance {
+                min-height: 0;
+                padding: 26px 0 30px;
+            }
+
+            .message {
+                font-size: 24px;
+            }
+
+            .scale-labels {
+                font-size: 10px;
+            }
+
+            .analysis-scope {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .dashboard-topbar {
+                gap: 10px;
+            }
+
+            .brand-name {
+                font-size: 16px;
+            }
+
+            .brand-icon {
+                width: 30px;
+                height: 30px;
+            }
+
+            .store-picker {
+                grid-template-columns: minmax(92px, 120px);
+            }
+
+            .factor {
+                grid-template-columns: 76px minmax(0, 1fr) 54px;
+                gap: 8px;
+            }
+
+            .factor-category {
+                font-size: 11px;
+            }
+
+            .category-desktop {
+                display: none;
+            }
+
+            .category-mobile {
+                display: inline;
+            }
         }
     </style>
-    <link rel="stylesheet" href="/css/common.css">
 </head>
 <body>
 <main class="page" aria-label="배달온도 대시보드">
@@ -548,11 +593,13 @@
             <img class="brand-icon" src="/images/baedal-ondo-icon.svg" alt="">
             <span class="brand-copy">
                 <span class="brand-name">배달온도</span>
+                <span class="brand-description">오늘의 배달 수요 판단 도구</span>
             </span>
         </a>
+
         <div class="topbar-actions">
             <div class="store-picker" th:if="${stores != null}">
-                <label for="store-select">가게 선택</label>
+                <label for="store-select">현재 가게</label>
                 <select id="store-select" class="store-select" aria-label="가게 선택">
                     <option th:each="store : ${stores}"
                             th:value="${store.id}"
@@ -560,15 +607,22 @@
                             th:text="${store.name}">가게명</option>
                 </select>
             </div>
+
+            <a class="login-link" href="/login" th:if="${guestMode}">로그인</a>
+
             <div class="menu-wrapper" th:if="${authenticated}">
                 <button id="account-menu-button"
                         class="menu-button"
                         type="button"
-                        aria-label="계정 메뉴"
+                        aria-label="가게 및 계정 메뉴"
                         aria-haspopup="menu"
                         aria-expanded="false"
                         aria-controls="account-menu">⋮</button>
                 <div id="account-menu" class="account-menu" role="menu" hidden>
+                    <a class="menu-link" role="menuitem" href="/store/register">가게 추가</a>
+                    <a class="menu-link"
+                       role="menuitem"
+                       th:href="@{/store/{storeId}/edit(storeId=${dashboard.store.id})}">가게 정보 수정</a>
                     <form action="/logout" method="post">
                         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                         <button class="logout-button" type="submit" role="menuitem">로그아웃</button>
@@ -579,226 +633,113 @@
     </div>
 
     <header class="store-header">
-        <div class="location">
-            <span class="pin"></span>
+        <div class="store-heading">
+            <p class="store-kicker">TODAY · DELIVERY OUTLOOK</p>
+            <h1 class="store-name" th:text="${dashboard.store.name}">궁뎅이 스시</h1>
+        </div>
+        <div class="location" aria-label="가게 지역">
             <span th:text="${dashboard.store.sigunguName}">송파구</span>
+            <span class="location-separator">/</span>
             <span th:text="${dashboard.store.dongName}">잠실동</span>
         </div>
-        <h1 class="store-name" th:text="${dashboard.store.name}">궁뎅이 스시</h1>
     </header>
 
     <section class="temperature-panel" aria-label="현재 배달온도"
              th:classappend="${#strings.startsWith(dashboard.status, '상') ? ' status-high' : (#strings.startsWith(dashboard.status, '중') ? ' status-medium' : (#strings.startsWith(dashboard.status, '하') ? ' status-low' : ' status-closed'))}">
-        <div class="temperature-scale">
-            <div class="track">
-                <span class="fill" th:style="|width: ${dashboard.score}%|"></span>
-                <span class="scale-marker closed-end" aria-hidden="true"></span>
-                <span class="scale-marker low-end" aria-hidden="true"></span>
-                <span class="scale-marker medium-end" aria-hidden="true"></span>
-                <span class="scale-marker high-end" aria-hidden="true"></span>
+        <div class="temperature-reading">
+            <div>
+                <p class="reading-label">현재 배달온도</p>
+                <div class="score">
+                    <strong th:text="${dashboard.score}">73</strong>
+                    <span class="score-total">/ 100</span>
+                </div>
+                <div class="status-line">
+                    <span class="status-mark" aria-hidden="true"></span>
+                    <strong th:text="${dashboard.status}">중 · 평시 운영 구간</strong>
+                </div>
             </div>
-            <div class="scale-labels">
-                <span class="scale-label">
+
+            <div class="temperature-scale" aria-label="배달온도 범위">
+                <div class="track">
+                    <span class="fill" th:style="|width: ${dashboard.score}%|"></span>
+                    <span class="scale-marker closed-end" aria-hidden="true"></span>
+                    <span class="scale-marker low-end" aria-hidden="true"></span>
+                    <span class="scale-marker medium-end" aria-hidden="true"></span>
+                    <span class="scale-marker high-end" aria-hidden="true"></span>
+                </div>
+                <div class="scale-labels" aria-hidden="true">
                     <span>매우 낮음</span>
-                    <span class="scale-range">0-19</span>
-                </span>
-                <span class="scale-label">
                     <span>낮음</span>
-                    <span class="scale-range">20-39</span>
-                </span>
-                <span class="scale-label">
                     <span>보통</span>
-                    <span class="scale-range">40-59</span>
-                </span>
-                <span class="scale-label">
                     <span>높음</span>
-                    <span class="scale-range">60-79</span>
-                </span>
-                <span class="scale-label">
                     <span>매우 높음</span>
-                    <span class="scale-range">80-100</span>
-                </span>
+                </div>
             </div>
         </div>
 
-        <div class="score">
-            <div class="score-value">
-                <strong th:text="${dashboard.score}">73</strong><span class="score-total">/100</span>
-            </div>
-            <span class="score-label">오늘의 배달온도</span>
+        <div class="temperature-guidance">
+            <p class="guidance-label">오늘의 운영 제안</p>
+            <p class="message" th:text="${dashboard.message}">
+                평상시 영업을 유지하세요. 프로모션을 진행하기 좋은 구간입니다.
+            </p>
+            <p class="guidance-note">지역·업종별 주문 패턴과 현재 외부 환경을 종합한 참고 지표입니다.</p>
         </div>
-
-        <div class="status-card">
-            <span class="glow-dot"></span>
-            <span>
-                <span th:text="${dashboard.status}">중 · 평시 운영 구간</span>
-            </span>
-        </div>
-
-        <p class="message" th:text="${dashboard.message}">
-            평상시 영업을 유지하세요. 프로모션을 진행하기 좋은 구간입니다.
-        </p>
     </section>
 
     <section class="factors" aria-label="오늘 점수에 영향을 준 요인">
-        <h2>오늘 점수에 영향을 준 요인</h2>
+        <div class="section-heading">
+            <h2>수요 판단 근거</h2>
+            <p>지역·업종별 주문 패턴과 실시간 외부 환경을 함께 봤습니다.</p>
+        </div>
+
         <ul class="factor-list">
             <li class="factor">
-                <span class="factor-icon">🌦</span>
-                <span class="factor-label" th:text="${dashboard.currentWeatherDescription}">습도 높음</span>
+                <span class="factor-category">WEATHER</span>
+                <span class="factor-label" th:text="${dashboard.currentWeatherDescription}">비와 낮은 기온이 겹친 날씨</span>
                 <span class="impact"
                       th:text="${dashboard.currentWeatherFactor}"
                       th:classappend="${#strings.contains(dashboard.currentWeatherFactor, '↑') ? ' up' : (#strings.contains(dashboard.currentWeatherFactor, '↓') ? ' down' : '')}">↑</span>
             </li>
             <li class="factor">
-                <span class="factor-icon">🕘</span>
-                <span class="factor-label" th:text="${dashboard.timeDescription}">저녁 시간대</span>
+                <span class="factor-category">TIME</span>
+                <span class="factor-label" th:text="${dashboard.timeDescription}">늦은 시간에도 주문 흐름이 강한 시간대</span>
                 <span class="impact"
                       th:text="${dashboard.timeFactor}"
-                      th:classappend="${#strings.contains(dashboard.timeFactor, '↑') ? ' up' : (#strings.contains(dashboard.timeFactor, '↓') ? ' down' : '')}">
-        ↑
-    </span>
+                      th:classappend="${#strings.contains(dashboard.timeFactor, '↑') ? ' up' : (#strings.contains(dashboard.timeFactor, '↓') ? ' down' : '')}">↑</span>
             </li>
-
             <li class="factor">
-                <span class="factor-icon">📅</span>
-                <span class="factor-label" th:text="${dashboard.dayDescription}">주말</span>
+                <span class="factor-category">
+                    <span class="category-desktop">LOCAL PATTERN</span>
+                    <span class="category-mobile">PATTERN</span>
+                </span>
+                <span class="factor-label" th:text="${dashboard.dayDescription}">이 지역의 일식 업종은 금요일 흐름이 비교적 활발한 편</span>
                 <span class="impact"
                       th:text="${dashboard.dayFactor}"
-                      th:classappend="${#strings.contains(dashboard.dayFactor, '↑') ? ' up' : (#strings.contains(dashboard.dayFactor, '↓') ? ' down' : '')}">
-        ↑
-    </span>
+                      th:classappend="${#strings.contains(dashboard.dayFactor, '↑') ? ' up' : (#strings.contains(dashboard.dayFactor, '↓') ? ' down' : '')}">↑</span>
             </li>
             <li class="factor">
-                <span class="factor-icon">🙂</span>
-                <span class="factor-label" th:text="${dashboard.airQualityDescription}">대기질</span>
+                <span class="factor-category">AIR</span>
+                <span class="factor-label" th:text="${dashboard.airQualityDescription}">외출이 다소 불편한 대기질</span>
                 <span class="impact"
                       th:text="${dashboard.airQualityFactor}"
-                      th:classappend="${#strings.contains(dashboard.airQualityFactor, '↑') ? ' up' : (#strings.contains(dashboard.airQualityFactor, '↓') ? ' down' : '')}">↓</span>
+                      th:classappend="${#strings.contains(dashboard.airQualityFactor, '↑') ? ' up' : (#strings.contains(dashboard.airQualityFactor, '↓') ? ' down' : '')}">↑</span>
             </li>
-            <div class="store-debug-box debug-hidden">
-                <h3>Store Debug Info</h3>
-                <div>
-                    <span>ID: </span>
-                    <span th:text="${dashboard.store.id}">StoreID</span>
-                </div>
-
-                <div>
-                    <span>NAME: </span>
-                    <span th:text="${dashboard.store.name}">가게명</span>
-                </div>
-
-                <div>
-                    <span>BUSINESS_TYPE: </span>
-                    <span th:text="${dashboard.store.businessType?.displayName}">업종</span>
-                </div>
-
-                <div>
-                    <span>ADDRESS: </span>
-                    <span th:text="${dashboard.store.address}">주소</span>
-                </div>
-
-                <div>
-                    <span>ROAD_ADDRESS: </span>
-                    <span th:text="${dashboard.store.roadAddress}">도로명주소</span>
-                </div>
-
-                <div>
-                    <span>JIBUN_ADDRESS: </span>
-                    <span th:text="${dashboard.store.jibunAddress}">지번주소</span>
-                </div>
-
-                <div>
-                    <span>ADDRESS_DETAIL: </span>
-                    <span th:text="${dashboard.store.addressDetail}">상세주소</span>
-                </div>
-
-                <div>
-                    <span>POSTAL_CODE: </span>
-                    <span th:text="${dashboard.store.postalCode}">우편번호</span>
-                </div>
-
-                <div>
-                    <span>SIDO_NAME: </span>
-                    <span th:text="${dashboard.store.sidoName}">시도명</span>
-                </div>
-
-                <div>
-                    <span>SIGUNGU_NAME: </span>
-                    <span th:text="${dashboard.store.sigunguName}">시군구명</span>
-                </div>
-
-                <div>
-                    <span>DONG_NAME: </span>
-                    <span th:text="${dashboard.store.dongName}">동명</span>
-                </div>
-
-                <div>
-                    <span>ADDRESS_REGION_CODE: </span>
-                    <span th:text="${dashboard.store.addressRegionCode}">행정구역코드</span>
-                </div>
-
-                <div>
-                    <span>ROAD_NAME_CODE: </span>
-                    <span th:text="${dashboard.store.roadNameCode}">도로명코드</span>
-                </div>
-
-                <div>
-                    <span>BUILDING_MANAGEMENT_NUMBER: </span>
-                    <span th:text="${dashboard.store.buildingManagementNumber}">건물관리번호</span>
-                </div>
-
-                <div>
-                    <span>ROAD_NAME: </span>
-                    <span th:text="${dashboard.store.roadName}">도로명</span>
-                </div>
-
-                <div>
-                    <span>UNDERGROUND_YN: </span>
-                    <span th:text="${dashboard.store.undergroundYn}">지하여부</span>
-                </div>
-
-                <div>
-                    <span>BUILDING_MAIN_NUMBER: </span>
-                    <span th:text="${dashboard.store.buildingMainNumber}">건물본번</span>
-                </div>
-
-                <div>
-                    <span>BUILDING_SUB_NUMBER: </span>
-                    <span th:text="${dashboard.store.buildingSubNumber}">건물부번</span>
-                </div>
-
-                <div>
-                    <span>NX: </span>
-                    <span th:text="${dashboard.store.nx}">nx</span>
-                </div>
-
-                <div>
-                    <span>NY: </span>
-                    <span th:text="${dashboard.store.ny}">ny</span>
-                </div>
-
-                <div>
-                    <span>CREATED_AT: </span>
-                    <span th:text="${dashboard.store.createdAt}">생성 시간</span>
-                </div>
-            </div>
-            <div class="store-debug-box debug-hidden">
-                <h3>Air Quality Detail</h3>
-                <div>
-                    <span>DETAIL: </span>
-                    <span th:text="${dashboard.airQualityDetail}">미세먼지 45, 초미세먼지 33, 오존 0.0487</span>
-                </div>
-            </div>
         </ul>
+
+        <div class="analysis-scope" aria-label="배달온도 분석 범위">
+            <p class="scope-signals">
+                <strong>함께 본 신호</strong>
+                <span>지역·업종 패턴 · 시간대 · 요일·공휴일 · 강수·기온·바람 · 미세먼지·오존 · 신호 간 조합</span>
+            </p>
+            <p>화살표는 예상 수요의 증감 방향을 뜻합니다.</p>
+        </div>
+
     </section>
-    <button id="debug-toggle" class="debug-toggle" type="button" aria-expanded="false">Debug</button>
 </main>
+
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const storeSelect = document.getElementById("store-select");
-        const debugToggle = document.getElementById("debug-toggle");
-        const debugBoxes = document.querySelectorAll(".store-debug-box");
         const accountMenuButton = document.getElementById("account-menu-button");
         const accountMenu = document.getElementById("account-menu");
 
@@ -809,19 +750,6 @@
 
             accountMenu.hidden = true;
             accountMenuButton.setAttribute("aria-expanded", "false");
-        }
-
-        if (debugToggle) {
-            debugToggle.addEventListener("click", function () {
-                const shouldShow = this.getAttribute("aria-expanded") !== "true";
-
-                debugBoxes.forEach(function (debugBox) {
-                    debugBox.classList.toggle("debug-hidden", !shouldShow);
-                });
-
-                this.setAttribute("aria-expanded", String(shouldShow));
-                this.textContent = shouldShow ? "Hide Debug" : "Debug";
-            });
         }
 
         if (storeSelect) {
