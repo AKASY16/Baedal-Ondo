@@ -5,6 +5,7 @@ import com.baedalondo.api.commercialarea.dto.CommercialAreaMatch;
 import com.baedalondo.api.location.dto.JusoAddressRequest;
 import com.baedalondo.api.location.dto.WeatherGridResult;
 import com.baedalondo.api.store.domain.Store;
+import com.baedalondo.api.store.dto.StoreEditRequest;
 import com.baedalondo.api.store.dto.StoreRegisterRequest;
 import org.springframework.stereotype.Component;
 
@@ -24,8 +25,8 @@ public class StoreFactory {
     }
 
     /**
-     * commercialAreaMatch는 상권을 찾지 못한 경우 null이며,
-     * 이때 매장은 상권 정보 없이 정상 등록된다.
+     commercialAreaMatch는 상권을 찾지 못한 경우 null이며,
+     이때 매장은 상권 정보 없이 정상 등록된다.
      */
     public Store storeCreate(StoreRegisterRequest request,
                               WeatherGridResult weatherGridCoordinate,
@@ -65,4 +66,35 @@ public class StoreFactory {
         return store;
     }
 
+    public void editStore(Store store,
+                           StoreEditRequest request,
+                           WeatherGridResult weatherGridCoordinate,
+                           CommercialAreaMatch commercialAreaMatch){
+
+        JusoAddressRequest newAddress = request.getJusoAddress();
+
+        store.setAddress(newAddress.getRoadFullAddr());
+        store.setRoadAddress(newAddress.getRoadAddrPart1());
+        store.setAddressDetail(newAddress.getAddrDetail());
+        store.setJibunAddress(newAddress.getJibunAddr());
+        store.setPostalCode(newAddress.getZipNo());
+
+        store.setSidoName(newAddress.getSiNm());
+        store.setSigunguName(newAddress.getSggNm());
+        store.setDongName(newAddress.getEmdNm());
+
+        store.setAddressRegionCode(newAddress.getAdmCd());
+        store.setRoadNameCode(newAddress.getRnMgtSn());
+        store.setBuildingManagementNumber(newAddress.getBdMgtSn());
+
+        store.setRoadName(newAddress.getRn());
+        store.setUndergroundYn(newAddress.getUdrtYn());
+        store.setBuildingMainNumber(newAddress.getBuldMnnm());
+        store.setBuildingSubNumber(newAddress.getBuldSlno());
+
+        store.setNx(weatherGridCoordinate.getNx());
+        store.setNy(weatherGridCoordinate.getNy());
+
+        store.assignCommercialArea(commercialAreaMatch);
+    }
 }

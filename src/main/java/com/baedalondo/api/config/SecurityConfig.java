@@ -49,7 +49,8 @@ public class SecurityConfig {
                                 "/api/guest-regions",
                                 "/api/guest-regions/**",
                                 "/store/register",
-                                "/store/register/**"
+                                "/store/register/**",
+                                "/store/*/edit"
                         )
                 )
                 .headers(headers -> headers

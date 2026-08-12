@@ -1,12 +1,10 @@
 package com.baedalondo.api.store.controller;
 
 import com.baedalondo.api.store.domain.Store;
+import com.baedalondo.api.store.dto.StoreEditRequest;
 import com.baedalondo.api.store.dto.StoreRegisterRequest;
 import com.baedalondo.api.store.service.StoreService;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/stores")
@@ -24,4 +22,13 @@ public class StoreController {
         return savedStore.getId();
     }
 
+    @PutMapping("/{storeId}")
+    public Long editStore(
+            @PathVariable("storeId") Long storeId,
+            @RequestBody StoreEditRequest request
+    ) {
+        Store editedStore = storeService.editStore(storeId, request);
+
+        return editedStore.getId();
+    }
 }
