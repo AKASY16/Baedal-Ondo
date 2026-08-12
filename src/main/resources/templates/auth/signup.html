@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회원가입 - 배달온도</title>
+    <link rel="icon" href="/images/baedal-ondo-icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/baedal-ui.css">
+    <style>
+        .signup-shell {
+            display: grid;
+            width: min(1080px, calc(100% - 48px));
+            min-height: calc(100vh - 86px);
+            margin: 0 auto;
+            grid-template-columns: minmax(0, 0.9fr) minmax(390px, 1.1fr);
+        }
+
+        .signup-intro {
+            position: relative;
+            display: flex;
+            padding: 80px 7vw 80px 0;
+            flex-direction: column;
+            justify-content: center;
+            border-right: 1px solid var(--bo-line);
+        }
+
+        .signup-kicker {
+            margin: 0 0 22px;
+            color: var(--bo-accent);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+        }
+
+        .signup-intro h1 {
+            margin: 0;
+            font-size: clamp(40px, 5.4vw, 68px);
+            line-height: 1.08;
+            letter-spacing: -0.025em;
+        }
+
+        .signup-intro h1 span {
+            color: var(--bo-accent);
+        }
+
+        .signup-note {
+            position: absolute;
+            bottom: 80px;
+            left: 0;
+            display: grid;
+            max-width: 390px;
+            grid-template-columns: 72px minmax(0, 1fr);
+            gap: 18px;
+            margin: 0;
+            color: var(--bo-muted);
+            font-size: 14px;
+            line-height: 1.65;
+        }
+
+        .signup-note strong {
+            color: var(--bo-ink);
+            font-size: 12px;
+            letter-spacing: 0.08em;
+        }
+
+        .signup-panel {
+            display: flex;
+            padding: 64px 0 64px 7vw;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .signup-panel h2 {
+            margin: 0 0 8px;
+            font-size: 26px;
+            letter-spacing: -0.03em;
+        }
+
+        .signup-description {
+            margin: 0 0 30px;
+            color: var(--bo-muted);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--bo-muted);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .form-group input {
+            width: 100%;
+            min-height: 48px;
+            padding: 11px 12px;
+            border: 1px solid var(--bo-line);
+            border-radius: 4px;
+            background: var(--bo-surface);
+            color: var(--bo-ink);
+            font-size: 15px;
+        }
+
+        .form-group input:focus {
+            border-color: var(--bo-ink);
+            outline: 2px solid rgba(29, 29, 27, 0.1);
+        }
+
+        .form-group input.invalid {
+            border-color: var(--bo-danger);
+        }
+
+        .field-help,
+        .field-error {
+            margin: 7px 0 0;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .field-help {
+            color: var(--bo-muted);
+        }
+
+        .field-error {
+            display: none;
+            color: var(--bo-danger);
+        }
+
+        .field-error.is-visible {
+            display: block;
+        }
+
+        .signup-button {
+            display: flex;
+            width: 100%;
+            min-height: 48px;
+            margin-top: 8px;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--bo-accent);
+            border-radius: 4px;
+            background: var(--bo-accent);
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .signup-button:hover {
+            background: var(--bo-accent-dark);
+        }
+
+        .signup-button:disabled {
+            cursor: wait;
+            opacity: 0.68;
+        }
+
+        .client-status {
+            display: none;
+            margin: 0 0 14px;
+            padding: 11px 12px;
+            border: 1px solid #ddb6b2;
+            border-radius: 4px;
+            background: #f8eae8;
+            color: var(--bo-danger);
+            font-size: 13px;
+        }
+
+        .client-status.is-visible {
+            display: block;
+        }
+
+        .login-prompt {
+            margin: 22px 0 0;
+            color: var(--bo-muted);
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .login-prompt a {
+            color: var(--bo-ink);
+            font-weight: 700;
+            text-underline-offset: 3px;
+        }
+
+        @media (max-width: 760px) {
+            .signup-shell {
+                width: min(100% - 32px, 1080px);
+                min-height: auto;
+                grid-template-columns: 1fr;
+            }
+
+            .signup-intro {
+                min-height: 300px;
+                padding: 44px 0 40px;
+                border-right: 0;
+                border-bottom: 1px solid var(--bo-line);
+            }
+
+            .signup-intro h1 {
+                font-size: clamp(39px, 12vw, 54px);
+            }
+
+            .signup-note {
+                display: none;
+            }
+
+            .signup-panel {
+                padding: 40px 0 64px;
+            }
+        }
+    </style>
+</head>
+<body class="login-page">
+<header class="bo-topbar">
+    <a class="bo-brand" href="/" aria-label="배달온도 홈">
+        <img src="/images/baedal-ondo-icon.svg" alt="">
+        <span class="bo-brand-copy">
+            <span class="bo-brand-name">배달온도</span>
+            <span class="bo-brand-description">오늘의 배달 수요 판단 도구</span>
+        </span>
+    </a>
+    <span class="bo-topbar-note">NEW OWNER</span>
+</header>
+
+<main class="signup-shell">
+    <section class="signup-intro" aria-labelledby="signup-page-title">
+        <div>
+            <p class="signup-kicker">FIRST · STORE SETUP</p>
+            <h1 id="signup-page-title">계정 하나면,<br>가게의 <span>오늘</span>이<br>보입니다.</h1>
+        </div>
+        <p class="signup-note">
+            <strong>NEXT</strong>
+            <span>가입을 마치면 가게를 등록하고 바로 오늘의 배달온도를 확인할 수 있어요.</span>
+        </p>
+    </section>
+
+    <section class="signup-panel" aria-labelledby="signup-title">
+        <h2 id="signup-title">사장님 회원가입</h2>
+        <p class="signup-description">로그인에 사용할 아이디와 비밀번호를 정해 주세요.</p>
+
+        <form id="signup-form" action="/signup" method="post" th:action="@{/signup}" th:object="${signupRequest}" novalidate>
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+            <div class="form-group">
+                <label for="loginId">로그인 ID</label>
+                <input type="text" id="loginId" name="loginId" th:value="*{loginId}"
+                       th:classappend="${#fields.hasErrors('loginId')} ? ' invalid' : ''"
+                       minlength="4" maxlength="30" pattern="[a-zA-Z0-9._-]+"
+                       placeholder="4~30자의 아이디" autocomplete="username" required>
+                <p class="field-help">영문, 숫자, 마침표, 밑줄, 하이픈을 사용할 수 있어요.</p>
+                <p class="field-error"
+                   th:classappend="${#fields.hasErrors('loginId')} ? ' is-visible' : ''"
+                   th:errors="*{loginId}">아이디를 확인해 주세요.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="password">비밀번호</label>
+                <input type="password" id="password" name="password"
+                       th:classappend="${#fields.hasErrors('password')} ? ' invalid' : ''"
+                       minlength="8" maxlength="72" placeholder="8자 이상의 비밀번호"
+                       autocomplete="new-password" required>
+                <p class="field-error"
+                   th:classappend="${#fields.hasErrors('password')} ? ' is-visible' : ''"
+                   th:errors="*{password}">비밀번호를 확인해 주세요.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="passwordConfirm">비밀번호 확인</label>
+                <input type="password" id="passwordConfirm" name="passwordConfirm"
+                       th:classappend="${#fields.hasErrors('passwordConfirm')} ? ' invalid' : ''"
+                       minlength="8" maxlength="72" placeholder="비밀번호를 한 번 더 입력하세요"
+                       autocomplete="new-password" required>
+                <p class="field-error"
+                   th:classappend="${#fields.hasErrors('passwordConfirm')} ? ' is-visible' : ''"
+                   th:errors="*{passwordConfirm}">비밀번호를 확인해 주세요.</p>
+            </div>
+
+            <p id="client-status" class="client-status" role="alert"></p>
+            <button id="signup-button" type="submit" class="signup-button">회원가입</button>
+        </form>
+
+        <p class="login-prompt">이미 계정이 있나요? <a href="/login">로그인</a></p>
+    </section>
+</main>
+
+<script>
+    document.getElementById("signup-form").addEventListener("submit", function (event) {
+        const password = document.getElementById("password");
+        const passwordConfirm = document.getElementById("passwordConfirm");
+        const status = document.getElementById("client-status");
+
+        if (!this.checkValidity()) {
+            event.preventDefault();
+            this.reportValidity();
+            return;
+        }
+
+        if (password.value !== passwordConfirm.value) {
+            event.preventDefault();
+            passwordConfirm.classList.add("invalid");
+            status.textContent = "비밀번호가 서로 다릅니다.";
+            status.classList.add("is-visible");
+            passwordConfirm.focus();
+            return;
+        }
+
+        document.getElementById("signup-button").disabled = true;
+        document.getElementById("signup-button").textContent = "가입 중...";
+    });
+
+    document.getElementById("passwordConfirm").addEventListener("input", function () {
+        this.classList.remove("invalid");
+        document.getElementById("client-status").classList.remove("is-visible");
+    });
+</script>
+</body>
+</html>

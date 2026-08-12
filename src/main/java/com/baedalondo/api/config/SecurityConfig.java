@@ -17,6 +17,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/login",
+                                "/signup",
                                 "/guest",
                                 "/dashboard/guest",
                                 "/api/guest-regions",

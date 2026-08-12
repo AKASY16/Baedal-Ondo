@@ -2,165 +2,254 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>로그인 - 배달온도</title>
     <link rel="icon" href="/images/baedal-ondo-icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/baedal-ui.css">
     <style>
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f6f7f9;
-            color: #222;
-        }
-
-        .page {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-        }
-
-        .login-card {
-            width: 100%;
-            max-width: 380px;
-            background: #ffffff;
-            border-radius: 18px;
-            padding: 32px 28px;
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
-        }
-
-        .logo {
+        .login-shell {
             display: grid;
-            justify-items: center;
-            gap: 8px;
-            margin-bottom: 8px;
-            font-size: 28px;
-            font-weight: 800;
-            color: #ff6b35;
-            text-align: center;
+            width: min(1080px, calc(100% - 48px));
+            min-height: calc(100vh - 86px);
+            margin: 0 auto;
+            grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
         }
 
-        .logo img {
-            width: 48px;
-            height: 48px;
+        .login-intro {
+            position: relative;
+            display: flex;
+            padding: 80px 9vw 80px 0;
+            flex-direction: column;
+            justify-content: center;
+            border-right: 1px solid var(--bo-line);
         }
 
-        .subtitle {
-            margin-bottom: 28px;
+        .login-kicker {
+            margin: 0 0 24px;
+            color: var(--bo-accent);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+        }
+
+        .login-intro h1 {
+            max-width: 580px;
+            margin: 0;
+            font-size: clamp(44px, 6vw, 76px);
+            line-height: 1.04;
+            letter-spacing: -0.025em;
+        }
+
+        .login-intro h1 span {
+            color: var(--bo-accent);
+        }
+
+        .intro-note {
+            position: absolute;
+            bottom: 80px;
+            left: 0;
+            display: grid;
+            grid-template-columns: 72px minmax(0, 330px);
+            gap: 18px;
+            margin: 0;
+            color: var(--bo-muted);
             font-size: 14px;
-            color: #666;
-            text-align: center;
-            line-height: 1.5;
+            line-height: 1.65;
+        }
+
+        .intro-note strong {
+            color: var(--bo-ink);
+            font-size: 12px;
+            letter-spacing: 0.08em;
+        }
+
+        .login-panel {
+            display: flex;
+            padding: 80px 0 80px 7vw;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .login-panel h2 {
+            margin: 0 0 8px;
+            font-size: 26px;
+            letter-spacing: -0.03em;
+        }
+
+        .login-description {
+            margin: 0 0 34px;
+            color: var(--bo-muted);
+            font-size: 14px;
+            line-height: 1.6;
         }
 
         .form-group {
-            margin-bottom: 16px;
+            margin-bottom: 18px;
         }
 
-        label {
+        .form-group label {
             display: block;
             margin-bottom: 8px;
+            color: var(--bo-muted);
+            font-size: 13px;
+        }
+
+        .form-group input {
+            width: 100%;
+            min-height: 48px;
+            padding: 11px 12px;
+            border: 1px solid var(--bo-line);
+            border-radius: 4px;
+            background: var(--bo-surface);
+            color: var(--bo-ink);
+            font-size: 15px;
+        }
+
+        .form-group input:focus {
+            border-color: var(--bo-ink);
+            outline: 2px solid rgba(29, 29, 27, 0.1);
+        }
+
+        .login-button,
+        .guest-button {
+            display: flex;
+            width: 100%;
+            min-height: 48px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
             font-size: 14px;
             font-weight: 700;
-        }
-
-        input {
-            width: 100%;
-            height: 46px;
-            padding: 0 14px;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            font-size: 15px;
-            outline: none;
-        }
-
-        input:focus {
-            border-color: #ff6b35;
+            text-decoration: none;
         }
 
         .login-button {
-            width: 100%;
-            height: 48px;
-            margin-top: 10px;
-            border: none;
-            border-radius: 12px;
-            background: #ff6b35;
-            color: #ffffff;
-            font-size: 16px;
-            font-weight: 800;
+            margin-top: 8px;
+            border: 1px solid var(--bo-accent);
+            background: var(--bo-accent);
+            color: #fff;
             cursor: pointer;
         }
 
         .login-button:hover {
-            background: #f25f2a;
+            background: var(--bo-accent-dark);
         }
 
         .guest-button {
-            display: block;
-            width: 100%;
-            height: 46px;
-            margin-top: 12px;
-            border: 1px solid #ddd;
-            border-radius: 12px;
-            background: #ffffff;
-            color: #333;
-            font-size: 15px;
-            font-weight: 800;
-            line-height: 44px;
-            text-align: center;
-            text-decoration: none;
+            margin-top: 10px;
+            border: 1px solid var(--bo-line-strong);
+            color: var(--bo-ink);
         }
 
         .guest-button:hover {
-            border-color: #ff6b35;
-            color: #ff6b35;
+            border-color: var(--bo-ink);
+            background: var(--bo-soft);
         }
 
-        .helper {
-            margin-top: 18px;
-            font-size: 13px;
-            color: #777;
+        .login-status {
+            display: none;
+            margin: 0 0 22px;
+            padding: 11px 12px;
+            border: 1px solid #abc5b2;
+            border-radius: 4px;
+            background: #eaf4ec;
+            color: #27633a;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        .login-status.is-visible {
+            display: block;
+        }
+
+        .signup-prompt {
+            margin: 22px 0 0;
+            color: var(--bo-muted);
+            font-size: 14px;
             text-align: center;
         }
+
+        .signup-prompt a {
+            color: var(--bo-ink);
+            font-weight: 700;
+            text-underline-offset: 3px;
+        }
+
+        @media (max-width: 760px) {
+            .login-shell {
+                width: min(100% - 32px, 1080px);
+                min-height: auto;
+                grid-template-columns: 1fr;
+            }
+
+            .login-intro {
+                min-height: 330px;
+                padding: 48px 0 42px;
+                border-right: 0;
+                border-bottom: 1px solid var(--bo-line);
+            }
+
+            .login-intro h1 {
+                font-size: clamp(42px, 13vw, 60px);
+            }
+
+            .intro-note {
+                display: none;
+            }
+
+            .login-panel {
+                padding: 42px 0 64px;
+            }
+        }
     </style>
-    <link rel="stylesheet" href="/css/common.css">
 </head>
-<body>
-<div class="page">
-    <div class="login-card">
-        <div class="logo">
-            <img src="/images/baedal-ondo-icon.svg" alt="">
-            <span>배달온도</span>
+<body class="login-page">
+<header class="bo-topbar">
+    <a class="bo-brand" href="/" aria-label="배달온도 홈">
+        <img src="/images/baedal-ondo-icon.svg" alt="">
+        <span class="bo-brand-copy">
+            <span class="bo-brand-name">배달온도</span>
+            <span class="bo-brand-description">오늘의 배달 수요 판단 도구</span>
+        </span>
+    </a>
+    <span class="bo-topbar-note">OWNER ACCESS</span>
+</header>
+
+<main class="login-shell">
+    <section class="login-intro" aria-labelledby="login-page-title">
+        <div>
+            <p class="login-kicker">TODAY · DELIVERY OUTLOOK</p>
+            <h1 id="login-page-title">오늘 장사,<br><span>감 말고 온도</span>로.</h1>
         </div>
-        <div class="subtitle">
-            사장님의 오늘 배달 수요를<br>
-            한눈에 확인하세요
-        </div>
+        <p class="intro-note">
+            <strong>10 SEC</strong>
+            <span>날씨·시간·요일·대기질을 한 번에 읽고, 지금 필요한 운영 판단만 빠르게 확인하세요.</span>
+        </p>
+    </section>
+
+    <section class="login-panel" aria-labelledby="login-title">
+        <h2 id="login-title">사장님 로그인</h2>
+        <p class="login-description">등록한 가게의 오늘 배달온도를 확인합니다.</p>
+        <p class="login-status" th:classappend="${param.signup != null} ? ' is-visible' : ''">회원가입이 완료됐어요. 새 계정으로 로그인해 주세요.</p>
 
         <form action="/login" method="post">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <div class="form-group">
                 <label for="loginId">로그인 ID</label>
-                <input type="text" id="loginId" name="loginId" placeholder="owner">
+                <input type="text" id="loginId" name="loginId" placeholder="아이디를 입력하세요" autocomplete="username">
             </div>
 
             <div class="form-group">
                 <label for="password">비밀번호</label>
-                <input type="password" id="password" name="password" placeholder="비밀번호를 입력하세요">
+                <input type="password" id="password" name="password" placeholder="비밀번호를 입력하세요" autocomplete="current-password">
             </div>
 
             <button type="submit" class="login-button">로그인</button>
         </form>
-        <a class="guest-button" href="/guest">게스트 모드로 보기</a>
-
-        <div class="helper">
-            아직 로그인 기능은 구현 전입니다.
-        </div>
-    </div>
-</div>
+        <a class="guest-button" href="/guest">게스트 모드로 먼저 보기</a>
+        <p class="signup-prompt">배달온도가 처음인가요? <a href="/signup">회원가입</a></p>
+    </section>
+</main>
 </body>
 </html>
