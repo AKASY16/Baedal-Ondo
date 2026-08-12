@@ -1,6 +1,7 @@
 package com.baedalondo.api.dashboard.dto;
 
 import com.baedalondo.api.score.ScoreResult;
+import com.baedalondo.api.score.status.ScoreStatusLevel;
 import com.baedalondo.api.store.domain.Store;
 
 public class DashboardView {
@@ -73,6 +74,14 @@ public class DashboardView {
 
     public String getStatus() {
         return status;
+    }
+
+    /**
+     * 화면 스타일 결정용 점수 구간 코드.
+     * 템플릿이 status 문구를 파싱하지 않도록 별도로 노출한다.
+     */
+    public ScoreStatusLevel getStatusLevel() {
+        return ScoreStatusLevel.from(score);
     }
 
     public String getMessage() {

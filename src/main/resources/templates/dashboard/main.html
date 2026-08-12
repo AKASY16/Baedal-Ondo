@@ -645,7 +645,7 @@
     </header>
 
     <section class="temperature-panel" aria-label="현재 배달온도"
-             th:classappend="${#strings.startsWith(dashboard.status, '상') ? ' status-high' : (#strings.startsWith(dashboard.status, '중') ? ' status-medium' : (#strings.startsWith(dashboard.status, '하') ? ' status-low' : ' status-closed'))}">
+             th:classappend="${dashboard.statusLevel.cssClass}">
         <div class="temperature-reading">
             <div>
                 <p class="reading-label">현재 배달온도</p>
@@ -655,7 +655,7 @@
                 </div>
                 <div class="status-line">
                     <span class="status-mark" aria-hidden="true"></span>
-                    <strong th:text="${dashboard.status}">중 · 평시 운영 구간</strong>
+                    <strong th:text="${dashboard.status}">보통 · 평균 수요 구간</strong>
                 </div>
             </div>
 

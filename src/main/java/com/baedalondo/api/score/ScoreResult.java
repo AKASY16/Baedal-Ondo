@@ -1,5 +1,7 @@
 package com.baedalondo.api.score;
 
+import com.baedalondo.api.score.status.ScoreStatusLevel;
+
 
 public class ScoreResult {
 
@@ -48,6 +50,14 @@ public class ScoreResult {
 
     public String getStatus() {
         return status;
+    }
+
+    /**
+     * 표시 문구와 무관한 점수 구간 코드.
+     * 화면 스타일은 status 문자열이 아니라 이 값을 기준으로 결정한다.
+     */
+    public ScoreStatusLevel getStatusLevel() {
+        return ScoreStatusLevel.from(score);
     }
 
     public String getMessage() {

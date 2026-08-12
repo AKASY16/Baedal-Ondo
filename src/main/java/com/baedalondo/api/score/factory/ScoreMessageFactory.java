@@ -2,6 +2,7 @@ package com.baedalondo.api.score.factory;
 
 import com.baedalondo.api.airquality.domain.CurrentAirQualityObservation;
 import com.baedalondo.api.score.status.DayDemandLevel;
+import com.baedalondo.api.score.status.ScoreStatusLevel;
 import com.baedalondo.api.score.status.TimeDemandLevel;
 import com.baedalondo.api.score.timeweight.TimeBand;
 import com.baedalondo.api.weather.domain.WeatherScoreResult;
@@ -133,24 +134,15 @@ public class ScoreMessageFactory {
         return subject + " 평소와 비슷한 편";
     }
 
+    // 구간 경계는 ScoreStatusLevel이 단일 기준이다. 여기서는 문구만 정한다.
     public String calculateStatus(int score) {
-        if (score >= 80) {
-            return "매우 높음 · 수요 급등 구간";
-        }
-
-        if (score >= 60) {
-            return "높음 · 높은 수요 구간";
-        }
-
-        if (score >= 40) {
-            return "보통 · 평균 수요 구간";
-        }
-
-        if (score >= 20) {
-            return "낮음 · 수요 둔화 구간";
-        }
-
-        return "마감 · 매우 낮은 수요 구간";
+        return switch (ScoreStatusLevel.from(score)) {
+            case VERY_HIGH -> "매우 높음 · 수요 급등 구간";
+            case HIGH -> "높음 · 높은 수요 구간";
+            case MEDIUM -> "보통 · 평균 수요 구간";
+            case LOW -> "낮음 · 수요 둔화 구간";
+            case CLOSED -> "마감 · 매우 낮은 수요 구간";
+        };
     }
 
     public String createMessage(int score) {
