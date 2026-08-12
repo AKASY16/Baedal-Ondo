@@ -19,15 +19,12 @@ public class SecurityConfig {
                                 "/login",
                                 "/guest",
                                 "/dashboard/guest",
-                                "/testingpage",
-                                "/testingpage/**",
                                 "/api/guest-regions",
                                 "/api/guest-regions/**",
                                 "/css/**",
                                 "/fonts/**",
                                 "/js/**",
-                                "/images/**",
-                                "/h2-console/**"
+                                "/images/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
@@ -49,9 +46,6 @@ public class SecurityConfig {
                 )
                 .csrf(csrf -> csrf
                         .ignoringRequestMatchers(
-                                "/h2-console/**",
-                                "/testingpage",
-                                "/testingpage/**",
                                 "/api/guest-regions",
                                 "/api/guest-regions/**",
                                 "/store/register",

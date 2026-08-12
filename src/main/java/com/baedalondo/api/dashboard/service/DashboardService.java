@@ -132,10 +132,6 @@ public class DashboardService {
         }
     }
 
-    public List<Store> getStores() {
-        return storeService.getStores();
-    }
-
     public List<Store> getCurrentUserStores() {
         return storeService.getCurrentLoginUserStores();
     }

@@ -13,7 +13,6 @@ import com.baedalondo.api.store.dto.StoreRegisterRequest;
 import com.baedalondo.api.store.repository.StoreRepository;
 import com.baedalondo.api.user.domain.UserAccount;
 import com.baedalondo.api.user.repository.UserAccountRepository;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -83,11 +82,6 @@ public class StoreService {
                 .orElseThrow(() -> new IllegalArgumentException("접근할 수 없는 가게입니다."));
     }
 
-
-    @Transactional(readOnly = true)
-    public List<Store> getStores() {
-        return storeRepository.findAll(Sort.by(Sort.Direction.ASC, "id"));
-    }
 
     @Transactional(readOnly = true)
     public List<Store> getCurrentLoginUserStores() {
