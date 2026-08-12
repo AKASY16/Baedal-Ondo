@@ -12,6 +12,7 @@ import com.baedalondo.api.score.ScoreCalculationResult;
 import com.baedalondo.api.score.calculator.DayWeightCalculator;
 import com.baedalondo.api.score.calculator.WeightedScoreCalculator;
 import com.baedalondo.api.score.dayweight.DayWeightProvider;
+import com.baedalondo.api.score.timeweight.TimeWeightProvider;
 import com.baedalondo.api.score.status.DayDemandLevel;
 import com.baedalondo.api.score.status.TimeDemandLevel;
 import com.baedalondo.api.score.calculator.TimeWeightCalculator;
@@ -34,6 +35,7 @@ public class ScoreService {
     private final TimeWeightCalculator timeWeightCalculator;
     private final DayWeightCalculator dayWeightCalculator;
     private final DayWeightProvider dayWeightProvider;
+    private final TimeWeightProvider timeWeightProvider;
     private final CurrentWeatherWeightCalculator currentWeatherWeightCalculator;
     private final CurrentWeatherService currentWeatherService;
     private final CurrentAirQualityService currentAirQualityService;
@@ -45,6 +47,7 @@ public class ScoreService {
     public ScoreService(TimeWeightCalculator timeWeightCalculator,
                         DayWeightCalculator dayWeightCalculator,
                         DayWeightProvider dayWeightProvider,
+                        TimeWeightProvider timeWeightProvider,
                         CurrentWeatherWeightCalculator currentWeatherWeightCalculator,
                         CurrentWeatherService currentWeatherService,
                         CurrentAirQualityService currentAirQualityService,
@@ -55,6 +58,7 @@ public class ScoreService {
         this.timeWeightCalculator = timeWeightCalculator;
         this.dayWeightCalculator = dayWeightCalculator;
         this.dayWeightProvider = dayWeightProvider;
+        this.timeWeightProvider = timeWeightProvider;
         this.currentWeatherWeightCalculator = currentWeatherWeightCalculator;
         this.currentWeatherService = currentWeatherService;
         this.currentAirQualityService = currentAirQualityService;
@@ -72,17 +76,19 @@ public class ScoreService {
         try {
             int airQualityScore = 0;
             String airQualityFactor = "영향 없음";
-            String airQualityDescription = "대기질";
+            String airQualityDescription = "대기질 정보를 확인하지 못했어요";
             String airQualityDetail = "대기질 정보 없음";
             CurrentWeatherObservation weather = null;
+            CurrentAirQualityObservation airQuality = null;
 
             TimeDemandLevel timeDemandLevel;
             DayDemandLevel dayDemandLevel;
             int marketDayWeight;
+            LocalDate currentDate = LocalDate.now();
+            LocalTime currentTime = LocalTime.now();
             long baseStart = System.nanoTime();
             try {
-                LocalDate currentDate = LocalDate.now();
-                timeDemandLevel = timeWeightCalculator.calculate(LocalTime.now());
+                timeDemandLevel = findMarketTimeDemandLevel(scoreTarget, currentTime);
                 dayDemandLevel = dayWeightCalculator.calculate(currentDate, isHoliday(currentDate, scoreTargetId));
                 marketDayWeight = findMarketDayWeight(scoreTarget, currentDate);
             } finally {
@@ -107,10 +113,11 @@ public class ScoreService {
 
             long airQualityStart = System.nanoTime();
             try {
-                CurrentAirQualityObservation airQuality = currentAirQualityService.getCurrentAirQuality(scoreTarget);
+                airQuality = currentAirQualityService.getCurrentAirQuality(scoreTarget);
                 airQualityScore = airQualityCalculator.getWeight(airQuality);
                 airQualityFactor = scoreMessageFactory.createAirQualityFactor(airQualityScore);
                 airQualityDetail = scoreMessageFactory.createAirQualityDetail(airQuality);
+                airQualityDescription = scoreMessageFactory.createAirQualityDescription(airQuality, airQualityScore);
             } catch (AirKoreaApiException | IllegalStateException | IllegalArgumentException e) {
                 log.warn("공기질 데이터 처리 실패. 공기질 보정 점수를 제외합니다. storeId={}", scoreTargetId, e);
             } finally {
@@ -133,12 +140,21 @@ public class ScoreService {
                 String message = scoreMessageFactory.createMessage(score);
 
                 String timeFactor = timeDemandLevel.getTimeFactor();
-                String timeDescription = timeDemandLevel.getTimeDescription();
+                String timeDescription = scoreMessageFactory.createTimeDescription(timeDemandLevel, currentTime);
+
+                String businessTypeName = scoreTarget != null && scoreTarget.getBusinessType() != null
+                        ? scoreTarget.getBusinessType().getDisplayName()
+                        : null;
 
                 // 화살표는 실제 적용된 요일 점수 기준이어야 한다.
                 // 상권에 따라 주말도 음수가 될 수 있어 enum의 고정 화살표를 쓰면 표시가 어긋난다.
                 String dayFactor = scoreMessageFactory.createDayFactor(scoreCalculationResult.dayScore());
-                String dayDescription = dayDemandLevel.getDayDescription();
+                String dayDescription = scoreMessageFactory.createLocalPatternDescription(
+                        dayDemandLevel,
+                        scoreCalculationResult.dayScore(),
+                        businessTypeName,
+                        currentDate.getDayOfWeek()
+                );
 
                 String currentWeatherFactor = scoreMessageFactory.createWeatherFactor(weatherScoreResult);
                 String currentWeatherDescription = weatherScoreResult.getDescription();
@@ -181,6 +197,26 @@ public class ScoreService {
                 scoreTarget.getBusinessType(),
                 date.getDayOfWeek()
         );
+    }
+
+    /**
+     상권 x 업종 x 시간대 등급을 우선 사용한다.
+     업종이 없는 게스트이거나 TimeWeight가 없으면 기존 공통 시간표를 사용한다.
+     */
+    private TimeDemandLevel findMarketTimeDemandLevel(ScoreTarget scoreTarget, LocalTime time) {
+        if (scoreTarget != null) {
+            TimeDemandLevel marketLevel = timeWeightProvider.findDemandLevel(
+                    scoreTarget.getCommercialAreaCode(),
+                    scoreTarget.getBusinessType(),
+                    time
+            );
+
+            if (marketLevel != null) {
+                return marketLevel;
+            }
+        }
+
+        return timeWeightCalculator.calculate(time);
     }
 
     private boolean isHoliday(LocalDate date, Long scoreTargetId) {

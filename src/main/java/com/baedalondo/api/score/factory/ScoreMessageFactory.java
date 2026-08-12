@@ -1,16 +1,17 @@
 package com.baedalondo.api.score.factory;
+
 import com.baedalondo.api.airquality.domain.CurrentAirQualityObservation;
+import com.baedalondo.api.score.status.DayDemandLevel;
+import com.baedalondo.api.score.status.TimeDemandLevel;
+import com.baedalondo.api.score.timeweight.TimeBand;
 import com.baedalondo.api.weather.domain.WeatherScoreResult;
 import org.springframework.stereotype.Component;
 
+import java.time.DayOfWeek;
+import java.time.LocalTime;
 
 @Component
 public class ScoreMessageFactory {
-
-
-    public ScoreMessageFactory(){
-
-    }
 
     public String createWeatherFactor(WeatherScoreResult weatherScoreResult) {
         if (weatherScoreResult.getWeatherScore() <= 0) {
@@ -20,11 +21,7 @@ public class ScoreMessageFactory {
         return "↑";
     }
 
-    /**
-     요일 화살표는 DayDemandLevel이 아니라 실제 적용된 요일 점수에서 만든다.
-     상권에 따라 주말이나 금요일도 음수가 될 수 있어서,
-     enum에 고정된 화살표를 쓰면 표시와 점수 방향이 어긋난다.
-     */
+    /** 실제 적용된 요일 점수의 방향을 표시한다. */
     public String createDayFactor(int appliedDayScore) {
         if (appliedDayScore > 0) {
             return "↑";
@@ -45,21 +42,112 @@ public class ScoreMessageFactory {
         return "↑";
     }
 
+    public String createAirQualityDescription(CurrentAirQualityObservation airQuality,
+                                               int rawAirQualityScore) {
+        if (airQuality == null) {
+            return "대기질 정보를 확인하지 못했어요";
+        }
+
+        if (rawAirQualityScore >= 4) {
+            return "외출에 불편한 대기질";
+        }
+
+        if (rawAirQualityScore >= 2) {
+            return "외출이 다소 불편한 대기질";
+        }
+
+        if (rawAirQualityScore == 1) {
+            return "외출이 조금 꺼려지는 대기질";
+        }
+
+        return "외출에 큰 불편이 없는 대기질";
+    }
+
+    public String createTimeDescription(TimeDemandLevel timeDemandLevel, LocalTime currentTime) {
+        TimeBand timeBand = TimeBand.from(currentTime);
+
+        return switch (timeDemandLevel) {
+            case VERY_HIGH -> switch (timeBand) {
+                case TIME_00_06 -> "심야에도 주문 흐름이 특히 강한 시간대";
+                case TIME_06_11 -> "오전 주문 흐름이 특히 강한 시간대";
+                case TIME_11_14 -> "점심 주문 흐름이 특히 강한 시간대";
+                case TIME_14_17 -> "오후 주문 흐름이 특히 강한 시간대";
+                case TIME_17_21 -> "저녁 주문 흐름이 특히 강한 시간대";
+                case TIME_21_24 -> "늦은 시간에도 주문 흐름이 특히 강한 시간대";
+            };
+            case HIGH -> switch (timeBand) {
+                case TIME_00_06 -> "심야에도 주문 흐름이 강한 시간대";
+                case TIME_06_11 -> "오전 주문 흐름이 강한 시간대";
+                case TIME_11_14 -> "점심 주문 흐름이 강한 시간대";
+                case TIME_14_17 -> "오후 주문 흐름이 강한 시간대";
+                case TIME_17_21 -> "저녁 주문 흐름이 강한 시간대";
+                case TIME_21_24 -> "늦은 시간에도 주문 흐름이 강한 시간대";
+            };
+            case MEDIUM -> switch (timeBand) {
+                case TIME_00_06 -> "심야 주문 흐름이 평소와 비슷한 시간대";
+                case TIME_06_11 -> "오전 주문 흐름이 평소와 비슷한 시간대";
+                case TIME_11_14 -> "점심 주문 흐름이 평소와 비슷한 시간대";
+                case TIME_14_17 -> "오후 주문 흐름이 평소와 비슷한 시간대";
+                case TIME_17_21 -> "저녁 주문 흐름이 평소와 비슷한 시간대";
+                case TIME_21_24 -> "늦은 시간에도 주문 흐름이 평소와 비슷한 편";
+            };
+            case LOW -> switch (timeBand) {
+                case TIME_00_06 -> "심야 주문 흐름이 뜸한 시간대";
+                case TIME_06_11 -> "오전 주문 흐름이 한산한 시간대";
+                case TIME_11_14 -> "점심 주문 흐름이 한산한 시간대";
+                case TIME_14_17 -> "오후 주문 흐름이 한산한 시간대";
+                case TIME_17_21 -> "저녁 주문 흐름이 한산한 시간대";
+                case TIME_21_24 -> "늦은 시간, 주문 흐름이 잦아드는 구간";
+            };
+            case CLOSED -> switch (timeBand) {
+                case TIME_00_06 -> "주문 흐름이 가장 잦아드는 심야 시간대";
+                case TIME_06_11 -> "오전 주문 흐름이 매우 한산한 시간대";
+                case TIME_11_14 -> "점심 주문 흐름이 매우 한산한 시간대";
+                case TIME_14_17 -> "오후 주문 흐름이 매우 한산한 시간대";
+                case TIME_17_21 -> "저녁 주문 흐름이 매우 한산한 시간대";
+                case TIME_21_24 -> "늦은 시간, 주문 흐름이 크게 잦아드는 구간";
+            };
+        };
+    }
+
+    public String createLocalPatternDescription(DayDemandLevel dayDemandLevel,
+                                                int appliedDayScore,
+                                                String businessTypeName,
+                                                DayOfWeek currentDayOfWeek) {
+        String day = dayDemandLevel == DayDemandLevel.HOLIDAY
+                ? "공휴일"
+                : koreanDayOfWeek(currentDayOfWeek);
+
+        String subject = businessTypeName == null || businessTypeName.isBlank()
+                ? day + " 주문 흐름은"
+                : "이 지역의 " + businessTypeName + " 업종은 " + day + " 흐름이";
+
+        if (appliedDayScore > 0) {
+            return subject + " 비교적 활발한 편";
+        }
+
+        if (appliedDayScore < 0) {
+            return subject + " 비교적 한산한 편";
+        }
+
+        return subject + " 평소와 비슷한 편";
+    }
+
     public String calculateStatus(int score) {
         if (score >= 80) {
-            return "상 · 수요 급등 구간";
+            return "매우 높음 · 수요 급등 구간";
         }
 
         if (score >= 60) {
-            return "상 · 높은 수요 구간";
+            return "높음 · 높은 수요 구간";
         }
 
         if (score >= 40) {
-            return "중 · 평균 수요 구간";
+            return "보통 · 평균 수요 구간";
         }
 
         if (score >= 20) {
-            return "하 · 수요 둔화 구간";
+            return "낮음 · 수요 둔화 구간";
         }
 
         return "마감 · 매우 낮은 수요 구간";
@@ -75,11 +163,11 @@ public class ScoreMessageFactory {
         }
 
         if (score >= 40) {
-            return "평균적인 수요가 예상됩니다. 평상시 영업 흐름을 유지하세요.";
+            return "평균적인 수요가 예상됩니다. 평상시의 영업 흐름을 유지하세요.";
         }
 
         if (score >= 20) {
-            return "현재 수요가 낮은 편입니다. 식자재 선조리와 인력 운영을 보수적으로 가져가세요.";
+            return "현재 수요가 낮은 편입니다. 생산과 인력 운영을 보수적으로 가져가세요.";
         }
 
         return "기대 수요가 매우 낮습니다. 운영 비용을 고려해 보수적으로 준비하세요.";
@@ -95,6 +183,22 @@ public class ScoreMessageFactory {
                 + ", 오존 " + formatNullableValue(airQuality.getO3Value());
     }
 
+    private String koreanDayOfWeek(DayOfWeek dayOfWeek) {
+        if (dayOfWeek == null) {
+            return "오늘";
+        }
+
+        return switch (dayOfWeek) {
+            case MONDAY -> "월요일";
+            case TUESDAY -> "화요일";
+            case WEDNESDAY -> "수요일";
+            case THURSDAY -> "목요일";
+            case FRIDAY -> "금요일";
+            case SATURDAY -> "토요일";
+            case SUNDAY -> "일요일";
+        };
+    }
+
     private String formatNullableValue(Object value) {
         if (value == null) {
             return "정보 없음";
@@ -102,13 +206,4 @@ public class ScoreMessageFactory {
 
         return value.toString();
     }
-
-
-
-
-
-
-
-
-
 }

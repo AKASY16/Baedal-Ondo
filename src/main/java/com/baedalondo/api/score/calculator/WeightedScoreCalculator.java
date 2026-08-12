@@ -47,7 +47,7 @@ public class WeightedScoreCalculator {
                 + weatherScore
                 + airQualityScore
                 + interactionScore;
-        int score = capScore(applyTimeLevelCap(uncappedScore, timeDemandLevel));
+        int score = capScore(uncappedScore);
 
         return new ScoreCalculationResult(
                 score,
@@ -65,11 +65,11 @@ public class WeightedScoreCalculator {
         }
 
         return switch (level) {
-            case VERY_HIGH -> 24;
-            case HIGH -> 14;
+            case VERY_HIGH -> 14;
+            case HIGH -> 8;
             case MEDIUM -> 0;
-            case LOW -> -8;
-            case CLOSED -> -18;
+            case LOW -> -6;
+            case CLOSED -> -12;
         };
     }
 
@@ -157,19 +157,6 @@ public class WeightedScoreCalculator {
 
         int cappedRawScore = Math.min(rawScore, rawMax);
         return (int) Math.round((double) cappedRawScore * weightedMax / rawMax);
-    }
-
-    private int applyTimeLevelCap(int score, TimeDemandLevel timeDemandLevel) {
-        if (timeDemandLevel == null) {
-            return score;
-        }
-
-        return switch (timeDemandLevel) {
-            case CLOSED -> Math.min(score, 39);
-            case LOW -> Math.min(score, 59);
-            case MEDIUM -> Math.min(score, 79);
-            case HIGH, VERY_HIGH -> score;
-        };
     }
 
     private int capScore(int score) {

@@ -12,7 +12,7 @@ public class ScoreTarget {
     private final Integer nx;
     private final Integer ny;
 
-    // 상권별 요일 가중치 조회용. 상권 밖 매장이나 게스트 지역이면 null이다.
+    // 상권별 요일/시간대 가중치 조회용. 상권 밖 매장이나 게스트 지역이면 null이다.
     private final String commercialAreaCode;
     private final BusinessType businessType;
 
@@ -74,7 +74,7 @@ public class ScoreTarget {
     }
 
     public static ScoreTarget from(GuestRegion region) {
-        // 게스트 지역은 상권과 업종이 없어 상권별 요일 가중치를 쓸 수 없다.
+        // 게스트 지역은 상권과 업종이 없어 상권별 요일/시간대 가중치를 쓸 수 없다.
         return new ScoreTarget(
                 region.getId(),
                 region.getSidoName(),

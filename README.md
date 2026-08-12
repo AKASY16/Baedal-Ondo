@@ -13,7 +13,7 @@
   - 업종을 `BusinessType` Enum 9종으로 표준화해 저장
   - Store 정보를 H2 DB에 저장
 
-- 상권 x 업종 요일 가중치
+- 상권 x 업종 요일·시간대 가중치
   - 서울시 상권분석서비스 추정매출(2023-2025) 기반 오프라인 전처리 결과 사용
   - 상권별 값이 있으면 상권별, 없으면 서울 전체 업종 평균으로 fallback
   - 자세한 계산 근거는 `data-processing/README.md` 참고
@@ -78,12 +78,12 @@ src/main/java/com/baedalondo/api
 ├── guest           # 게스트 지역 등록 및 조회
 ├── holiday         # 공휴일 API, 공휴일 DB 저장/조회
 ├── location        # 주소 좌표 변환, 기상청 격자 변환
-├── score           # 최종 점수 조립, 시간/요일 계산기, DayWeight 조회
+├── score           # 최종 점수 조립, DayWeight/TimeWeight 조회
 ├── store           # 매장 등록, Store 엔티티, BusinessType
 ├── user            # UserAccount 엔티티, 사용자 조회
 └── weather         # 기상청 현재 날씨 API, 날씨 기록, 날씨 점수 계산
 
-data-processing/    # 서울시 추정매출 CSV -> DayWeight 오프라인 전처리 (Python)
+data-processing/    # 서울시 추정매출 CSV -> DayWeight/TimeWeight 전처리 (Python)
 ```
 
 ## 실행 방법
@@ -225,11 +225,26 @@ score = 50
 
 | 요인 | 반영 방식 | 범위 |
 | --- | --- | --- |
-| 시간대 | 점심/저녁/야식/비활성 시간대 구간형 점수 | -18 ~ +24 |
+| 시간대 | 상권 x 업종 x 시간대 TimeWeight | -12 ~ +14 |
 | 요일 | 상권 x 업종 x 요일 DayWeight (공휴일은 고정 +8) | -6 ~ +8 |
 | 현재 날씨 | 강수량, 강수형태, 기온, 풍속 원점수를 정규화 | 0 ~ +20 |
 | 대기질 | PM10, PM2.5, O3 원점수를 정규화 | 0 ~ +8 |
 | 상호작용 | 피크 시간+강한 요일, 비+피크 시간, 공휴일 조합 보너스 | 0 ~ +10 |
+
+### 시간대 기여도
+
+시간대는 서울시 원본의 6개 시간 구간별 매출건수를 구간 길이로 나눈 뒤,
+같은 상권·업종의 24시간 평균 시간당 활동량을 100으로 둔 `TimeIndex`로 정규화합니다.
+
+```text
+commercialAreaCode + businessType + 시간대  ->  Local TimeWeight
+없으면  businessType + 시간대             ->  City TimeWeight
+업종이 없는 게스트                         ->  기존 공통 시간표
+```
+
+시간 구간은 `00~06`, `06~11`, `11~14`, `14~17`, `17~21`, `21~24`입니다.
+원본이 배달 전용 데이터가 아니므로 정확한 주문량 예측값이 아니라 업종별 시간대 상업활동을
+배달 잠재 수요의 보조 지표로 사용합니다.
 
 ### 요일 기여도
 
@@ -246,14 +261,11 @@ commercialAreaCode + businessType + 요일  ->  Local DayWeight
 상호작용 보너스도 요일 이름을 조건으로 쓰지 않습니다. 피크 시간대에 DayWeight가 양수일 때만 `ceil(DayWeight / 2)`를 최대 +3까지 더합니다. 수요가 약한 요일을 상호작용이 뒤집지 않도록 음수에는 적용하지 않으며, 공휴일에도 적용하지 않습니다.
 
 날씨와 대기질은 기존 계산기에서 만든 원점수를 그대로 사용하되, 최종 점수에서는 영향 범위를 제한해 특정 요인이 과도하게 점수를 끌어올리지 않도록 합니다.
-또한 시간대 의미가 최종 점수를 압도당하지 않도록 시간대별 상한을 적용합니다.
 
-| 시간대 | 최종 점수 상한 |
-| --- | --- |
-| 배달앱 비활성 시간대 | 39 |
-| 낮은 수요 시간대 | 59 |
-| 보통 수요 시간대 | 79 |
-| 높은/피크 수요 시간대 | 100 |
+시간대 기여도는 `CLOSED -12`, `LOW -6`, `MEDIUM 0`, `HIGH +8`,
+`VERY_HIGH +14`를 적용합니다. TimeWeight가 배달 전용 주문량이 아닌 상업활동 보조지표라는
+점을 고려해 영향 폭을 제한했으며, 시간대 등급만으로 최종 결과를 강제하지 않도록
+시간대별 최종 점수 상한은 적용하지 않습니다.
 
 상호작용 보너스는 최종 점수에는 반영하지만, 사용자 화면에는 별도 세부 항목으로 노출하지 않습니다. 화면에서는 시간대, 요일/공휴일, 날씨, 대기질이 점수에 영향을 준 방향만 간단히 표시합니다.
 
@@ -293,6 +305,9 @@ commercialAreaCode + businessType + 요일  ->  Local DayWeight
 - 서울시 추정매출 기반 상권 x 업종 x 요일 DayWeight 전처리
 - DayWeight 런타임 조회 계층 및 Local -> City -> 0 fallback
 - 요일 heuristic을 데이터 기반 DayWeight로 대체
+- 서울시 추정매출 기반 상권 x 업종 x 시간대 TimeWeight 전처리
+- TimeWeight 런타임 조회 계층 및 Local -> City -> 기존 시간표 fallback
+- 업종 공통 시간표를 데이터 기반 TimeWeight로 대체
 
 정리 필요:
 

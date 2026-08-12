@@ -8,6 +8,7 @@ import com.baedalondo.api.holiday.service.HolidayService;
 import com.baedalondo.api.score.ScoreResult;
 import com.baedalondo.api.score.calculator.DayWeightCalculator;
 import com.baedalondo.api.score.dayweight.DayWeightProvider;
+import com.baedalondo.api.score.timeweight.TimeWeightProvider;
 import com.baedalondo.api.store.domain.BusinessType;
 import com.baedalondo.api.score.calculator.TimeWeightCalculator;
 import com.baedalondo.api.score.calculator.WeightedScoreCalculator;
@@ -53,6 +54,9 @@ class ScoreServiceTest {
 
     @Mock
     private DayWeightProvider dayWeightProvider;
+
+    @Mock
+    private TimeWeightProvider timeWeightProvider;
 
     @Mock
     private CurrentWeatherWeightCalculator currentWeatherWeightCalculator;
@@ -114,7 +118,7 @@ class ScoreServiceTest {
 
         when(holidayService.isHoliday(any(LocalDate.class))).thenReturn(false);
         when(timeWeightCalculator.calculate(any(LocalTime.class)))
-                .thenReturn(TimeDemandLevel.LOW); // +10점
+                .thenReturn(TimeDemandLevel.LOW); // -6점
         when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
                 .thenReturn(DayDemandLevel.WEEKDAY); // 0점
         when(currentWeatherService.getCurrentWeather(any(ScoreTarget.class)))
@@ -128,7 +132,37 @@ class ScoreServiceTest {
 
         ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
 
-        assertEquals(42, result.getScore());
+        assertEquals(44, result.getScore());
+    }
+
+    @Test
+    @DisplayName("Store의 상권과 업종에 맞는 시간대 등급을 공통 시간표보다 우선한다")
+    void marketTimeLevelTakesPrecedenceOverLegacyTimeTable() {
+        ScoreTarget scoreTarget = createScoreTarget();
+        CurrentWeatherObservation weather = createNoImpactWeather();
+        CurrentAirQualityObservation airQuality = createAirQuality();
+
+        when(holidayService.isHoliday(any(LocalDate.class))).thenReturn(false);
+        when(timeWeightProvider.findDemandLevel(eq(COMMERCIAL_AREA_CODE),
+                eq(BusinessType.CHICKEN), any(LocalTime.class)))
+                .thenReturn(TimeDemandLevel.VERY_HIGH);
+        when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
+                .thenReturn(DayDemandLevel.WEEKDAY);
+        when(currentWeatherService.getCurrentWeather(any(ScoreTarget.class)))
+                .thenReturn(weather);
+        when(currentWeatherWeightCalculator.calculate(any(CurrentWeatherObservation.class)))
+                .thenReturn(new WeatherScoreResult(0, List.of(), "날씨 영향 없음"));
+        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class)))
+                .thenReturn(airQuality);
+        when(airQualityCalculator.getWeight(any(CurrentAirQualityObservation.class)))
+                .thenReturn(0);
+
+        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
+
+        assertEquals(64, result.getScore());
+        verify(timeWeightProvider).findDemandLevel(
+                eq(COMMERCIAL_AREA_CODE), eq(BusinessType.CHICKEN), any(LocalTime.class));
+        verify(timeWeightCalculator, org.mockito.Mockito.never()).calculate(any(LocalTime.class));
     }
 
     @Test
@@ -271,7 +305,7 @@ class ScoreServiceTest {
     @Test
     void over100ScoreTest() {
         ScoreTarget scoreTarget = createScoreTarget();
-        CurrentWeatherObservation weather = createNoImpactWeather();
+        CurrentWeatherObservation weather = new CurrentWeatherObservation(1, 5, 20, 80, 3);
         CurrentAirQualityObservation airQuality = createAirQuality();
 
         when(holidayService.isHoliday(any(LocalDate.class))).thenReturn(false);
@@ -279,6 +313,8 @@ class ScoreServiceTest {
                 .thenReturn(TimeDemandLevel.VERY_HIGH);
         when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
                 .thenReturn(DayDemandLevel.WEEKEND);
+        when(dayWeightProvider.findWeight(any(), any(), any()))
+                .thenReturn(6);
         when(currentWeatherService.getCurrentWeather(any(ScoreTarget.class)))
                 .thenReturn(weather);
         when(currentWeatherWeightCalculator.calculate(any(CurrentWeatherObservation.class)))

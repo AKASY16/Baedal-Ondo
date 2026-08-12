@@ -30,8 +30,132 @@ public class CurrentWeatherWeightCalculator {
         return new WeatherScoreResult(
                 weatherScore,
                 factors,
-                String.join(", ", factors)
+                createDescription(weather, rainfallScore, precipitationTypeScore, windSpeedScore, temperatureScore)
         );
+    }
+
+    private String createDescription(CurrentWeatherObservation weather,
+                                     int rainfallScore,
+                                     int precipitationTypeScore,
+                                     int windSpeedScore,
+                                     int temperatureScore) {
+        boolean precipitationImpact = rainfallScore > 0 || precipitationTypeScore > 0;
+        boolean windImpact = windSpeedScore > 0;
+        boolean temperatureImpact = temperatureScore > 0;
+
+        if (!precipitationImpact && !windImpact && !temperatureImpact) {
+            return "외출에 큰 불편이 없는 날씨";
+        }
+
+        String precipitation = precipitationDescription(weather.getPrecipitationType());
+        String precipitationWithAnd = precipitationWithAnd(precipitation);
+        String wind = windDescription(windSpeedScore);
+        String temperature = temperatureDescription(weather.getTemperature(), temperatureScore);
+
+        if (precipitationImpact && windImpact && temperatureImpact) {
+            return precipitationWithAnd + wind + ", " + temperature + "이 겹친 날씨";
+        }
+
+        if (precipitationImpact && windImpact) {
+            return precipitationWithAnd + wind + "이 겹친 날씨";
+        }
+
+        if (precipitationImpact && temperatureImpact) {
+            return precipitationWithAnd + temperature + "이 겹친 날씨";
+        }
+
+        if (windImpact && temperatureImpact) {
+            return wind + "과 " + temperature + "이 겹친 날씨";
+        }
+
+        if (precipitationImpact) {
+            return precipitationOnlyDescription(
+                    precipitation,
+                    Math.max(rainfallScore, precipitationTypeScore)
+            );
+        }
+
+        if (windImpact) {
+            if (windSpeedScore == 1) {
+                return "바람이 다소 강한 날씨";
+            }
+            if (windSpeedScore == 2) {
+                return "강한 바람으로 외출이 다소 불편한 날씨";
+            }
+            return "매우 강한 바람으로 외출이 불편한 날씨";
+        }
+
+        if (temperatureScore == 1) {
+            return weather.getTemperature() < 10
+                    ? "기온이 조금 낮은 편"
+                    : "기온이 조금 높은 편";
+        }
+
+        if (temperatureScore == 2) {
+            return temperature + "으로 외출이 다소 불편한 날씨";
+        }
+
+        return temperature + "으로 외출이 불편한 날씨";
+    }
+
+    private String precipitationOnlyDescription(String precipitation, int severity) {
+        if (severity == 1) {
+            return switch (precipitation) {
+                case "눈" -> "약한 눈이 내리는 날씨";
+                case "비·눈" -> "약한 비와 눈이 내리는 날씨";
+                default -> "약한 비가 내리는 날씨";
+            };
+        }
+
+        String cause = switch (precipitation) {
+            case "눈" -> "눈으로 ";
+            case "비·눈" -> "비와 눈으로 ";
+            default -> "비로 ";
+        };
+
+        if (severity == 2) {
+            return cause + "외출이 다소 불편한 날씨";
+        }
+
+        return cause + "외출이 불편한 날씨";
+    }
+
+    private String precipitationWithAnd(String precipitation) {
+        return switch (precipitation) {
+            case "눈" -> "눈과 ";
+            case "비·눈" -> "비와 눈, ";
+            default -> "비와 ";
+        };
+    }
+
+    private String windDescription(int windSpeedScore) {
+        if (windSpeedScore == 1) {
+            return "다소 강한 바람";
+        }
+        if (windSpeedScore == 2) {
+            return "강한 바람";
+        }
+        return "매우 강한 바람";
+    }
+
+    private String temperatureDescription(double temperature, int temperatureScore) {
+        boolean isCold = temperature < 10;
+
+        if (temperatureScore == 1) {
+            return isCold ? "조금 낮은 기온" : "조금 높은 기온";
+        }
+        if (temperatureScore == 2) {
+            return isCold ? "낮은 기온" : "높은 기온";
+        }
+        return isCold ? "매우 낮은 기온" : "매우 높은 기온";
+    }
+
+    private String precipitationDescription(int precipitationType) {
+        return switch (precipitationType) {
+            case 2, 6 -> "비·눈";
+            case 3, 7 -> "눈";
+            default -> "비";
+        };
     }
 
     private int calculateRainfallScore(double rainfall) {

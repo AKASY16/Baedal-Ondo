@@ -56,8 +56,8 @@ class WeightedScoreCalculatorTest {
                 0
         );
 
-        assertEquals(42, low.score());
-        assertEquals(32, closed.score());
+        assertEquals(44, low.score());
+        assertEquals(38, closed.score());
     }
 
     @Test
@@ -87,8 +87,8 @@ class WeightedScoreCalculatorTest {
                 0
         );
 
-        assertEquals(94, result.score());
-        assertEquals(24, result.timeScore());
+        assertEquals(84, result.score());
+        assertEquals(14, result.timeScore());
         assertEquals(6, result.dayScore());
         assertEquals(6, result.weatherScore());
         // 강한 요일 x 피크 +3, 비 x VERY_HIGH +5
@@ -110,7 +110,7 @@ class WeightedScoreCalculatorTest {
     }
 
     @Test
-    void closedTimeCannotRiseAboveLowDemandRange() {
+    void closedTimeDoesNotDiscardStrongSignalsFromOtherFactors() {
         ScoreCalculationResult result = calculator.calculate(
                 TimeDemandLevel.CLOSED,
                 DayDemandLevel.HOLIDAY,
@@ -120,11 +120,11 @@ class WeightedScoreCalculatorTest {
                 7
         );
 
-        assertEquals(39, result.score());
+        assertEquals(78, result.score());
     }
 
     @Test
-    void lowTimeCannotRiseAboveAverageDemandRange() {
+    void lowTimeDoesNotDiscardStrongSignalsFromOtherFactors() {
         ScoreCalculationResult result = calculator.calculate(
                 TimeDemandLevel.LOW,
                 DayDemandLevel.HOLIDAY,
@@ -134,11 +134,11 @@ class WeightedScoreCalculatorTest {
                 7
         );
 
-        assertEquals(59, result.score());
+        assertEquals(84, result.score());
     }
 
     @Test
-    void mediumTimeCannotRiseAboveHighDemandRange() {
+    void mediumTimeDoesNotCapCombinedScore() {
         ScoreCalculationResult result = calculator.calculate(
                 TimeDemandLevel.MEDIUM,
                 DayDemandLevel.HOLIDAY,
@@ -148,7 +148,7 @@ class WeightedScoreCalculatorTest {
                 7
         );
 
-        assertEquals(79, result.score());
+        assertEquals(90, result.score());
     }
 
     // ------------------------------------------------ 상권별 DayWeight 적용
@@ -260,7 +260,7 @@ class WeightedScoreCalculatorTest {
         );
 
         assertEquals(3, result.interactionScore());
-        assertEquals(73, result.score()); // 50 + 14 + 6 + 3
+        assertEquals(67, result.score()); // 50 + 8 + 6 + 3
     }
 
     @Test
@@ -293,7 +293,7 @@ class WeightedScoreCalculatorTest {
 
         assertEquals(-6, result.dayScore());
         assertEquals(0, result.interactionScore());
-        assertEquals(68, result.score()); // 50 + 24 - 6
+        assertEquals(58, result.score()); // 50 + 14 - 6
     }
 
     @Test
@@ -310,7 +310,7 @@ class WeightedScoreCalculatorTest {
 
         assertEquals(4, result.interactionScore());
         assertEquals(8, result.dayScore());
-        assertEquals(86, result.score()); // 50 + 24 + 8 + 4
+        assertEquals(76, result.score()); // 50 + 14 + 8 + 4
     }
 
     @Test
@@ -352,7 +352,7 @@ class WeightedScoreCalculatorTest {
         // 공휴일 x 피크 +4만 적용된다. day-peak +3이 더해졌다면 7이 나온다.
         assertEquals(4, result.interactionScore());
         assertEquals(8, result.dayScore());
-        assertEquals(86, result.score()); // 50 + 24 + 8 + 4
+        assertEquals(76, result.score()); // 50 + 14 + 8 + 4
 
         // DayWeight가 음수여도 공휴일 interaction은 그대로 +4다.
         assertEquals(4, peakInteractionOn(DayDemandLevel.HOLIDAY, -6));

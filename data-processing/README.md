@@ -1,6 +1,7 @@
-# DayWeight 전처리
+# DayWeight / TimeWeight 전처리
 
-배달온도의 **상권 × 업종 × 요일 DayWeight**를 서울시 공공데이터로부터 만드는 전처리 파이프라인이다.
+배달온도의 **상권 × 업종 × 요일 DayWeight**와 **상권 × 업종 × 시간대 TimeWeight**를
+서울시 공공데이터로부터 만드는 전처리 파이프라인이다.
 
 이 폴더는 오프라인 데이터 준비 단계다. Spring 애플리케이션 코드와 분리되어 있고, 결과물인 CSV만 이후 런타임에서 사용한다.
 
@@ -297,3 +298,47 @@ KOREAN_FOOD,MONDAY,0
 | 구현 | 표준 라이브러리만 사용 (pandas 미사용) | 설치 없이 `python preprocess_day_weights.py` 한 줄로 재현 |
 
 숫자 기준 결과: 원본 261,157행 → 지원 업종 70,090행 → Local 4,629개 조합(32,403행) + City 63행. 자격 미달 1,852개 조합은 City fallback 대상이다.
+
+## 13. TimeWeight 전처리
+
+요일과 별개로 원본은 모든 지원 업종에 다음 6개 시간 구간의 매출건수를 제공한다.
+
+`00~06`, `06~11`, `11~14`, `14~17`, `17~21`, `21~24`
+
+구간 길이가 3~6시간으로 서로 다르므로 매출건수를 그대로 비교하지 않는다.
+각 구간 건수를 구간 시간으로 나누고, 같은 상권 × 업종의 24시간 평균 시간당 건수를
+100으로 둔 상대 지표를 계산한다.
+
+```text
+band_hourly_average = 시간대 매출건수 / 시간대 구간 길이
+overall_hourly_average = 전체 매출건수 / 24
+TimeIndex = band_hourly_average / overall_hourly_average * 100
+```
+
+`TimeIndex < 10`은 `CLOSED`, `< 70`은 `LOW`, `< 130`은 `MEDIUM`,
+`< 220`은 `HIGH`, 그 이상은 `VERY_HIGH`로 제한한다. 이 경계는 Local 전체 시간대 지수
+분포와 9개 업종의 City 패턴을 함께 확인해 정했으며, 실제 배달 주문량의 확률 경계가 아니다.
+
+Local 자격과 fallback은 DayWeight와 동일하다.
+
+```text
+12개 분기 + 3년 총 25,000건 이상  -> Local
+미달                                  -> City 업종 평균
+업종 정보 없음                         -> 애플리케이션의 기존 공통 시간표
+```
+
+실행 명령:
+
+```bash
+python preprocess_time_weights.py --input-dir "원본 CSV 폴더"
+```
+
+출력은 `time-weight-local.csv` 27,774행(4,629조합 × 6구간),
+`time-weight-city.csv` 54행(9업종 × 6구간), 감사용 `time-weight-audit.csv`다.
+
+서울 전체 기준으로 카페·음료의 21~24시 TimeIndex는 25.8(`LOW`),
+치킨은 264.0(`VERY_HIGH`)이다. 이는 기존처럼 두 업종에 같은 20~23시 등급을
+부여하지 않아야 한다는 점을 데이터로 보여준다.
+
+TimeWeight에도 DayWeight와 같은 데이터 한계가 적용된다. 홀과 배달이 구분되지 않고,
+요일 × 시간대 교차표도 아니므로 “수요일 22시 배달 주문량”으로 해석해서는 안 된다.
