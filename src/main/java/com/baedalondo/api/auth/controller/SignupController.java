@@ -1,6 +1,7 @@
 package com.baedalondo.api.auth.controller;
 
 import com.baedalondo.api.auth.dto.SignupRequest;
+import com.baedalondo.api.auth.service.SignupConflictException;
 import com.baedalondo.api.auth.service.SignupService;
 import jakarta.validation.Valid;
 import org.springframework.stereotype.Controller;
@@ -40,8 +41,8 @@ public class SignupController {
 
         try {
             signupService.signup(request);
-        } catch (IllegalArgumentException e) {
-            bindingResult.rejectValue("loginId", "loginId.duplicate", e.getMessage());
+        } catch (SignupConflictException e) {
+            bindingResult.rejectValue(e.getField(), e.getField() + ".duplicate", e.getMessage());
             return "auth/signup";
         }
 

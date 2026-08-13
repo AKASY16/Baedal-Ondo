@@ -96,7 +96,7 @@
             font-weight: 600;
         }
 
-        .form-group input {
+        .form-group input:not([type="checkbox"]) {
             width: 100%;
             min-height: 48px;
             padding: 11px 12px;
@@ -107,7 +107,7 @@
             font-size: 15px;
         }
 
-        .form-group input:focus {
+        .form-group input:not([type="checkbox"]):focus {
             border-color: var(--bo-ink);
             outline: 2px solid rgba(29, 29, 27, 0.1);
         }
@@ -134,6 +134,76 @@
 
         .field-error.is-visible {
             display: block;
+        }
+
+        .agreement-list {
+            display: grid;
+            gap: 10px;
+            margin: 24px 0 18px;
+            padding-top: 20px;
+            border-top: 1px solid var(--bo-line);
+        }
+
+        .agreement-item {
+            padding: 12px;
+            border: 1px solid var(--bo-line);
+            border-radius: 4px;
+            background: var(--bo-surface);
+        }
+
+        .agreement-check {
+            display: grid;
+            grid-template-columns: 18px minmax(0, 1fr);
+            gap: 9px;
+            align-items: start;
+            color: var(--bo-ink);
+            font-size: 13px;
+            line-height: 1.5;
+            cursor: pointer;
+        }
+
+        .agreement-check input {
+            width: 16px;
+            height: 16px;
+            margin: 2px 0 0;
+            accent-color: var(--bo-accent);
+        }
+
+        .agreement-required,
+        .agreement-optional {
+            margin-right: 4px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .agreement-required {
+            color: var(--bo-accent);
+        }
+
+        .agreement-optional {
+            color: var(--bo-muted);
+        }
+
+        .agreement-details {
+            margin: 8px 0 0 27px;
+            color: var(--bo-muted);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .agreement-details summary {
+            width: fit-content;
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        .agreement-details p {
+            margin: 8px 0 0;
+        }
+
+        .agreement-item .field-error {
+            margin-left: 27px;
         }
 
         .signup-button {
@@ -243,7 +313,7 @@
 
     <section class="signup-panel" aria-labelledby="signup-title">
         <h2 id="signup-title">사장님 회원가입</h2>
-        <p class="signup-description">로그인에 사용할 아이디와 비밀번호를 정해 주세요.</p>
+        <p class="signup-description">로그인에 사용할 아이디와 이메일, 비밀번호를 정해 주세요.</p>
 
         <form id="signup-form" action="/signup" method="post" th:action="@{/signup}" th:object="${signupRequest}" novalidate>
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
@@ -258,6 +328,18 @@
                 <p class="field-error"
                    th:classappend="${#fields.hasErrors('loginId')} ? ' is-visible' : ''"
                    th:errors="*{loginId}">아이디를 확인해 주세요.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="email">이메일</label>
+                <input type="email" id="email" name="email" th:value="*{email}"
+                       th:classappend="${#fields.hasErrors('email')} ? ' invalid' : ''"
+                       maxlength="254" placeholder="name@example.com"
+                       autocomplete="email" required>
+                <p class="field-help">추후 이메일 인증과 계정 복구에 사용합니다.</p>
+                <p class="field-error"
+                   th:classappend="${#fields.hasErrors('email')} ? ' is-visible' : ''"
+                   th:errors="*{email}">이메일을 확인해 주세요.</p>
             </div>
 
             <div class="form-group">
@@ -280,6 +362,58 @@
                 <p class="field-error"
                    th:classappend="${#fields.hasErrors('passwordConfirm')} ? ' is-visible' : ''"
                    th:errors="*{passwordConfirm}">비밀번호를 확인해 주세요.</p>
+            </div>
+
+            <div class="agreement-list" aria-label="회원가입 동의 항목">
+                <div class="agreement-item">
+                    <label class="agreement-check" for="termsAccepted">
+                        <input type="checkbox" id="termsAccepted" th:field="*{termsAccepted}" required>
+                        <span><span class="agreement-required">필수</span> 이용약관에 동의합니다.</span>
+                    </label>
+                    <details class="agreement-details">
+                        <summary>이용약관 내용 보기</summary>
+                        <p>배달온도는 날씨·시간·지역 정보를 바탕으로 가게 운영 판단을 돕는 참고 정보를 제공합니다. 사용자는 정확한 정보로 가입하고 본인의 계정을 안전하게 관리해야 하며, 타인의 계정·가게 정보를 도용하거나 서비스 운영을 방해해서는 안 됩니다. 서비스는 유지보수나 외부 데이터 제공 상황에 따라 일시 중단되거나 변경될 수 있습니다. 수요 점수와 안내는 예측 정보이므로 실제 주문이나 매출을 보장하지 않으며, 사용자의 최종 영업 판단과 그 결과는 사용자에게 있습니다. 사용자는 탈퇴할 수 있고, 운영자는 약관 위반이나 부정 이용이 확인된 계정의 이용을 제한할 수 있습니다. 약관이 변경되면 적용일과 변경 내용을 서비스에서 알립니다.</p>
+                    </details>
+                    <p class="field-error"
+                       th:classappend="${#fields.hasErrors('termsAccepted')} ? ' is-visible' : ''"
+                       th:errors="*{termsAccepted}">이용약관에 동의해 주세요.</p>
+                </div>
+
+                <div class="agreement-item">
+                    <label class="agreement-check" for="privacyNoticeAcknowledged">
+                        <input type="checkbox" id="privacyNoticeAcknowledged"
+                               th:field="*{privacyNoticeAcknowledged}" required>
+                        <span><span class="agreement-required">필수</span> 개인정보 수집·이용 안내를 확인했습니다.</span>
+                    </label>
+                    <details class="agreement-details">
+                        <summary>수집·이용 안내 보기</summary>
+                        <p>로그인 ID, 이메일, 암호화된 비밀번호를 회원 식별·인증과 계정 관리에 이용하며 회원 탈퇴 시까지 보관합니다. 수집을 거부할 수 있지만, 필수 정보이므로 거부하면 회원가입을 할 수 없습니다.</p>
+                    </details>
+                    <p class="field-error"
+                       th:classappend="${#fields.hasErrors('privacyNoticeAcknowledged')} ? ' is-visible' : ''"
+                       th:errors="*{privacyNoticeAcknowledged}">개인정보 수집·이용 안내를 확인해 주세요.</p>
+                </div>
+
+                <div class="agreement-item">
+                    <label class="agreement-check" for="ageConfirmed">
+                        <input type="checkbox" id="ageConfirmed" th:field="*{ageConfirmed}" required>
+                        <span><span class="agreement-required">필수</span> 만 14세 이상입니다.</span>
+                    </label>
+                    <p class="field-error"
+                       th:classappend="${#fields.hasErrors('ageConfirmed')} ? ' is-visible' : ''"
+                       th:errors="*{ageConfirmed}">만 14세 이상임을 확인해 주세요.</p>
+                </div>
+
+                <div class="agreement-item">
+                    <label class="agreement-check" for="marketingEmailAgreed">
+                        <input type="checkbox" id="marketingEmailAgreed" th:field="*{marketingEmailAgreed}">
+                        <span><span class="agreement-optional">선택</span> 배달온도 및 제휴사의 광고성 정보를 이메일로 받습니다.</span>
+                    </label>
+                    <details class="agreement-details">
+                        <summary>광고성 정보 수신 안내 보기</summary>
+                        <p>이메일을 배달온도와 제휴사의 상품·서비스 및 혜택 안내에 이용합니다. 동의 철회 또는 회원 탈퇴 시까지 이용하며, 동의하지 않아도 배달온도의 기본 기능을 이용할 수 있습니다.</p>
+                    </details>
+                </div>
             </div>
 
             <p id="client-status" class="client-status" role="alert"></p>
