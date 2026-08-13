@@ -11,7 +11,7 @@
   - 주소 기반 기상청 격자 좌표 `nx`, `ny` 계산
   - WGS84 좌표로 서울시 상권을 판별해 `commercialAreaCode` 저장
   - 업종을 `BusinessType` Enum 9종으로 표준화해 저장
-  - Store 정보를 H2 DB에 저장
+  - Store 정보를 MySQL DB에 저장
 
 - 상권 x 업종 요일·시간대 가중치
   - 서울시 상권분석서비스 추정매출(2023-2025) 기반 오프라인 전처리 결과 사용
@@ -57,7 +57,9 @@
 - Spring Web MVC
 - Spring Data JPA
 - Thymeleaf
-- H2 Database
+- Spring Security
+- MySQL 8
+- H2 Database (테스트 전용)
 - Gradle
 - Lombok
 - PROJ4J
@@ -75,7 +77,7 @@ src/main/java/com/baedalondo/api
 ├── commercialarea  # 서울시 상권 GeoJSON 로딩, 좌표 기반 상권 판별
 ├── config          # Spring Security, 인터셉터, 비밀번호 인코더 설정
 ├── dashboard       # 대시보드 화면, DashboardView 조립
-├── guest           # 게스트 지역 등록 및 조회
+├── guest           # 고정 게스트 지역 CSV 로딩 및 조회
 ├── holiday         # 공휴일 API, 공휴일 DB 저장/조회
 ├── location        # 주소 좌표 변환, 기상청 격자 변환
 ├── score           # 최종 점수 조립, DayWeight/TimeWeight 조회
@@ -122,7 +124,32 @@ kasi:
 
 `application.yaml`은 `application-secret.yaml`을 optional import 하도록 설정되어 있습니다.
 
-### 3. 애플리케이션 실행
+### 3. 데이터베이스 설정
+
+MySQL 8에 스키마와 계정을 생성합니다.
+
+```sql
+CREATE DATABASE baedalondo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'baedalondo_app'@'localhost' IDENTIFIED BY '비밀번호';
+GRANT ALL PRIVILEGES ON baedalondo.* TO 'baedalondo_app'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+접속 정보는 환경변수로 주입합니다.
+
+| 환경변수 | 기본값 | 필수 여부 |
+| --- | --- | --- |
+| `DB_URL` | `jdbc:mysql://localhost:3306/baedalondo` | 선택 |
+| `DB_USERNAME` | `baedalondo_app` | 선택 |
+| `DB_PASSWORD` | 없음 | **필수** |
+
+Windows에서는 사용자 환경변수로 등록합니다. 등록 후 터미널과 IDE를 재시작해야 반영됩니다.
+
+```bash
+setx DB_PASSWORD "비밀번호"
+```
+
+### 4. 애플리케이션 실행
 
 ```bash
 ./gradlew bootRun
@@ -134,7 +161,7 @@ Windows 환경에서는 다음 명령을 사용할 수 있습니다.
 ./gradlew.bat bootRun
 ```
 
-### 4. 테스트 실행
+### 5. 테스트 실행
 
 ```bash
 ./gradlew test
@@ -154,13 +181,13 @@ Windows 환경에서는 다음 명령을 사용할 수 있습니다.
 | `/dashboard/main` | 로그인 사용자 기준 대시보드 메인 화면 | 필요 |
 | `/dashboard/main/{storeId}` | 선택한 Store ID를 세션에 저장한 뒤 `/dashboard/main`으로 리다이렉트 | 필요 |
 | `/store/register` | 매장 등록 화면 | 필요 |
+| `/store/{storeId}/edit` | 매장 정보 수정 화면 | 필요 |
 | `/api/stores` | 매장 등록 API | 필요 |
+| `/api/stores/{storeId}` | 매장 정보 수정 API (PUT) | 필요 |
 | `/guest` | 게스트 모드 진입 | 불필요 |
 | `/dashboard/guest` | 게스트 지역 기반 대시보드 화면 | 불필요 |
-| `/api/guest-regions` | 게스트 지역 등록 API | 불필요 |
-| `/testingpage` | 주소 검색 및 Store 매핑 확인용 개발 페이지 | 불필요 |
 | `/login` | 로그인 화면 | 불필요 |
-| `/h2-console` | H2 콘솔 | 불필요 |
+| `/signup` | 회원가입 화면 | 불필요 |
 
 로그인이 필요한 URL에 비로그인 상태로 접근하면 `/login`으로 리다이렉트됩니다.
 
@@ -290,7 +317,9 @@ commercialAreaCode + businessType + 요일  ->  Local DayWeight
 - 로그인 사용자 기반 Store 조회
 - 대시보드 내 Store 선택 드롭다운
 - Spring Security 기반 로그인/로그아웃
-- 게스트 모드 대시보드
+- 회원가입 및 아이디 중복 검사
+- Store 정보 수정
+- 서울 25개 자치구청 CSV 기반 게스트 모드 대시보드
 - 기상청 현재 날씨 API 연동
 - 날씨 DB 캐시/재사용
 - AirKorea 미세먼지 API 연동
@@ -312,10 +341,7 @@ commercialAreaCode + businessType + 요일  ->  Local DayWeight
 정리 필요:
 
 - 코드 주석의 오래된 TODO 정리
-- 개발용 페이지 및 H2 콘솔 접근 제한 정리
-- 사용하지 않는 빈 LocationController/LocationService 정리
 - 어디에서도 호출하지 않는 DayDemandLevel.getWeight 정리
-- 렌더링되지 않는 templates/main.html 정리
 - CurrentWeatherService, KmaTimeCalculator 등 서비스 계층 테스트 보강
 
 현재 제품 방향에서 제외/보류:
@@ -331,9 +357,61 @@ commercialAreaCode + businessType + 요일  ->  Local DayWeight
 
 ## 개발 참고사항
 
-- 현재 DB는 H2 파일 DB를 사용합니다.
-- 기본 DB 경로는 `jdbc:h2:~/baedalondo`입니다.
-- 앱 실행 중에는 H2 파일 DB가 잠길 수 있으므로 테스트 실행 전 실행 중인 서버나 H2 콘솔 연결을 종료해야 합니다.
+- 현재 DB는 MySQL 8을 사용하며 접속 정보는 환경변수로 주입합니다.
+- 스키마는 아직 `ddl-auto: update`로 관리하므로 엔티티 필드의 이름이나 타입을 바꾸면 실제 스키마와 조용히 어긋날 수 있습니다. 구조를 바꾸기 전에 `mysqldump`로 백업하는 것을 권장합니다.
+- `@DataJpaTest`는 인메모리 H2로 자동 대체되지만 `@SpringBootTest`는 위 MySQL에 그대로 접속합니다.
 - `/dashboard/main/{storeId}`는 URL을 유지하지 않고 선택 Store ID를 세션에 저장한 뒤 `/dashboard/main`으로 리다이렉트합니다.
 - `/dashboard/main`은 로그인 사용자의 Store를 조회하는 정식 진입점입니다.
-- 등록된 Store가 없는 경우 게스트 지역 기반 대시보드로 대체 표시합니다.
+- 게스트 지역은 `src/main/resources/guest-regions.csv`에 고정된 서울 25개 자치구청 정보를 사용하며 DB에 저장하지 않습니다.
+- 등록된 Store가 없는 로그인 사용자도 같은 게스트 지역 CSV에서 무작위 지역을 골라 대시보드를 대체 표시합니다.
+
+## 트러블슈팅
+
+### 환경변수 미설정이 비밀번호 오류로 나타나는 경우
+
+**증상**
+
+터미널에서 `./gradlew test`를 실행하면 다음 오류로 컨텍스트 로드가 실패합니다. IDE에서 앱을 실행할 때는 정상 동작합니다.
+
+```text
+java.sql.SQLException: Access denied for user 'baedalondo_app'@'localhost' (using password: YES)
+```
+
+**원인**
+
+`DB_PASSWORD` 환경변수가 없어서 발생하지만, 오류 메시지는 비밀번호가 틀린 것처럼 보입니다. `application.yaml`의 `password: "${DB_PASSWORD}"`에는 기본값이 없는데, Spring Boot는 `@ConfigurationProperties` 바인딩 과정에서 해결하지 못한 플레이스홀더를 예외로 던지지 않고 문자열 그대로 남깁니다. 그 결과 `${DB_PASSWORD}`라는 문자열이 비밀번호로 전송되어 MySQL이 인증을 거부합니다.
+
+IDE 실행 구성에만 환경변수를 등록한 경우 IDE에서만 성공하고 터미널에서는 실패하므로 원인을 찾기 어렵습니다.
+
+**해결**
+
+시스템 사용자 환경변수로 등록한 뒤 터미널과 IDE를 재시작합니다. IDE 실행 구성에 중복 등록하면 비밀번호 변경 시 한쪽만 고치게 되므로 한 곳에서만 관리합니다.
+
+### 점수 구간 색상이 항상 회색으로 표시되는 경우
+
+**증상**
+
+점수와 상관없이 대시보드 온도 패널이 모두 마감 상태 색상으로 표시됩니다. 테스트는 전부 통과합니다.
+
+**원인**
+
+템플릿이 화면에 표시할 상태 문구를 파싱해 CSS 클래스를 결정하고 있었습니다.
+
+```html
+<!-- 수정 전 -->
+th:classappend="${#strings.startsWith(dashboard.status, '상') ? ' status-high' : ...}"
+```
+
+상태 문구를 `상 · 높은 수요 구간`에서 `높음 · 높은 수요 구간`으로 바꾸자 어떤 조건에도 걸리지 않아 모든 점수가 기본값인 마감 상태로 떨어졌습니다. 표시용 문자열에 로직이 결합되어 있었기 때문에 컴파일 오류도 테스트 실패도 발생하지 않았습니다.
+
+**해결**
+
+표시 문구와 분리된 `ScoreStatusLevel` enum을 두고 구간 경계를 이 enum이 단일 기준으로 관리하도록 했습니다. 템플릿은 문구 대신 `dashboard.statusLevel.cssClass`를 사용합니다. 사용자에게 보여줄 문구는 언제든 바뀔 수 있으므로 화면 로직의 판단 근거로 삼지 않습니다.
+
+### 주소 검색 팝업과 CSRF 설정
+
+`SecurityConfig`의 CSRF 예외 목록에 있는 `/store/register`, `/store/*/edit`는 삭제하면 주소 검색 기능이 동작하지 않습니다.
+
+도로명주소 팝업은 외부 도메인인 `business.juso.go.kr`에서 선택 결과를 애플리케이션 화면으로 POST 전송합니다. 이 요청에는 CSRF 토큰이 포함될 수 없으므로 예외 처리가 필요합니다. 두 경로는 화면을 렌더링하기만 하고 데이터를 변경하지 않습니다.
+
+실제로 데이터를 변경하는 `/api/stores`는 CSRF 보호를 유지하며, 화면에서 `<meta name="_csrf">` 값을 읽어 요청 헤더에 담아 전송합니다.
