@@ -56,6 +56,11 @@ public class DashboardService {
         }
     }
 
+    public DashboardView getRandomGuestDashboard() {
+        GuestRegion region = guestRegionService.getRandomSeoulRegion();
+        return getGuestDashboard(region.getId());
+    }
+
     public DashboardView getDashboard() {
         long totalStart = System.nanoTime();
         Store store = null;
@@ -169,6 +174,10 @@ public class DashboardService {
     }
 
     private String createGuestStoreName(GuestRegion region) {
+        if (!isBlank(region.getDisplayName())) {
+            return region.getDisplayName();
+        }
+
         String sidoName = region.getSidoName();
         String sigunguName = region.getSigunguName();
 
@@ -238,8 +247,7 @@ public class DashboardService {
     }
 
     private DashboardView getGuestFallbackDashboard() {
-        GuestRegion region = guestRegionService.getRandomSeoulRegion();
-        return getGuestDashboard(region.getId());
+        return getRandomGuestDashboard();
     }
 
     private static final Logger log = LoggerFactory.getLogger(DashboardService.class);

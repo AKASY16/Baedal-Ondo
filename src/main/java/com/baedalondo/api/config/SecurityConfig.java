@@ -20,8 +20,6 @@ public class SecurityConfig {
                                 "/signup",
                                 "/guest",
                                 "/dashboard/guest",
-                                "/api/guest-regions",
-                                "/api/guest-regions/**",
                                 "/css/**",
                                 "/fonts/**",
                                 "/js/**",
@@ -47,8 +45,6 @@ public class SecurityConfig {
                 )
                 .csrf(csrf -> csrf
                         .ignoringRequestMatchers(
-                                "/api/guest-regions",
-                                "/api/guest-regions/**",
                                 "/store/register",
                                 "/store/register/**",
                                 "/store/*/edit"

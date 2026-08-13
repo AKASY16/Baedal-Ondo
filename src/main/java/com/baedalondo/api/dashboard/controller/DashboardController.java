@@ -2,8 +2,6 @@ package com.baedalondo.api.dashboard.controller;
 
 import com.baedalondo.api.dashboard.dto.DashboardView;
 import com.baedalondo.api.dashboard.service.DashboardService;
-import com.baedalondo.api.guest.domain.GuestRegion;
-import com.baedalondo.api.guest.service.GuestRegionService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -15,15 +13,11 @@ import java.security.Principal;
 @Controller
 public class DashboardController {
     private static final String SELECTED_STORE_ID_SESSION_KEY = "selectedStoreId";
-    private static final String GUEST_REGION_ID_SESSION_KEY = "guestRegionId";
 
     private final DashboardService dashboardService;
-    private final GuestRegionService guestRegionService;
 
-    public DashboardController(DashboardService dashboardService,
-                               GuestRegionService guestRegionService) {
+    public DashboardController(DashboardService dashboardService) {
         this.dashboardService = dashboardService;
-        this.guestRegionService = guestRegionService;
     }
 
     @GetMapping("/")
@@ -55,10 +49,7 @@ public class DashboardController {
     @GetMapping("/dashboard/guest")
     public String guestDashboard(HttpSession session, Model model) {
         session.removeAttribute(SELECTED_STORE_ID_SESSION_KEY);
-        GuestRegion region = guestRegionService.getRandomSeoulRegion();
-        session.setAttribute(GUEST_REGION_ID_SESSION_KEY, region.getId());
-
-        DashboardView dashboard = dashboardService.getGuestDashboard(region.getId());
+        DashboardView dashboard = dashboardService.getRandomGuestDashboard();
 
         model.addAttribute("dashboard", dashboard);
         model.addAttribute("guestMode", true);
