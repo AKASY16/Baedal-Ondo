@@ -26,13 +26,8 @@ public class DashboardController {
 
     @GetMapping("/")
     public String home() {
-        // TODO: 로그인 기능 구현 후
-        //  - 비로그인 사용자는 redirect:/auth/login
-        //  - 로그인 사용자는 redirect:/dashboard/main
-
         return "redirect:/dashboard/main";
     }
-
 
     @GetMapping("/dashboard/main")
     public String main(Model model, HttpSession session, Principal principal) {

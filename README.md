@@ -26,7 +26,6 @@
   - 로그인 사용자의 매장 목록을 드롭다운으로 표시
   - Store ID 선택 드롭다운으로 특정 매장 대시보드 확인
   - 등록 매장이 없는 경우 게스트 지역 기반 대시보드 표시
-  - 디버그 정보 토글 표시
 
 - 현재 날씨 연동
   - 기상청 초단기실황 API 호출
@@ -36,6 +35,7 @@
 
 - 미세먼지 연동
   - AirKorea 시도별 실시간 측정정보 API 호출
+  - 주소의 자치구와 일치하는 측정소가 없으면 AirKorea 시도 평균 사용
   - PM10, PM2.5 기반 공기질 보정 점수 계산
   - 측정소/측정시각 기준 DB 저장 및 재사용
   - API 실패 시 공기질 보정 점수 제외
@@ -59,6 +59,7 @@
 - Thymeleaf
 - Spring Security
 - MySQL 8
+- Flyway
 - H2 Database (테스트 전용)
 - Gradle
 - Lombok
@@ -134,6 +135,8 @@ CREATE USER 'baedalondo_app'@'localhost' IDENTIFIED BY '비밀번호';
 GRANT ALL PRIVILEGES ON baedalondo.* TO 'baedalondo_app'@'localhost';
 FLUSH PRIVILEGES;
 ```
+
+애플리케이션을 처음 실행하면 Flyway가 `src/main/resources/db/migration`의 마이그레이션을 순서대로 적용합니다. 현재 초기 스키마는 `V1__create_initial_schema.sql`에 정의되어 있으며, Hibernate는 `ddl-auto: validate`로 엔티티와 스키마의 일치 여부만 검사합니다.
 
 접속 정보는 환경변수로 주입합니다.
 
@@ -328,7 +331,7 @@ commercialAreaCode + businessType + 요일  ->  Local DayWeight
 - 가중치 기반 배달온도 점수 계산
 - 점수 영향 방향 표시
 - 배달온도 계산기 테스트
-- 대시보드 UI 및 디버그 토글
+- 대시보드 UI
 - GeoJSON + JTS 기반 서울시 상권 판별 및 저장
 - businessType의 BusinessType Enum 표준화
 - 서울시 추정매출 기반 상권 x 업종 x 요일 DayWeight 전처리
@@ -338,10 +341,8 @@ commercialAreaCode + businessType + 요일  ->  Local DayWeight
 - TimeWeight 런타임 조회 계층 및 Local -> City -> 기존 시간표 fallback
 - 업종 공통 시간표를 데이터 기반 TimeWeight로 대체
 
-정리 필요:
+추가 보강 후보:
 
-- 코드 주석의 오래된 TODO 정리
-- 어디에서도 호출하지 않는 DayDemandLevel.getWeight 정리
 - CurrentWeatherService, KmaTimeCalculator 등 서비스 계층 테스트 보강
 
 현재 제품 방향에서 제외/보류:
@@ -358,8 +359,9 @@ commercialAreaCode + businessType + 요일  ->  Local DayWeight
 ## 개발 참고사항
 
 - 현재 DB는 MySQL 8을 사용하며 접속 정보는 환경변수로 주입합니다.
-- 스키마는 아직 `ddl-auto: update`로 관리하므로 엔티티 필드의 이름이나 타입을 바꾸면 실제 스키마와 조용히 어긋날 수 있습니다. 삭제처럼 `update`가 처리하지 않는 변경은 `database/migrations`의 명시적 SQL을 적용하며, 구조를 바꾸기 전에 `mysqldump`로 백업하는 것을 권장합니다.
-- `@DataJpaTest`는 인메모리 H2로 자동 대체되지만 `@SpringBootTest`는 위 MySQL에 그대로 접속합니다.
+- 스키마 변경은 `src/main/resources/db/migration`에 새 Flyway 버전 파일을 추가해 관리합니다. 이미 적용된 마이그레이션 파일은 수정하지 않습니다.
+- Hibernate는 `ddl-auto: validate`로 스키마를 검증하며 직접 생성하거나 변경하지 않습니다.
+- `@DataJpaTest`는 필요한 테스트에서 Flyway를 끄고 H2의 `create-drop`을 사용합니다. `@SpringBootTest`는 기본 설정상 위 MySQL에 접속합니다.
 - `/dashboard/main/{storeId}`는 URL을 유지하지 않고 선택 Store ID를 세션에 저장한 뒤 `/dashboard/main`으로 리다이렉트합니다.
 - `/dashboard/main`은 로그인 사용자의 Store를 조회하는 정식 진입점입니다.
 - 게스트 지역은 `src/main/resources/guest-regions.csv`에 고정된 서울 25개 자치구청 정보를 사용하며 DB에 저장하지 않습니다.
