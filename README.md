@@ -149,16 +149,6 @@ Windows에서는 사용자 환경변수로 등록합니다. 등록 후 터미널
 setx DB_PASSWORD "비밀번호"
 ```
 
-#### 기존 DB의 O3 컬럼 제거
-
-업데이트된 엔티티로 새로 생성한 DB에는 O3 컬럼이 만들어지지 않습니다. 기존 DB는 `ddl-auto: update`가 삭제된 컬럼을 자동으로 제거하지 않으므로 애플리케이션을 중지하고 DB를 백업한 뒤 아래 마이그레이션을 한 번 실행합니다.
-
-```bash
-mysql -u baedalondo_app -p baedalondo < database/migrations/20260814_drop_air_quality_o3_columns.sql
-```
-
-이미 O3 컬럼을 제거한 DB에는 다시 실행하지 않습니다.
-
 ### 4. 애플리케이션 실행
 
 ```bash

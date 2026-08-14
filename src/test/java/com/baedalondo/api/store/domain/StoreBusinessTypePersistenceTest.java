@@ -11,7 +11,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  businessType이 ordinal 숫자가 아니라 Enum 이름 문자열로 저장되는지 확인한다.
  **/
-@DataJpaTest
+@DataJpaTest(properties = {
+        "spring.flyway.enabled=false",
+        "spring.jpa.hibernate.ddl-auto=create-drop"
+})
 class StoreBusinessTypePersistenceTest {
 
     @Autowired
