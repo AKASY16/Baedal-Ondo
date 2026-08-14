@@ -19,7 +19,6 @@ public class AirQualityCalculator {
 
         score += calculatePm10Weight(observation.getPm10Value());
         score += calculatePm25Weight(observation.getPm25Value());
-        score += calculateO3Weight(observation.getO3Value());
 
         return score;
     }
@@ -55,26 +54,6 @@ public class AirQualityCalculator {
 
         return 0; // 좋음/보통
     }
-
-    private int calculateO3Weight(Double o3Value) {
-        if (o3Value == null) {
-            return 0;
-        }
-
-        if (o3Value >= 0.151) {
-            return 2; // 매우나쁨
-        }
-
-        if (o3Value >= 0.091) {
-            return 1; // 나쁨
-        }
-
-        return 0; // 좋음/보통
-    }
-
-
-
-
     public LocalDateTime getSafeAirQualityBaseTime() {
 
         // 에어코리아 실시간 측정정보는 정각 측정값이 매시 15분 내외로 반영

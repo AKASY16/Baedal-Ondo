@@ -14,7 +14,7 @@ public class WeightedScoreCalculator {
     private static final int HOLIDAY_SCORE = 8;
     private static final int RAW_WEATHER_MAX = 17;
     private static final int WEIGHTED_WEATHER_MAX = 20;
-    private static final int RAW_AIR_QUALITY_MAX = 7;
+    private static final int RAW_AIR_QUALITY_MAX = 5;
     private static final int WEIGHTED_AIR_QUALITY_MAX = 8;
     private static final int INTERACTION_MAX = 10;
     private static final int DAY_PEAK_INTERACTION_MAX = 3;

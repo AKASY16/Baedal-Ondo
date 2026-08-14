@@ -68,7 +68,7 @@ class WeightedScoreCalculatorTest {
                 NO_MARKET_DAY_WEIGHT,
                 new WeatherScoreResult(17, List.of("강수량", "기온"), "강수량, 기온"),
                 rainyWeather(),
-                7
+                5
         );
 
         assertEquals(78, result.score());
@@ -117,7 +117,7 @@ class WeightedScoreCalculatorTest {
                 NO_MARKET_DAY_WEIGHT,
                 new WeatherScoreResult(17, List.of("악천후"), "악천후"),
                 rainyWeather(),
-                7
+                5
         );
 
         assertEquals(78, result.score());
@@ -131,7 +131,7 @@ class WeightedScoreCalculatorTest {
                 NO_MARKET_DAY_WEIGHT,
                 new WeatherScoreResult(17, List.of("악천후"), "악천후"),
                 rainyWeather(),
-                7
+                5
         );
 
         assertEquals(84, result.score());
@@ -145,7 +145,7 @@ class WeightedScoreCalculatorTest {
                 NO_MARKET_DAY_WEIGHT,
                 new WeatherScoreResult(17, List.of("악천후"), "악천후"),
                 rainyWeather(),
-                7
+                5
         );
 
         assertEquals(90, result.score());

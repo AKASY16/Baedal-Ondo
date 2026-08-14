@@ -13,7 +13,6 @@ public class CurrentAirQualityObservation {
 
     private final Integer pm10Value;    // PM10 미세먼지 농도
     private final Integer pm25Value;    // PM2.5 초미세먼지 농도
-    private final Double o3Value;       // 오존 농도
 
     private final Integer khaiValue;    // 통합대기환경수치
     private final Integer khaiGrade;    // 통합대기환경등급
@@ -22,7 +21,6 @@ public class CurrentAirQualityObservation {
     private final Integer pm25Grade;    // PM2.5 등급
     private final Integer pm10Grade1h;  // PM10 1시간 등급
     private final Integer pm25Grade1h;  // PM2.5 1시간 등급
-    private final Integer o3Grade;      // O3 등급
 
     public CurrentAirQualityObservation(
             String sidoName,
@@ -32,14 +30,12 @@ public class CurrentAirQualityObservation {
             LocalDateTime measuredAt,
             Integer pm10Value,
             Integer pm25Value,
-            Double o3Value,
             Integer khaiValue,
             Integer khaiGrade,
             Integer pm10Grade,
             Integer pm25Grade,
             Integer pm10Grade1h,
-            Integer pm25Grade1h,
-            Integer o3Grade
+            Integer pm25Grade1h
     ){
         this.sidoName = sidoName;
         this.stationName = stationName;
@@ -48,14 +44,12 @@ public class CurrentAirQualityObservation {
         this.measuredAt = measuredAt;
         this.pm10Value = pm10Value;
         this.pm25Value = pm25Value;
-        this.o3Value = o3Value;
         this.khaiValue = khaiValue;
         this.khaiGrade = khaiGrade;
         this.pm10Grade = pm10Grade;
         this.pm25Grade = pm25Grade;
         this.pm10Grade1h = pm10Grade1h;
         this.pm25Grade1h = pm25Grade1h;
-        this.o3Grade = o3Grade;
     }
 
     public String getSidoName() {
@@ -86,10 +80,6 @@ public class CurrentAirQualityObservation {
         return pm25Value;
     }
 
-    public Double getO3Value() {
-        return o3Value;
-    }
-
     public Integer getKhaiValue() {
         return khaiValue;
     }
@@ -112,9 +102,5 @@ public class CurrentAirQualityObservation {
 
     public Integer getPm25Grade1h() {
         return pm25Grade1h;
-    }
-
-    public Integer getO3Grade() {
-        return o3Grade;
     }
 }

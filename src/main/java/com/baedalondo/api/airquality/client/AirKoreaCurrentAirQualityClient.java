@@ -14,7 +14,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
-import static java.lang.Double.parseDouble;
 import static java.lang.Integer.parseInt;
 
 @Component
@@ -113,23 +112,11 @@ public class AirKoreaCurrentAirQualityClient {
         return parseInt(value);
     }
 
-    private Double parseNullableDouble(JsonNode item, String fieldName) {
-        String value = item.path(fieldName).asString();
-
-        if (value == null || value.isBlank() || "-".equals(value)) {
-            return null;
-        }
-
-        return parseDouble(value);
-    }
-
     private boolean hasValidMainValues(JsonNode item) {
         return isNumericValue(item, "pm10Value")
                 && isNumericValue(item, "pm25Value")
-                && isNumericValue(item, "o3Value")
                 && isNormalFlag(item, "pm10Flag")
-                && isNormalFlag(item, "pm25Flag")
-                && isNormalFlag(item, "o3Flag");
+                && isNormalFlag(item, "pm25Flag");
     }
 
     private boolean isNumericValue(JsonNode item, String fieldName) {
@@ -168,14 +155,12 @@ public class AirKoreaCurrentAirQualityClient {
 
         Integer pm10Value = parseNullableInt(item, "pm10Value");
         Integer pm25Value = parseNullableInt(item, "pm25Value");
-        Double o3Value = parseNullableDouble(item, "o3Value");
 
         Integer khaiValue = parseNullableInt(item, "khaiValue");
         Integer khaiGrade = parseNullableInt(item, "khaiGrade");
 
         Integer pm10Grade = parseNullableInt(item, "pm10Grade");
         Integer pm25Grade = parseNullableInt(item, "pm25Grade");
-        Integer o3Grade = parseNullableInt(item, "o3Grade");
 
         Integer pm10Grade1h = parseNullableInt(item, "pm10Grade1h");
         Integer pm25Grade1h = parseNullableInt(item, "pm25Grade1h");
@@ -193,14 +178,12 @@ public class AirKoreaCurrentAirQualityClient {
                 measuredAt,
                 pm10Value,
                 pm25Value,
-                o3Value,
                 khaiValue,
                 khaiGrade,
                 pm10Grade,
                 pm25Grade,
                 pm10Grade1h,
-                pm25Grade1h,
-                o3Grade
+                pm25Grade1h
         );
     }
 

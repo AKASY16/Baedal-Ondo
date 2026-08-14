@@ -107,7 +107,7 @@ class ScoreServiceTest {
         ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
 
         // then
-        assertEquals(56, result.getScore());
+        assertEquals(58, result.getScore());
     }
 
     @Test
@@ -471,8 +471,6 @@ class ScoreServiceTest {
                 LocalDateTime.of(2026, 1, 1, 0, 0),
                 100,
                 40,
-                0.1,
-                null,
                 null,
                 null,
                 null,

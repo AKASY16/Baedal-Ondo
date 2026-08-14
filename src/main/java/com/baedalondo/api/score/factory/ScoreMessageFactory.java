@@ -171,8 +171,7 @@ public class ScoreMessageFactory {
         }
 
         return "미세먼지 " + formatNullableValue(airQuality.getPm10Value())
-                + ", 초미세먼지 " + formatNullableValue(airQuality.getPm25Value())
-                + ", 오존 " + formatNullableValue(airQuality.getO3Value());
+                + ", 초미세먼지 " + formatNullableValue(airQuality.getPm25Value());
     }
 
     private String koreanDayOfWeek(DayOfWeek dayOfWeek) {

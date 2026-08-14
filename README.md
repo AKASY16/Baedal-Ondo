@@ -36,7 +36,7 @@
 
 - 미세먼지 연동
   - AirKorea 시도별 실시간 측정정보 API 호출
-  - PM10, PM2.5, O3 기반 공기질 보정 점수 계산
+  - PM10, PM2.5 기반 공기질 보정 점수 계산
   - 측정소/측정시각 기준 DB 저장 및 재사용
   - API 실패 시 공기질 보정 점수 제외
 
@@ -149,6 +149,16 @@ Windows에서는 사용자 환경변수로 등록합니다. 등록 후 터미널
 setx DB_PASSWORD "비밀번호"
 ```
 
+#### 기존 DB의 O3 컬럼 제거
+
+업데이트된 엔티티로 새로 생성한 DB에는 O3 컬럼이 만들어지지 않습니다. 기존 DB는 `ddl-auto: update`가 삭제된 컬럼을 자동으로 제거하지 않으므로 애플리케이션을 중지하고 DB를 백업한 뒤 아래 마이그레이션을 한 번 실행합니다.
+
+```bash
+mysql -u baedalondo_app -p baedalondo < database/migrations/20260814_drop_air_quality_o3_columns.sql
+```
+
+이미 O3 컬럼을 제거한 DB에는 다시 실행하지 않습니다.
+
 ### 4. 애플리케이션 실행
 
 ```bash
@@ -255,7 +265,7 @@ score = 50
 | 시간대 | 상권 x 업종 x 시간대 TimeWeight | -12 ~ +14 |
 | 요일 | 상권 x 업종 x 요일 DayWeight (공휴일은 고정 +8) | -6 ~ +8 |
 | 현재 날씨 | 강수량, 강수형태, 기온, 풍속 원점수를 정규화 | 0 ~ +20 |
-| 대기질 | PM10, PM2.5, O3 원점수를 정규화 | 0 ~ +8 |
+| 대기질 | PM10, PM2.5 원점수를 정규화 | 0 ~ +8 |
 | 상호작용 | 피크 시간+강한 요일, 비+피크 시간, 공휴일 조합 보너스 | 0 ~ +10 |
 
 ### 시간대 기여도
@@ -358,7 +368,7 @@ commercialAreaCode + businessType + 요일  ->  Local DayWeight
 ## 개발 참고사항
 
 - 현재 DB는 MySQL 8을 사용하며 접속 정보는 환경변수로 주입합니다.
-- 스키마는 아직 `ddl-auto: update`로 관리하므로 엔티티 필드의 이름이나 타입을 바꾸면 실제 스키마와 조용히 어긋날 수 있습니다. 구조를 바꾸기 전에 `mysqldump`로 백업하는 것을 권장합니다.
+- 스키마는 아직 `ddl-auto: update`로 관리하므로 엔티티 필드의 이름이나 타입을 바꾸면 실제 스키마와 조용히 어긋날 수 있습니다. 삭제처럼 `update`가 처리하지 않는 변경은 `database/migrations`의 명시적 SQL을 적용하며, 구조를 바꾸기 전에 `mysqldump`로 백업하는 것을 권장합니다.
 - `@DataJpaTest`는 인메모리 H2로 자동 대체되지만 `@SpringBootTest`는 위 MySQL에 그대로 접속합니다.
 - `/dashboard/main/{storeId}`는 URL을 유지하지 않고 선택 Store ID를 세션에 저장한 뒤 `/dashboard/main`으로 리다이렉트합니다.
 - `/dashboard/main`은 로그인 사용자의 Store를 조회하는 정식 진입점입니다.

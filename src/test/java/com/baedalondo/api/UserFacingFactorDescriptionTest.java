@@ -115,8 +115,6 @@ class UserFacingFactorDescriptionTest {
                 LocalDateTime.now(),
                 90,
                 40,
-                0.05,
-                null,
                 null,
                 null,
                 null,

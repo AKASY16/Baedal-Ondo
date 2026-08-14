@@ -34,7 +34,6 @@ public class CurrentAirQualityRecord {
 
     private Integer pm10Value; // 미세먼지 PM10 농도, 단위: ㎍/㎥
     private Integer pm25Value; // 초미세먼지 PM2.5 농도, 단위: ㎍/㎥
-    private Double o3Value; // 오존 O3 농도, 단위: ppm
 
     private Integer khaiValue; // 통합대기환경수치
     private Integer khaiGrade; // 통합대기환경등급, 1 좋음 / 2 보통 / 3 나쁨 / 4 매우나쁨
@@ -46,8 +45,6 @@ public class CurrentAirQualityRecord {
     private Integer pm10Grade1h;// PM10 1시간 등급, 현재 시간대 미세먼지 상태
     @Column(name = "pm25_grade_1h")
     private Integer pm25Grade1h;// PM2.5 1시간 등급, 현재 시간대 초미세먼지 상태
-
-    private Integer o3Grade; // 오존 O3 등급, 1 좋음 / 2 보통 / 3 나쁨 / 4 매우나쁨
 
     private LocalDateTime createdAt; // DB에 이 기록이 저장된 시각
 
@@ -90,10 +87,6 @@ public class CurrentAirQualityRecord {
         return pm25Value;
     }
 
-    public Double getO3Value() {
-        return o3Value;
-    }
-
     public Integer getKhaiValue() {
         return khaiValue;
     }
@@ -116,10 +109,6 @@ public class CurrentAirQualityRecord {
 
     public Integer getPm25Grade1h() {
         return pm25Grade1h;
-    }
-
-    public Integer getO3Grade() {
-        return o3Grade;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -165,10 +154,6 @@ public class CurrentAirQualityRecord {
 //        this.pm25Value = pm25Value;
 //    }
 //
-//    public void setO3Value(Double o3Value) {
-//        this.o3Value = o3Value;
-//    }
-//
 //    public void setKhaiValue(Integer khaiValue) {
 //        this.khaiValue = khaiValue;
 //    }
@@ -193,10 +178,6 @@ public class CurrentAirQualityRecord {
 //        this.pm25Grade1h = pm25Grade1h;
 //    }
 //
-//    public void setO3Grade(Integer o3Grade) {
-//        this.o3Grade = o3Grade;
-//    }
-//
 //    public void setCreatedAt(LocalDateTime createdAt) {
 //        this.createdAt = createdAt;
 //    }
@@ -210,14 +191,12 @@ public class CurrentAirQualityRecord {
                 measuredAt,
                 pm10Value,
                 pm25Value,
-                o3Value,
                 khaiValue,
                 khaiGrade,
                 pm10Grade,
                 pm25Grade,
                 pm10Grade1h,
-                pm25Grade1h,
-                o3Grade
+                pm25Grade1h
         );
     }
 
@@ -240,7 +219,6 @@ public class CurrentAirQualityRecord {
 
         record.pm10Value = observation.getPm10Value();
         record.pm25Value = observation.getPm25Value();
-        record.o3Value = observation.getO3Value();
 
         record.khaiValue = observation.getKhaiValue();
         record.khaiGrade = observation.getKhaiGrade();
@@ -249,7 +227,6 @@ public class CurrentAirQualityRecord {
         record.pm25Grade = observation.getPm25Grade();
         record.pm10Grade1h = observation.getPm10Grade1h();
         record.pm25Grade1h = observation.getPm25Grade1h();
-        record.o3Grade = observation.getO3Grade();
 
         record.createdAt = LocalDateTime.now();
 

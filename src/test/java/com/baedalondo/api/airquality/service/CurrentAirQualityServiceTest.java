@@ -68,13 +68,11 @@ class CurrentAirQualityServiceTest {
                 LocalDateTime.of(2026, 6, 14, 22, 0),
                 25,
                 16,
-                0.05,
                 67,
                 2,
                 1,
                 2,
                 1,
-                2,
                 2
         );
     }
