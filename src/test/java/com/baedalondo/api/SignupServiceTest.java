@@ -15,8 +15,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.sql.SQLException;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -49,13 +51,13 @@ class SignupServiceTest {
         when(userAccountRepository.existsByLoginId("owner01")).thenReturn(false);
         when(userAccountRepository.existsByEmailIgnoreCase("owner@example.com")).thenReturn(false);
         when(passwordEncoder.encode("password123")).thenReturn("encoded-password");
-        when(userAccountRepository.save(any(UserAccount.class)))
+        when(userAccountRepository.saveAndFlush(any(UserAccount.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         signupService.signup(request);
 
         ArgumentCaptor<UserAccount> captor = ArgumentCaptor.forClass(UserAccount.class);
-        verify(userAccountRepository).save(captor.capture());
+        verify(userAccountRepository).saveAndFlush(captor.capture());
         assertEquals("owner01", captor.getValue().getLoginId());
         assertEquals("owner@example.com", captor.getValue().getEmail());
         assertEquals("encoded-password", captor.getValue().getPassword());
@@ -96,7 +98,7 @@ class SignupServiceTest {
 
         assertEquals("loginId", exception.getField());
         assertEquals("이미 사용 중인 아이디입니다.", exception.getMessage());
-        verify(userAccountRepository, never()).save(any());
+        verify(userAccountRepository, never()).saveAndFlush(any());
         verify(userAgreementRepository, never()).saveAll(any());
     }
 
@@ -113,7 +115,50 @@ class SignupServiceTest {
 
         assertEquals("email", exception.getField());
         assertEquals("이미 사용 중인 이메일입니다.", exception.getMessage());
-        verify(userAccountRepository, never()).save(any());
+        verify(userAccountRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void signupTranslatesLoginIdUniqueViolationIntoFieldError() {
+        // 중복 검사 통과 후 다른 요청이 먼저 저장한 경우를 재현한다.
+        SignupRequest request = signupRequest("owner01", "owner@example.com", "password123");
+        when(userAccountRepository.existsByLoginId("owner01")).thenReturn(false);
+        when(userAccountRepository.existsByEmailIgnoreCase("owner@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("password123")).thenReturn("encoded-password");
+        when(userAccountRepository.saveAndFlush(any(UserAccount.class)))
+                .thenThrow(new DataIntegrityViolationException(
+                        "could not execute statement",
+                        new SQLException("Duplicate entry 'owner01' for key 'uk_user_account_login_id'")
+                ));
+
+        SignupConflictException exception = assertThrows(
+                SignupConflictException.class,
+                () -> signupService.signup(request)
+        );
+
+        assertEquals("loginId", exception.getField());
+        verify(userAgreementRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void signupTranslatesEmailUniqueViolationIntoFieldError() {
+        SignupRequest request = signupRequest("owner01", "owner@example.com", "password123");
+        when(userAccountRepository.existsByLoginId("owner01")).thenReturn(false);
+        when(userAccountRepository.existsByEmailIgnoreCase("owner@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("password123")).thenReturn("encoded-password");
+        when(userAccountRepository.saveAndFlush(any(UserAccount.class)))
+                .thenThrow(new DataIntegrityViolationException(
+                        "could not execute statement",
+                        new SQLException("Duplicate entry 'owner@example.com' for key 'uk_user_account_email'")
+                ));
+
+        SignupConflictException exception = assertThrows(
+                SignupConflictException.class,
+                () -> signupService.signup(request)
+        );
+
+        assertEquals("email", exception.getField());
+        verify(userAgreementRepository, never()).saveAll(any());
     }
 
     @Test
@@ -123,7 +168,7 @@ class SignupServiceTest {
         when(userAccountRepository.existsByLoginId("owner01")).thenReturn(false);
         when(userAccountRepository.existsByEmailIgnoreCase("owner@example.com")).thenReturn(false);
         when(passwordEncoder.encode("password123")).thenReturn("encoded-password");
-        when(userAccountRepository.save(any(UserAccount.class)))
+        when(userAccountRepository.saveAndFlush(any(UserAccount.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         signupService.signup(request);
