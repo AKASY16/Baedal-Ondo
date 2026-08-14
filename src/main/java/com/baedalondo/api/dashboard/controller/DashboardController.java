@@ -8,6 +8,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.security.Principal;
 import java.util.List;
@@ -62,8 +64,15 @@ public class DashboardController {
 
 
     @GetMapping("/dashboard/main/{storeId}")
-    public String main(@PathVariable("storeId") Long storeId, HttpSession session) {
+    public String main(@PathVariable("storeId") Long storeId,
+                       @RequestParam(name = "registered", defaultValue = "false") boolean registered,
+                       HttpSession session,
+                       RedirectAttributes redirectAttributes) {
         session.setAttribute(SELECTED_STORE_ID_SESSION_KEY, storeId);
+
+        if (registered) {
+            redirectAttributes.addFlashAttribute("registered", true);
+        }
 
         return "redirect:/dashboard/main";
     }

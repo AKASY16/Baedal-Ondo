@@ -154,6 +154,41 @@
             color: var(--danger);
         }
 
+        .field-error {
+            margin: 0;
+            color: var(--danger);
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.45;
+        }
+
+        .field-error[hidden],
+        .status-message[hidden] {
+            display: none;
+        }
+
+        .address-error {
+            margin-top: 8px;
+        }
+
+        body.store-form-page input[aria-invalid="true"],
+        body.store-form-page select[aria-invalid="true"] {
+            border-color: #c97970;
+            background: #fff8f6;
+        }
+
+        .status-message {
+            margin-top: 14px;
+            padding: 12px 14px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        body.store-form-page button:disabled {
+            cursor: wait;
+            opacity: 0.7;
+        }
+
         .popup-message {
             display: none;
             min-height: 100vh;
@@ -281,11 +316,13 @@
             <div class="grid">
                 <label>
                     <span class="field-label">가게명 <span class="required">*</span></span>
-                    <input id="store-name" autocomplete="organization" placeholder="예: 온도분식">
+                    <input id="store-name" autocomplete="organization" placeholder="예: 온도분식"
+                           aria-describedby="store-name-error">
+                    <span id="store-name-error" class="field-error" hidden>가게명을 입력해 주세요.</span>
                 </label>
                 <label>
                     <span class="field-label">업종 <span class="required">*</span></span>
-                    <select id="store-businessType">
+                    <select id="store-businessType" aria-describedby="store-businessType-error">
                         <option value="">업종을 선택하세요</option>
                         <option value="KOREAN_FOOD">한식</option>
                         <option value="CHINESE_FOOD">중식</option>
@@ -297,6 +334,7 @@
                         <option value="CAFE_BEVERAGE">카페·음료</option>
                         <option value="BAKERY">제과·베이커리</option>
                     </select>
+                    <span id="store-businessType-error" class="field-error" hidden>업종을 선택해 주세요.</span>
                 </label>
             </div>
         </div>
@@ -308,10 +346,12 @@
           <div class="address-row">
             <label>
                 전체 도로명주소
-                <input id="store-address" readonly placeholder="주소 검색으로 자동 입력">
+                <input id="store-address" readonly placeholder="주소 검색으로 자동 입력"
+                       aria-describedby="store-address-error">
             </label>
             <button id="juso-search-button" type="button">주소검색</button>
           </div>
+          <p id="store-address-error" class="field-error address-error" hidden>주소 검색을 먼저 완료해 주세요.</p>
 
         <div class="grid" style="margin-top: 12px;">
             <label class="wide">
@@ -378,12 +418,11 @@
     <section class="panel">
         <h2 class="panel-title">등록 확인</h2>
         <div class="panel-content">
-            <p class="note">등록하면 바로 이 가게의 대시보드로 이동합니다. 개발 중에는 전송 데이터를 먼저 확인할 수 있습니다.</p>
+            <p class="note">등록이 완료되면 이 가게의 대시보드로 바로 이동합니다.</p>
+            <div id="registration-status" class="status-message" role="status" aria-live="polite" hidden></div>
             <div class="actions">
-                <button id="payload-check-button" type="button" class="secondary-button">전송 데이터 확인</button>
                 <button id="register-button" type="button">가게 등록하기</button>
             </div>
-            <pre id="payload-output" hidden>{}</pre>
         </div>
     </section>
 </main>
@@ -420,8 +459,13 @@
 
         window.jusoCallBack = receiveJusoResult;
         document.getElementById("juso-search-button").addEventListener("click", goJusoPopup);
-        document.getElementById("payload-check-button").addEventListener("click", logPayload);
         document.getElementById("register-button").addEventListener("click", registerStore);
+        document.getElementById("store-name").addEventListener("input", function () {
+            clearFieldError("store-name", "store-name-error");
+        });
+        document.getElementById("store-businessType").addEventListener("change", function () {
+            clearFieldError("store-businessType", "store-businessType-error");
+        });
     });
 
     function goJusoPopup() {
@@ -500,6 +544,7 @@
         setValue("store-undergroundYn", result.udrtYn);
         setValue("store-buildingMainNumber", result.buldMnnm);
         setValue("store-buildingSubNumber", result.buldSlno);
+        clearFieldError("store-address", "store-address-error");
     }
 
     function buildPayload() {
@@ -527,34 +572,20 @@
         };
     }
 
-    function logPayload() {
-        const payload = buildPayload();
-
-        printPayload(payload);
-        alert("등록 payload를 console.log로 출력했습니다.");
-    }
-
     function registerStore() {
         const payload = buildPayload();
+        const button = document.getElementById("register-button");
 
-        if (!payload.name) {
-            alert("매장명을 입력해주세요.");
+        hideRegistrationStatus();
+        clearRegistrationErrors();
+
+        if (!validateRegistration(payload)) {
             return;
         }
 
-        if (!payload.businessType) {
-            alert("업종을 선택해주세요.");
-            return;
-        }
-
-        if (!payload.jusoAddress.admCd || !payload.jusoAddress.rnMgtSn
-            || !payload.jusoAddress.udrtYn || !payload.jusoAddress.buldMnnm
-            || !payload.jusoAddress.buldSlno) {
-            alert("주소검색을 먼저 완료해주세요.");
-            return;
-        }
-
-        printPayload(payload);
+        button.disabled = true;
+        button.textContent = "등록 중...";
+        showRegistrationStatus("가게 정보를 등록하고 있습니다.", false);
 
         fetch("/api/stores", {
             method: "POST",
@@ -570,15 +601,79 @@
                 return response.json();
             })
             .then(function (storeId) {
-                alert("가게 등록이 완료되었습니다. storeId=" + storeId);
-
                 // 등록한 매장을 선택한 대시보드로 이동
-                window.location.href = "/dashboard/main/" + encodeURIComponent(storeId);
+                window.location.href = "/dashboard/main/" + encodeURIComponent(storeId) + "?registered=true";
             })
             .catch(function (error) {
                 console.error(error);
-                alert(error.message);
+                showRegistrationStatus(error.message || "가게 등록에 실패했습니다.", true);
+                button.disabled = false;
+                button.textContent = "가게 등록하기";
             });
+    }
+
+    function validateRegistration(payload) {
+        let firstInvalidElement = null;
+
+        if (!payload.name) {
+            showFieldError("store-name", "store-name-error");
+            firstInvalidElement = document.getElementById("store-name");
+        }
+
+        if (!payload.businessType) {
+            showFieldError("store-businessType", "store-businessType-error");
+            if (!firstInvalidElement) {
+                firstInvalidElement = document.getElementById("store-businessType");
+            }
+        }
+
+        if (!payload.jusoAddress.admCd || !payload.jusoAddress.rnMgtSn
+            || !payload.jusoAddress.udrtYn || !payload.jusoAddress.buldMnnm
+            || !payload.jusoAddress.buldSlno) {
+            showFieldError("store-address", "store-address-error");
+            if (!firstInvalidElement) {
+                firstInvalidElement = document.getElementById("juso-search-button");
+            }
+        }
+
+        firstInvalidElement?.focus();
+        return !firstInvalidElement;
+    }
+
+    function showFieldError(fieldId, errorId) {
+        document.getElementById(fieldId)?.setAttribute("aria-invalid", "true");
+        const errorElement = document.getElementById(errorId);
+        if (errorElement) {
+            errorElement.hidden = false;
+        }
+    }
+
+    function clearFieldError(fieldId, errorId) {
+        document.getElementById(fieldId)?.removeAttribute("aria-invalid");
+        const errorElement = document.getElementById(errorId);
+        if (errorElement) {
+            errorElement.hidden = true;
+        }
+    }
+
+    function clearRegistrationErrors() {
+        clearFieldError("store-name", "store-name-error");
+        clearFieldError("store-businessType", "store-businessType-error");
+        clearFieldError("store-address", "store-address-error");
+    }
+
+    function showRegistrationStatus(message, isError) {
+        const statusElement = document.getElementById("registration-status");
+        statusElement.textContent = message;
+        statusElement.classList.toggle("error", isError);
+        statusElement.hidden = false;
+    }
+
+    function hideRegistrationStatus() {
+        const statusElement = document.getElementById("registration-status");
+        statusElement.hidden = true;
+        statusElement.textContent = "";
+        statusElement.classList.remove("error");
     }
 
     function createJsonHeaders() {
@@ -593,17 +688,6 @@
         }
 
         return headers;
-    }
-
-    function printPayload(payload) {
-        const payloadJson = JSON.stringify(payload, null, 2);
-
-        window.lastStoreRegisterPayload = payload;
-        console.log("store register payload", payload);
-        console.log("store register payload JSON\n" + payloadJson);
-        const output = document.getElementById("payload-output");
-        output.textContent = payloadJson;
-        output.hidden = false;
     }
 
     function setValue(id, value) {

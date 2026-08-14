@@ -11,12 +11,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ui.ExtendedModelMap;
+import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
 
 import java.security.Principal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -65,5 +67,16 @@ class DashboardControllerTest {
 
         assertEquals(false, model.get("showStoreRegistrationPrompt"));
         assertEquals(1L, model.get("selectedStoreId"));
+    }
+
+    @Test
+    void storeSelectionRedirectKeepsRegistrationNoticeAsFlashAttribute() {
+        RedirectAttributesModelMap redirectAttributes = new RedirectAttributesModelMap();
+
+        String viewName = dashboardController.main(7L, true, session, redirectAttributes);
+
+        assertEquals("redirect:/dashboard/main", viewName);
+        assertEquals(true, redirectAttributes.getFlashAttributes().get("registered"));
+        verify(session).setAttribute("selectedStoreId", 7L);
     }
 }

@@ -1,5 +1,6 @@
 package com.baedalondo.api.config;
 
+import com.baedalondo.api.auth.service.AccountLoginFailureHandler;
 import com.baedalondo.api.auth.service.AccountLoginSuccessHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,7 +15,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
-                                           AccountLoginSuccessHandler loginSuccessHandler) throws Exception {
+                                           AccountLoginSuccessHandler loginSuccessHandler,
+                                           AccountLoginFailureHandler loginFailureHandler) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
@@ -37,6 +39,7 @@ public class SecurityConfig {
                         .usernameParameter("loginId")
                         .passwordParameter("password")
                         .successHandler(loginSuccessHandler)
+                        .failureHandler(loginFailureHandler)
                         .permitAll()
                 )
                 .logout(logout -> logout
