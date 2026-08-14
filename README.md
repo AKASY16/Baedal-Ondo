@@ -186,6 +186,8 @@ Windows 환경에서는 다음 명령을 사용할 수 있습니다.
 ./gradlew.bat test
 ```
 
+**테스트는 위 1~3단계 설정 없이 실행할 수 있습니다.** `src/test/resources/application.yaml`이 인메모리 H2와 더미 API 키를 사용하므로, MySQL이나 `DB_PASSWORD`, `application-secret.yaml`이 없어도 저장소를 clone한 그대로 통과합니다.
+
 ## 주요 URL
 
 | URL | 설명 | 로그인 |
@@ -203,6 +205,7 @@ Windows 환경에서는 다음 명령을 사용할 수 있습니다.
 | `/signup` | 회원가입 화면 | 불필요 |
 | `/terms` | 이용약관 전문 | 불필요 |
 | `/privacy` | 개인정보 처리방침 전문 | 불필요 |
+| `/actuator/health` | 기동 상태 확인용 헬스체크 | 불필요 |
 
 로그인이 필요한 URL에 비로그인 상태로 접근하면 `/login`으로 리다이렉트됩니다.
 
@@ -375,12 +378,51 @@ commercialAreaCode + businessType + 요일  ->  Local DayWeight
 - 현재 DB는 MySQL 8을 사용하며 접속 정보는 환경변수로 주입합니다.
 - 스키마 변경은 `src/main/resources/db/migration`에 새 Flyway 버전 파일을 추가해 관리합니다. 이미 적용된 마이그레이션 파일은 수정하지 않습니다.
 - Hibernate는 `ddl-auto: validate`로 스키마를 검증하며 직접 생성하거나 변경하지 않습니다.
-- `@DataJpaTest`는 필요한 테스트에서 Flyway를 끄고 H2의 `create-drop`을 사용합니다. `@SpringBootTest`는 기본 설정상 위 MySQL에 접속합니다.
+- 테스트는 `src/test/resources/application.yaml`을 사용합니다. 테스트 클래스패스가 우선하므로 이 파일이 운영 `application.yaml`을 대체하며, 인메모리 H2와 더미 API 키로 외부 의존 없이 실행됩니다. 이 파일은 `application-secret.yaml`을 import 하지 않으므로 로컬에 실제 키가 있어도 테스트가 외부 API를 호출하지 않습니다.
+- V1 마이그레이션은 `ENUM`, `ENGINE=InnoDB`, `BIT(1)` 등 MySQL 전용 문법을 사용해 H2에서 실행할 수 없습니다. 그래서 테스트는 Flyway를 끄고 엔티티 기준 `create-drop`으로 스키마를 만듭니다. **마이그레이션 자체가 실제 MySQL에서 정상 동작하는지는 이 테스트로 검증되지 않습니다.** 이 검증은 Testcontainers 기반 통합 테스트의 몫으로 남아 있습니다.
 - `/dashboard/main/{storeId}`는 URL을 유지하지 않고 선택 Store ID를 세션에 저장한 뒤 `/dashboard/main`으로 리다이렉트합니다.
 - `/dashboard/main`은 로그인 사용자의 Store를 조회하는 정식 진입점입니다.
 - 게스트 지역은 `src/main/resources/guest-regions.csv`에 고정된 서울 25개 자치구청 정보를 사용하며 DB에 저장하지 않습니다.
 - 등록된 Store가 없는 로그인 사용자도 같은 게스트 지역 CSV에서 무작위 지역을 골라 대시보드를 대체 표시합니다.
 - 개인정보 처리방침은 개인정보보호위원회의 `2026 개인정보 처리방침 작성지침` 구조를 참고하며, 문의 메일은 Gmail을 사용하므로 처리위탁·국외 이전 가능성을 함께 공개합니다.
+- 외부 API 호출은 `RestClientConfig`에서 연결 2초, 응답 4초 타임아웃을 공통 적용합니다. 상대 API가 느려질 때 요청 스레드가 묶이지 않도록 하기 위한 설정이며, 타임아웃으로 실패하면 해당 보정 점수만 제외하고 대시보드는 계속 표시됩니다.
+- 오류 화면은 `templates/error/404.html`, `templates/error/500.html`, 그 외 상태 코드를 받는 `templates/error.html`로 구성되어 있습니다.
+
+## 운영
+
+### 헬스체크
+
+```bash
+curl http://localhost:8080/actuator/health
+# {"groups":["liveness","readiness"],"status":"UP"}
+```
+
+`management.endpoints.web.exposure.include`를 `health`로 제한해 다른 actuator 엔드포인트는 열지 않으며, `show-details: never`로 DB 접속 상태 같은 내부 정보도 노출하지 않습니다. Nginx나 로드밸런서의 상태 확인 대상으로 사용합니다.
+
+### DB 백업
+
+`scripts/backup-db.sh`가 `mysqldump` 기반 백업과 보관 기간 정리를 수행합니다.
+
+```bash
+DB_PASSWORD=... ./scripts/backup-db.sh
+```
+
+| 환경변수 | 기본값 | 설명 |
+| --- | --- | --- |
+| `BACKUP_DIR` | `/var/backups/baedalondo` | 백업 파일 저장 위치 |
+| `RETENTION_DAYS` | `14` | 보관 기간, 지난 파일은 삭제 |
+| `DB_NAME` | `baedalondo` | 대상 스키마 |
+| `DB_PASSWORD` | 없음 | **필수** |
+
+`--single-transaction`으로 InnoDB를 잠그지 않고 일관된 시점을 덤프하며, 비밀번호는 `ps` 목록에 노출되지 않도록 `MYSQL_PWD`로 전달합니다.
+
+크론 등록 예시입니다.
+
+```bash
+0 4 * * * DB_PASSWORD=... /home/ubuntu/baedal-ondo-api/scripts/backup-db.sh >> /var/log/baedalondo-backup.log 2>&1
+```
+
+개인정보 처리방침에 공개한 보관 기간과 `RETENTION_DAYS`를 일치시켜야 합니다.
 
 ### AWS 개인정보 처리 설정
 
@@ -441,3 +483,17 @@ th:classappend="${#strings.startsWith(dashboard.status, '상') ? ' status-high' 
 도로명주소 팝업은 외부 도메인인 `business.juso.go.kr`에서 선택 결과를 애플리케이션 화면으로 POST 전송합니다. 이 요청에는 CSRF 토큰이 포함될 수 없으므로 예외 처리가 필요합니다. 두 경로는 화면을 렌더링하기만 하고 데이터를 변경하지 않습니다.
 
 실제로 데이터를 변경하는 `/api/stores`는 CSRF 보호를 유지하며, 화면에서 `<meta name="_csrf">` 값을 읽어 요청 헤더에 담아 전송합니다.
+
+### 오류 페이지 대신 로그인 화면이 표시되는 경우
+
+**증상**
+
+없는 주소로 접근했을 때 404 화면이 아니라 로그인 화면으로 리다이렉트됩니다.
+
+**원인**
+
+Spring Security는 오류 처리를 위한 `ERROR` 디스패치 요청도 인가 대상에 포함합니다. 오류가 발생하면 컨테이너가 `/error`로 다시 요청을 보내는데, 이 경로가 `permitAll` 목록에 없으면 비로그인 사용자에게는 인증이 필요한 요청으로 판정되어 로그인 화면으로 넘어갑니다.
+
+**해결**
+
+`SecurityConfig`의 `permitAll` 목록에 `/error`를 포함합니다. 이 경로를 지우면 오류 화면이 다시 로그인 리다이렉트로 바뀝니다.
