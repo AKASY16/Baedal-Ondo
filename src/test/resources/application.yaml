@@ -1,0 +1,60 @@
+# 테스트 전용 설정.
+#
+# 테스트 클래스패스가 우선하므로 이 파일이 main의 application.yaml을 대체한다.
+# 목표는 저장소를 clone한 사람이 개인 환경변수나 application-secret.yaml 없이
+# ./gradlew test 를 그대로 성공시키는 것이다.
+#
+# 따라서 여기서는 application-secret.yaml을 import 하지 않는다.
+# 로컬에 실제 키가 있어도 테스트가 외부 API를 호출하지 않도록 격리한다.
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:baedalondo;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  # V1 마이그레이션은 MySQL 전용 문법(ENUM, ENGINE=InnoDB, BIT(1))을 사용하므로
+  # H2에서 실행할 수 없다. 테스트 스키마는 엔티티에서 생성한다.
+  # 마이그레이션 자체의 검증은 실제 MySQL이 필요하며 별도 통합 테스트의 몫이다.
+  flyway:
+    enabled: false
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+logging:
+  level:
+    org.hibernate.SQL: warn
+
+# 외부 API 키는 컨텍스트 기동에만 필요한 더미 값이다.
+# base-url은 localhost로 두어 실수로 호출이 나가면 실제 API 대신 즉시 실패하게 한다.
+kma:
+  api:
+    base-url: http://localhost:0/kma
+    auth-key: test-kma-auth-key
+
+dataportal:
+  api:
+    base-url: http://localhost:0/airkorea
+    air-quality-stats-base-url: http://localhost:0/airkorea-stats
+    holiday-base-url: http://localhost:0/holiday
+    auth-key: test-dataportal-auth-key
+
+jusogokr:
+  api:
+    search-base-url: http://localhost:0/juso-search
+    coordinate-auth-key: test-juso-coordinate-key
+    popup-auth-key: TESTJUSOGOKR
+
+# 컨텍스트가 뜰 때 공휴일 API를 호출하지 않는다.
+kasi:
+  api:
+    startup-refresh-enabled: false
+
+service:
+  legal:
+    operator-name: 배달온도 운영자
+    contact-email: test@example.com
