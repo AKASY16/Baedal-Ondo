@@ -1,5 +1,6 @@
 package com.baedalondo.api.store.domain;
 
+import com.baedalondo.api.common.ServiceTime;
 import com.baedalondo.api.commercialarea.dto.CommercialAreaMatch;
 import com.baedalondo.api.user.domain.UserAccount;
 import jakarta.persistence.*;
@@ -94,7 +95,7 @@ public class Store {
         this.buildingSubNumber = buildingSubNumber;
         this.nx = nx;
         this.ny = ny;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = ServiceTime.now();
     }
 
     public Long getId() {

@@ -1,5 +1,6 @@
 package com.baedalondo.api.weather.domain;
 
+import com.baedalondo.api.common.ServiceTime;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -109,7 +110,7 @@ public class CurrentWeatherRecord {
         record.humidity = weather.getHumidity();
         record.windSpeed = weather.getWindSpeed();
 
-        record.createdAt = LocalDateTime.now();
+        record.createdAt = ServiceTime.now();
 
         return record;
     }

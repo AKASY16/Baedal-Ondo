@@ -1,5 +1,6 @@
 package com.baedalondo.api.holiday.service;
 
+import com.baedalondo.api.common.ServiceTime;
 import com.baedalondo.api.holiday.client.HolidayClient;
 import com.baedalondo.api.holiday.entity.Holiday;
 import com.baedalondo.api.holiday.repository.HolidayRepository;
@@ -87,7 +88,9 @@ public class HolidayService {
             return;
         }
 
-        int currentYear = LocalDate.now().getYear();
+        // 서버 시간대와 무관하게 한국 기준 연도를 갱신해야 한다.
+        // UTC 서버에서는 1월 1일 오전에 아직 전년도로 계산되어 신정 공휴일이 비어 있게 된다.
+        int currentYear = ServiceTime.today().getYear();
         try {
             transactionTemplate.executeWithoutResult(status -> refreshHolidaysForYear(currentYear));
         } catch (RuntimeException e) {

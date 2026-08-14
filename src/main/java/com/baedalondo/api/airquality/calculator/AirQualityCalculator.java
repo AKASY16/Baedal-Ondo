@@ -1,10 +1,10 @@
 package com.baedalondo.api.airquality.calculator;
 
+import com.baedalondo.api.common.ServiceTime;
 import com.baedalondo.api.airquality.domain.CurrentAirQualityObservation;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 
 @Component
@@ -64,7 +64,7 @@ public class AirQualityCalculator {
         // 20:00 ~ 20:19 → 19:00 반환
         // 20:20 ~ 20:59 → 20:00 반환
 
-        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
+        LocalDateTime now = ServiceTime.now();
         LocalDateTime currentHour = now.truncatedTo(ChronoUnit.HOURS);
 
         if (now.getMinute() < 20) {

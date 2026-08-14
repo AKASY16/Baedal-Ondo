@@ -1,5 +1,6 @@
 package com.baedalondo.api.holiday.entity;
 
+import com.baedalondo.api.common.ServiceTime;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -62,7 +63,7 @@ public class Holiday {
     @PrePersist
     void prePersist() {
         if (createdAt == null) {
-            createdAt = LocalDateTime.now();
+            createdAt = ServiceTime.now();
         }
     }
 

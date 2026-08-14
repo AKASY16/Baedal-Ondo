@@ -1,5 +1,6 @@
 package com.baedalondo.api.user.domain;
 
+import com.baedalondo.api.common.ServiceTime;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -58,7 +59,7 @@ public class UserAccount {
     }
 
     public UserAccount(String loginId, String email, String password, String role) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = ServiceTime.now();
         this.loginId = loginId;
         this.email = email;
         this.password = password;
@@ -72,7 +73,7 @@ public class UserAccount {
 
     @PrePersist
     private void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = ServiceTime.now();
         if (createdAt == null) {
             createdAt = now;
         }
@@ -87,7 +88,7 @@ public class UserAccount {
 
     @PreUpdate
     private void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = ServiceTime.now();
     }
 
     public Long getId() {

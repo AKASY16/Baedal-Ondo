@@ -1,5 +1,6 @@
 package com.baedalondo.api;
 
+import com.baedalondo.api.common.ServiceTime;
 import com.baedalondo.api.airquality.domain.CurrentAirQualityObservation;
 import com.baedalondo.api.score.factory.ScoreMessageFactory;
 import com.baedalondo.api.score.status.DayDemandLevel;
@@ -9,7 +10,6 @@ import com.baedalondo.api.weather.domain.CurrentWeatherObservation;
 import org.junit.jupiter.api.Test;
 
 import java.time.DayOfWeek;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -112,7 +112,7 @@ class UserFacingFactorDescriptionTest {
                 "송파구",
                 "station",
                 "임시대기",
-                LocalDateTime.now(),
+                ServiceTime.now(),
                 90,
                 40,
                 null,

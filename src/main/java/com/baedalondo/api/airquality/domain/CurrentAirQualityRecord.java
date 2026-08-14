@@ -1,5 +1,6 @@
 package com.baedalondo.api.airquality.domain;
 
+import com.baedalondo.api.common.ServiceTime;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -228,7 +229,7 @@ public class CurrentAirQualityRecord {
         record.pm10Grade1h = observation.getPm10Grade1h();
         record.pm25Grade1h = observation.getPm25Grade1h();
 
-        record.createdAt = LocalDateTime.now();
+        record.createdAt = ServiceTime.now();
 
         return record;
     }

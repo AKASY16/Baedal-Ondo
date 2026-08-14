@@ -1,5 +1,6 @@
 package com.baedalondo.api.score.service;
 
+import com.baedalondo.api.common.ServiceTime;
 import com.baedalondo.api.airquality.calculator.AirQualityCalculator;
 import com.baedalondo.api.airquality.domain.CurrentAirQualityObservation;
 import com.baedalondo.api.airquality.exception.AirKoreaApiException;
@@ -233,7 +234,7 @@ class ScoreServiceTest {
         verify(dayWeightProvider).findWeight(
                 COMMERCIAL_AREA_CODE,
                 BusinessType.CHICKEN,
-                LocalDate.now().getDayOfWeek());
+                ServiceTime.today().getDayOfWeek());
     }
 
     @Test
@@ -244,7 +245,7 @@ class ScoreServiceTest {
 
         ScoreResult result = scoreService.calculateCurrentScore(guestTarget);
 
-        verify(dayWeightProvider).findWeight(null, null, LocalDate.now().getDayOfWeek());
+        verify(dayWeightProvider).findWeight(null, null, ServiceTime.today().getDayOfWeek());
         // 게스트는 주말이어도 기존 +8을 받지 않는다.
         assertEquals(50, result.getScore());
     }

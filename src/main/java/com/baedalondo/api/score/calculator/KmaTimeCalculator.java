@@ -1,9 +1,9 @@
 package com.baedalondo.api.score.calculator;
 
+import com.baedalondo.api.common.ServiceTime;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 
 
@@ -11,7 +11,7 @@ import java.time.temporal.ChronoUnit;
 public class KmaTimeCalculator {
 
     public LocalDateTime getSafeBaseDateTime() {
-        return LocalDateTime.now(ZoneId.of("Asia/Seoul"))
+        return ServiceTime.now()
                 .minusHours(1)
                 .truncatedTo(ChronoUnit.HOURS);
     }
