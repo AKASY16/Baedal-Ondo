@@ -4,6 +4,7 @@ import com.baedalondo.api.airquality.calculator.AirQualityCalculator;
 import com.baedalondo.api.airquality.domain.CurrentAirQualityObservation;
 import com.baedalondo.api.airquality.exception.AirKoreaApiException;
 import com.baedalondo.api.airquality.service.CurrentAirQualityService;
+import com.baedalondo.api.common.ServiceTime;
 import com.baedalondo.api.holiday.service.HolidayService;
 import com.baedalondo.api.score.dto.ScoreTarget;
 import com.baedalondo.api.score.factory.ScoreMessageFactory;
@@ -32,8 +33,6 @@ import java.util.List;
 
 @Service
 public class ScoreService {
-
-    private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
 
     private final TimeWeightCalculator timeWeightCalculator;
     private final DayWeightCalculator dayWeightCalculator;
@@ -72,115 +71,93 @@ public class ScoreService {
     }
 
     public ScoreResult calculateCurrentScore(ScoreTarget scoreTarget) {
-        long totalStart = System.nanoTime();
         Long scoreTargetId = scoreTargetId(scoreTarget);
 
+        int airQualityScore = 0;
+        String airQualityFactor = "영향 없음";
+        String airQualityDescription = "대기질 정보를 확인하지 못했어요";
+        String airQualityDetail = "대기질 정보 없음";
+        CurrentWeatherObservation weather = null;
+        CurrentAirQualityObservation airQuality = null;
+
+        LocalDate currentDate = ServiceTime.today();
+        LocalTime currentTime = ServiceTime.currentTime();
+
+        TimeDemandLevel timeDemandLevel = findMarketTimeDemandLevel(scoreTarget, currentTime);
+        DayDemandLevel dayDemandLevel =
+                dayWeightCalculator.calculate(currentDate, isHoliday(currentDate, scoreTargetId));
+        int marketDayWeight = findMarketDayWeight(scoreTarget, currentDate);
+
+        WeatherScoreResult weatherScoreResult;
         try {
-            int airQualityScore = 0;
-            String airQualityFactor = "영향 없음";
-            String airQualityDescription = "대기질 정보를 확인하지 못했어요";
-            String airQualityDetail = "대기질 정보 없음";
-            CurrentWeatherObservation weather = null;
-            CurrentAirQualityObservation airQuality = null;
-
-            TimeDemandLevel timeDemandLevel;
-            DayDemandLevel dayDemandLevel;
-            int marketDayWeight;
-            LocalDate currentDate = LocalDate.now(KOREA_ZONE);
-            LocalTime currentTime = LocalTime.now(KOREA_ZONE);
-            long baseStart = System.nanoTime();
-            try {
-                timeDemandLevel = findMarketTimeDemandLevel(scoreTarget, currentTime);
-                dayDemandLevel = dayWeightCalculator.calculate(currentDate, isHoliday(currentDate, scoreTargetId));
-                marketDayWeight = findMarketDayWeight(scoreTarget, currentDate);
-            } finally {
-                logTiming("baseScore", baseStart, scoreTargetId);
-            }
-
-            WeatherScoreResult weatherScoreResult;
-            long weatherStart = System.nanoTime();
-            try {
-                weather = currentWeatherService.getCurrentWeather(scoreTarget);
-                weatherScoreResult = currentWeatherWeightCalculator.calculate(weather);
-            } catch (KmaWeatherApiException e) {
-                log.warn("기상청 API 에러. 날씨 보정 점수를 제외합니다. storeId={}", scoreTargetId, e);
-                weatherScoreResult = new WeatherScoreResult(
-                        0,
-                        List.of("날씨 정보 없음"),
-                        "날씨 정보 없음"
-                );
-            } finally {
-                logTiming("weatherScore", weatherStart, scoreTargetId);
-            }
-
-            long airQualityStart = System.nanoTime();
-            try {
-                airQuality = currentAirQualityService.getCurrentAirQuality(scoreTarget);
-                airQualityScore = airQualityCalculator.getWeight(airQuality);
-                airQualityFactor = scoreMessageFactory.createAirQualityFactor(airQualityScore);
-                airQualityDetail = scoreMessageFactory.createAirQualityDetail(airQuality);
-                airQualityDescription = scoreMessageFactory.createAirQualityDescription(airQuality, airQualityScore);
-            } catch (AirKoreaApiException | IllegalStateException | IllegalArgumentException e) {
-                log.warn("공기질 데이터 처리 실패. 공기질 보정 점수를 제외합니다. storeId={}", scoreTargetId, e);
-            } finally {
-                logTiming("airQualityScore", airQualityStart, scoreTargetId);
-            }
-
-            long assemblyStart = System.nanoTime();
-            try {
-                ScoreCalculationResult scoreCalculationResult = weightedScoreCalculator.calculate(
-                        timeDemandLevel,
-                        dayDemandLevel,
-                        marketDayWeight,
-                        weatherScoreResult,
-                        weather,
-                        airQualityScore
-                );
-                int score = scoreCalculationResult.score();
-
-                String status = scoreMessageFactory.calculateStatus(score);
-                String message = scoreMessageFactory.createMessage(score);
-
-                String timeFactor = timeDemandLevel.getTimeFactor();
-                String timeDescription = scoreMessageFactory.createTimeDescription(timeDemandLevel, currentTime);
-
-                String businessTypeName = scoreTarget != null && scoreTarget.getBusinessType() != null
-                        ? scoreTarget.getBusinessType().getDisplayName()
-                        : null;
-
-                // 화살표는 실제 적용된 요일 점수 기준이어야 한다.
-                // 상권에 따라 주말도 음수가 될 수 있어 enum의 고정 화살표를 쓰면 표시가 어긋난다.
-                String dayFactor = scoreMessageFactory.createDayFactor(scoreCalculationResult.dayScore());
-                String dayDescription = scoreMessageFactory.createLocalPatternDescription(
-                        dayDemandLevel,
-                        scoreCalculationResult.dayScore(),
-                        businessTypeName,
-                        currentDate.getDayOfWeek()
-                );
-
-                String currentWeatherFactor = scoreMessageFactory.createWeatherFactor(weatherScoreResult);
-                String currentWeatherDescription = weatherScoreResult.getDescription();
-                airQualityFactor = scoreMessageFactory.createAirQualityFactor(scoreCalculationResult.airQualityScore());
-
-                return new ScoreResult(score,
-                        status,
-                        message,
-                        timeFactor,
-                        timeDescription,
-                        dayFactor,
-                        dayDescription,
-                        currentWeatherFactor,
-                        currentWeatherDescription,
-                        airQualityFactor,
-                        airQualityDescription,
-                        airQualityDetail
-                        );
-            } finally {
-                logTiming("scoreAssembly", assemblyStart, scoreTargetId);
-            }
-        } finally {
-            logTiming("scoreTotal", totalStart, scoreTargetId);
+            weather = currentWeatherService.getCurrentWeather(scoreTarget);
+            weatherScoreResult = currentWeatherWeightCalculator.calculate(weather);
+        } catch (KmaWeatherApiException e) {
+            log.warn("기상청 API 에러. 날씨 보정 점수를 제외합니다. storeId={}", scoreTargetId, e);
+            weatherScoreResult = new WeatherScoreResult(
+                    0,
+                    List.of("날씨 정보 없음"),
+                    "날씨 정보 없음"
+            );
         }
+
+        try {
+            airQuality = currentAirQualityService.getCurrentAirQuality(scoreTarget);
+            airQualityScore = airQualityCalculator.getWeight(airQuality);
+            airQualityFactor = scoreMessageFactory.createAirQualityFactor(airQualityScore);
+            airQualityDetail = scoreMessageFactory.createAirQualityDetail(airQuality);
+            airQualityDescription = scoreMessageFactory.createAirQualityDescription(airQuality, airQualityScore);
+        } catch (AirKoreaApiException | IllegalStateException | IllegalArgumentException e) {
+            log.warn("공기질 데이터 처리 실패. 공기질 보정 점수를 제외합니다. storeId={}", scoreTargetId, e);
+        }
+
+        ScoreCalculationResult scoreCalculationResult = weightedScoreCalculator.calculate(
+                timeDemandLevel,
+                dayDemandLevel,
+                marketDayWeight,
+                weatherScoreResult,
+                weather,
+                airQualityScore
+        );
+        int score = scoreCalculationResult.score();
+
+        String status = scoreMessageFactory.calculateStatus(score);
+        String message = scoreMessageFactory.createMessage(score);
+
+        String timeFactor = timeDemandLevel.getTimeFactor();
+        String timeDescription = scoreMessageFactory.createTimeDescription(timeDemandLevel, currentTime);
+
+        String businessTypeName = scoreTarget != null && scoreTarget.getBusinessType() != null
+                ? scoreTarget.getBusinessType().getDisplayName()
+                : null;
+
+        // 화살표는 실제 적용된 요일 점수 기준이어야 한다.
+        // 상권에 따라 주말도 음수가 될 수 있어 enum의 고정 화살표를 쓰면 표시가 어긋난다.
+        String dayFactor = scoreMessageFactory.createDayFactor(scoreCalculationResult.dayScore());
+        String dayDescription = scoreMessageFactory.createLocalPatternDescription(
+                dayDemandLevel,
+                scoreCalculationResult.dayScore(),
+                businessTypeName,
+                currentDate.getDayOfWeek()
+        );
+
+        String currentWeatherFactor = scoreMessageFactory.createWeatherFactor(weatherScoreResult);
+        String currentWeatherDescription = weatherScoreResult.getDescription();
+        airQualityFactor = scoreMessageFactory.createAirQualityFactor(scoreCalculationResult.airQualityScore());
+
+        return new ScoreResult(score,
+                status,
+                message,
+                timeFactor,
+                timeDescription,
+                dayFactor,
+                dayDescription,
+                currentWeatherFactor,
+                currentWeatherDescription,
+                airQualityFactor,
+                airQualityDescription,
+                airQualityDetail
+        );
     }
 
 
@@ -231,17 +208,6 @@ public class ScoreService {
                     e);
             return false;
         }
-    }
-
-    private void logTiming(String step, long startNanos, Long scoreTargetId) {
-        log.info("dashboard timing step={} elapsedMs={} storeId={}",
-                step,
-                elapsedMs(startNanos),
-                scoreTargetId);
-    }
-
-    private long elapsedMs(long startNanos) {
-        return (System.nanoTime() - startNanos) / 1_000_000;
     }
 
     private Long scoreTargetId(ScoreTarget scoreTarget) {

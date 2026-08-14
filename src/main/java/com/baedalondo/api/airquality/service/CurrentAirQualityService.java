@@ -1,5 +1,6 @@
 package com.baedalondo.api.airquality.service;
 
+import com.baedalondo.api.common.ServiceTime;
 import com.baedalondo.api.airquality.calculator.AirQualityCalculator;
 import com.baedalondo.api.airquality.client.AirKoreaAverageAirQualityClient;
 import com.baedalondo.api.airquality.client.AirKoreaCurrentAirQualityClient;
@@ -13,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -60,11 +60,6 @@ public class CurrentAirQualityService {
 
         if(savedAirQuality.isPresent()
                 && isReusable(savedAirQuality.get())){
-            log.info("저장된 대기질 데이터 재사용: sidoName={}, sigunguName={}, baseTimeData={}",
-                    sidoName,
-                    sigunguName,
-                    baseTimeData);
-
             return savedAirQuality.get().toObservation();
         }
 
@@ -152,7 +147,7 @@ public class CurrentAirQualityService {
 
 
     private boolean isReusable(CurrentAirQualityRecord record) {
-        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
+        LocalDateTime now = ServiceTime.now();
 
         return record.getMeasuredAt()
                 .plusMinutes(90)

@@ -8,8 +8,6 @@ import com.baedalondo.api.score.dto.ScoreTarget;
 import com.baedalondo.api.score.service.ScoreService;
 import com.baedalondo.api.store.domain.Store;
 import com.baedalondo.api.store.service.StoreService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -30,30 +28,15 @@ public class DashboardService {
     }
 
     public DashboardView getGuestDashboard(Long guestRegionId) {
-        long totalStart = System.nanoTime();
-
         // 게스트 지역은 화면 표시를 위해 각 구청 데이터를 임시 Store로 변환하고,
         // 점수 계산에는 ScoreTarget을 사용한다.
+        GuestRegion region = guestRegionService.getGuestRegion(guestRegionId);
+        Store guestStore = createGuestStore(region);
+        ScoreTarget scoreTarget = ScoreTarget.from(region);
 
-        try {
-            GuestRegion region = guestRegionService.getGuestRegion(guestRegionId);
-            Store guestStore = createGuestStore(region);
-            ScoreTarget scoreTarget = ScoreTarget.from(region);
+        ScoreResult scoreResult = scoreService.calculateCurrentScore(scoreTarget);
 
-            ScoreResult scoreResult;
-            long scoreStart = System.nanoTime();
-            try {
-                scoreResult = scoreService.calculateCurrentScore(scoreTarget);
-            } finally {
-                logTiming("calculateGuestScore", scoreStart, guestRegionId);
-            }
-
-            return DashboardView.from(guestStore, scoreResult);
-        } finally {
-            log.info("dashboard timing step=guestDashboardTotal elapsedMs={} guestRegionId={}",
-                    elapsedMs(totalStart),
-                    guestRegionId);
-        }
+        return DashboardView.from(guestStore, scoreResult);
     }
 
     public DashboardView getRandomGuestDashboard() {
@@ -62,79 +45,25 @@ public class DashboardService {
     }
 
     public DashboardView getDashboard() {
-        long totalStart = System.nanoTime();
-        Store store = null;
-        List<Store> storeList = null;
-        ScoreTarget scoreTarget = null;
+        List<Store> storeList = storeService.getCurrentLoginUserStores();
 
-        try {
-            long storeStart = System.nanoTime();
-
-            try {
-                storeList = storeService.getCurrentLoginUserStores();
-
-                if(storeList.isEmpty()){
-                    return getGuestFallbackDashboard();
-                }
-
-                store = storeList.get(0);
-
-                scoreTarget = ScoreTarget.from(store);
-            } finally {
-                logTiming("getCurrentStore", storeStart, storeId(store));
-            }
-
-            ScoreResult scoreResult;
-            long scoreStart = System.nanoTime();
-
-            try {
-                scoreResult = scoreService.calculateCurrentScore(scoreTarget);
-            } finally {
-                logTiming("calculateCurrentScore", scoreStart, storeId(store));
-            }
-
-            long viewStart = System.nanoTime();
-            try {
-                return DashboardView.from(store, scoreResult);
-            } finally {
-                logTiming("dashboardView", viewStart, storeId(store));
-            }
-        } finally {
-            logTiming("dashboardTotal", totalStart, storeId(store));
+        if (storeList.isEmpty()) {
+            return getGuestFallbackDashboard();
         }
+
+        Store store = storeList.get(0);
+        ScoreTarget scoreTarget = ScoreTarget.from(store);
+        ScoreResult scoreResult = scoreService.calculateCurrentScore(scoreTarget);
+
+        return DashboardView.from(store, scoreResult);
     }
 
     public DashboardView getDashboardById(Long storeId) {
-        long totalStart = System.nanoTime();
-        Store store = null;
-        ScoreTarget scoreTarget = null;
+        Store store = storeService.getCurrentUserStoreById(storeId);
+        ScoreTarget scoreTarget = ScoreTarget.from(store);
+        ScoreResult scoreResult = scoreService.calculateCurrentScore(scoreTarget);
 
-        try {
-            long storeStart = System.nanoTime();
-            try {
-                store = storeService.getCurrentUserStoreById(storeId);
-                scoreTarget = ScoreTarget.from(store);
-            } finally {
-                logTiming("getCurrentStore", storeStart, storeId(store));
-            }
-
-            ScoreResult scoreResult;
-            long scoreStart = System.nanoTime();
-            try {
-                scoreResult = scoreService.calculateCurrentScore(scoreTarget);
-            } finally {
-                logTiming("calculateCurrentScore", scoreStart, storeId(store));
-            }
-
-            long viewStart = System.nanoTime();
-            try {
-                return DashboardView.from(store, scoreResult);
-            } finally {
-                logTiming("dashboardView", viewStart, storeId(store));
-            }
-        } finally {
-            logTiming("dashboardTotal", totalStart, storeId(store));
-        }
+        return DashboardView.from(store, scoreResult);
     }
 
     public List<Store> getCurrentUserStores() {
@@ -231,24 +160,7 @@ public class DashboardService {
         return value == null || value.isBlank();
     }
 
-    private void logTiming(String step, long startNanos, Long storeId) {
-        log.info("dashboard timing step={} elapsedMs={} storeId={}",
-                step,
-                elapsedMs(startNanos),
-                storeId);
-    }
-
-    private long elapsedMs(long startNanos) {
-        return (System.nanoTime() - startNanos) / 1_000_000;
-    }
-
-    private Long storeId(Store store) {
-        return store == null ? null : store.getId();
-    }
-
     private DashboardView getGuestFallbackDashboard() {
         return getRandomGuestDashboard();
     }
-
-    private static final Logger log = LoggerFactory.getLogger(DashboardService.class);
 }
