@@ -162,6 +162,17 @@ body.legal-page {
     line-height: 1.8;
 }
 
+.legal-section a {
+    color: var(--bo-ink);
+    font-weight: 700;
+    text-underline-offset: 3px;
+}
+
+.legal-section a:hover,
+.legal-section a:focus-visible {
+    color: var(--bo-accent);
+}
+
 .legal-section p {
     margin: 0;
 }

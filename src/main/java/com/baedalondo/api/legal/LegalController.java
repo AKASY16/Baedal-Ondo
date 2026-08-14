@@ -15,7 +15,7 @@ public class LegalController {
 
     public LegalController(
             @Value("${service.legal.operator-name:배달온도 운영자}") String operatorName,
-            @Value("${service.legal.contact-email:배포 전 설정 필요}") String contactEmail) {
+            @Value("${service.legal.contact-email:baedalondo@gmail.com}") String contactEmail) {
         this.operatorName = operatorName;
         this.contactEmail = contactEmail;
     }

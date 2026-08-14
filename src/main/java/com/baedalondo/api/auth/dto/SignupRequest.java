@@ -28,7 +28,7 @@ public class SignupRequest {
     @AssertTrue(message = "이용약관에 동의해 주세요.")
     private boolean termsAccepted;
 
-    @AssertTrue(message = "개인정보 수집·이용에 동의해 주세요.")
+    @AssertTrue(message = "개인정보 처리 안내를 확인해 주세요.")
     private boolean privacyNoticeAcknowledged;
 
     @AssertTrue(message = "만 14세 이상임을 확인해 주세요.")

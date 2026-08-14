@@ -25,7 +25,7 @@ logging:
 service:
   legal:
     operator-name: "${SERVICE_OPERATOR_NAME:배달온도 운영자}"
-    contact-email: "${SERVICE_CONTACT_EMAIL:배포 전 설정 필요}"
+    contact-email: "${SERVICE_CONTACT_EMAIL:baedalondo@gmail.com}"
 
 kma:
   api:
