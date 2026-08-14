@@ -74,16 +74,6 @@ body.legal-page {
     font-weight: 700;
 }
 
-.document-alert {
-    margin: 28px 0 0;
-    padding: 16px 18px;
-    border: 1px solid #d3a65f;
-    background: #fff6e6;
-    color: #684416;
-    font-size: 14px;
-    line-height: 1.65;
-}
-
 .legal-layout {
     display: grid;
     grid-template-columns: 220px minmax(0, 1fr);

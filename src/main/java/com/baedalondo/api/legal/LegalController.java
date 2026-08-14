@@ -8,8 +8,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 public class LegalController {
 
-    private static final String UNCONFIGURED_CONTACT = "배포 전 설정 필요";
-
     private final String operatorName;
     private final String contactEmail;
 
@@ -35,7 +33,6 @@ public class LegalController {
     private void addCommonAttributes(Model model, String documentVersion) {
         model.addAttribute("operatorName", operatorName);
         model.addAttribute("contactEmail", contactEmail);
-        model.addAttribute("contactConfigured", !UNCONFIGURED_CONTACT.equals(contactEmail));
         model.addAttribute("documentVersion", documentVersion);
     }
 }

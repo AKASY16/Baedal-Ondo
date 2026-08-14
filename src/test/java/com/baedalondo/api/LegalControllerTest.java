@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ui.ExtendedModelMap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LegalControllerTest {
 
@@ -22,7 +21,6 @@ class LegalControllerTest {
         assertEquals("legal/terms", viewName);
         assertEquals(LegalDocumentVersions.TERMS, model.get("documentVersion"));
         assertEquals("배달온도 운영자", model.get("operatorName"));
-        assertTrue((Boolean) model.get("contactConfigured"));
     }
 
     @Test
@@ -34,6 +32,5 @@ class LegalControllerTest {
         assertEquals("legal/privacy", viewName);
         assertEquals(LegalDocumentVersions.PRIVACY, model.get("documentVersion"));
         assertEquals("privacy@example.com", model.get("contactEmail"));
-        assertTrue((Boolean) model.get("contactConfigured"));
     }
 }
