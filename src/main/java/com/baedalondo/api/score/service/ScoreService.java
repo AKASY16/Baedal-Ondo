@@ -27,10 +27,13 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
 public class ScoreService {
+
+    private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
 
     private final TimeWeightCalculator timeWeightCalculator;
     private final DayWeightCalculator dayWeightCalculator;
@@ -68,7 +71,6 @@ public class ScoreService {
         this.weightedScoreCalculator = weightedScoreCalculator;
     }
 
-
     public ScoreResult calculateCurrentScore(ScoreTarget scoreTarget) {
         long totalStart = System.nanoTime();
         Long scoreTargetId = scoreTargetId(scoreTarget);
@@ -84,8 +86,8 @@ public class ScoreService {
             TimeDemandLevel timeDemandLevel;
             DayDemandLevel dayDemandLevel;
             int marketDayWeight;
-            LocalDate currentDate = LocalDate.now();
-            LocalTime currentTime = LocalTime.now();
+            LocalDate currentDate = LocalDate.now(KOREA_ZONE);
+            LocalTime currentTime = LocalTime.now(KOREA_ZONE);
             long baseStart = System.nanoTime();
             try {
                 timeDemandLevel = findMarketTimeDemandLevel(scoreTarget, currentTime);

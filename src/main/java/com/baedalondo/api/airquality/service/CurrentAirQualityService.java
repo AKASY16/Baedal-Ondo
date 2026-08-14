@@ -1,6 +1,7 @@
 package com.baedalondo.api.airquality.service;
 
 import com.baedalondo.api.airquality.calculator.AirQualityCalculator;
+import com.baedalondo.api.airquality.client.AirKoreaAverageAirQualityClient;
 import com.baedalondo.api.airquality.client.AirKoreaCurrentAirQualityClient;
 import com.baedalondo.api.airquality.domain.CurrentAirQualityObservation;
 import com.baedalondo.api.airquality.domain.CurrentAirQualityRecord;
@@ -20,15 +21,18 @@ import java.util.Optional;
 public class CurrentAirQualityService {
 
     private final AirKoreaCurrentAirQualityClient airKoreaCurrentAirQualityClient;
+    private final AirKoreaAverageAirQualityClient airKoreaAverageAirQualityClient;
     private final AirQualityCalculator airQualityCalculator;
     private final CurrentAirQualityRecordRepository currentAirQualityRecordRepository;
     private final KoreanAddressParser koreanAddressParser;
 
     public CurrentAirQualityService(AirKoreaCurrentAirQualityClient airKoreaCurrentAirQualityClient,
+                                    AirKoreaAverageAirQualityClient airKoreaAverageAirQualityClient,
                                     AirQualityCalculator airQualityCalculator,
                                     CurrentAirQualityRecordRepository currentAirQualityRecordRepository,
                                     KoreanAddressParser koreanAddressParser) {
         this.airKoreaCurrentAirQualityClient = airKoreaCurrentAirQualityClient;
+        this.airKoreaAverageAirQualityClient = airKoreaAverageAirQualityClient;
         this.airQualityCalculator = airQualityCalculator;
         this.currentAirQualityRecordRepository = currentAirQualityRecordRepository;
         this.koreanAddressParser = koreanAddressParser;
@@ -70,7 +74,12 @@ public class CurrentAirQualityService {
         saveAllAirQualityRecords(airQualities);
 
         CurrentAirQualityObservation targetAirQuality =
-                selectTargetAirQuality(airQualities, sigunguName);
+                selectTargetAirQuality(
+                        airQualities,
+                        sidoName,
+                        sigunguName,
+                        baseTimeData
+                );
 
         return targetAirQuality;
     }
@@ -119,7 +128,9 @@ public class CurrentAirQualityService {
 
     private CurrentAirQualityObservation selectTargetAirQuality(
             List<CurrentAirQualityObservation> airQualities,
-            String districtName
+            String sidoName,
+            String districtName,
+            LocalDateTime baseTimeData
     ) {
         if (airQualities == null || airQualities.isEmpty()) {
             throw new IllegalStateException("사용 가능한 대기질 데이터가 없습니다.");
@@ -128,7 +139,15 @@ public class CurrentAirQualityService {
         return airQualities.stream()
                 .filter(observation -> districtName.equals(observation.getStationName()))
                 .findFirst()
-                .orElseGet(() -> airQualities.get(0));
+                .orElseGet(() -> {
+                    log.warn(
+                            "일치하는 측정소가 없어 시도 평균을 사용합니다. sidoName={}, districtName={}",
+                            sidoName,
+                            districtName
+                    );
+                    return airKoreaAverageAirQualityClient
+                            .getHourlyAverage(sidoName, baseTimeData);
+                });
     }
 
 
@@ -143,4 +162,3 @@ public class CurrentAirQualityService {
 
     private static final Logger log = LoggerFactory.getLogger(CurrentAirQualityService.class);
 }
-
