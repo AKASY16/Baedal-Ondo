@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>오류 - 배달온도</title>
+    <link rel="icon" href="/images/baedal-ondo-icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/baedal-ui.css">
+    <link rel="stylesheet" href="/css/error.css">
+</head>
+<body class="error-page">
+
+<header class="bo-topbar">
+    <a class="bo-brand" href="/" aria-label="배달온도 홈">
+        <img src="/images/baedal-ondo-icon.svg" alt="">
+        <span class="bo-brand-copy">
+            <span class="bo-brand-name">배달온도</span>
+            <span class="bo-brand-description">오늘의 배달 수요 판단 도구</span>
+        </span>
+    </a>
+    <span class="bo-topbar-note">SERVICE ERROR</span>
+</header>
+
+<main class="error-shell">
+    <!-- status 외의 정보는 내부 구조를 드러낼 수 있어 화면에 노출하지 않는다. -->
+    <p class="error-code" th:text="${status != null ? status + ' · REQUEST FAILED' : 'REQUEST FAILED'}">
+        REQUEST FAILED
+    </p>
+    <h1 class="error-title">요청을 처리하지 못했습니다</h1>
+    <p class="error-description">
+        페이지를 표시하는 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.
+        주소를 직접 입력하셨다면 한 번 확인해 주시기 바랍니다.
+    </p>
+
+    <div class="error-actions">
+        <a class="error-button" href="/">대시보드로 이동</a>
+        <a class="error-button-secondary" href="/guest">지역으로 둘러보기</a>
+    </div>
+</main>
+
+</body>
+</html>

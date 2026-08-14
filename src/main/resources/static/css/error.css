@@ -1,0 +1,107 @@
+/* 오류 화면 공통 스타일. 페이지가 세 종류라 인라인 대신 한 곳에 모은다. */
+
+body.error-page {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bo-canvas);
+    color: var(--bo-ink);
+}
+
+.error-shell {
+    display: grid;
+    width: min(1080px, calc(100% - 48px));
+    min-height: calc(100vh - 86px);
+    margin: 0 auto;
+    align-content: center;
+    justify-items: start;
+    padding: 64px 0;
+}
+
+.error-code {
+    color: var(--bo-accent);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+}
+
+.error-title {
+    max-width: 18ch;
+    margin: 18px 0 0;
+    font-size: 40px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.25;
+}
+
+.error-description {
+    max-width: 46ch;
+    margin: 18px 0 0;
+    color: var(--bo-muted);
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.error-hint {
+    margin: 26px 0 0;
+    padding: 14px 16px;
+    border-left: 2px solid var(--bo-line-strong);
+    background: var(--bo-surface);
+    color: var(--bo-muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.error-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 34px;
+}
+
+.error-button,
+.error-button-secondary {
+    display: inline-flex;
+    min-height: 48px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 22px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.error-button {
+    border: 1px solid var(--bo-accent);
+    background: var(--bo-accent);
+    color: #fff;
+}
+
+.error-button:hover {
+    background: var(--bo-accent-dark);
+}
+
+.error-button-secondary {
+    border: 1px solid var(--bo-line-strong);
+    color: var(--bo-ink);
+}
+
+.error-button-secondary:hover {
+    border-color: var(--bo-ink);
+    background: var(--bo-soft);
+}
+
+@media (max-width: 720px) {
+    .error-title {
+        font-size: 30px;
+    }
+
+    .error-actions {
+        width: 100%;
+    }
+
+    .error-button,
+    .error-button-secondary {
+        flex: 1 1 100%;
+    }
+}

@@ -21,6 +21,10 @@ public class SecurityConfig {
                                 "/signup",
                                 "/terms",
                                 "/privacy",
+                                "/actuator/health",
+                                // 오류 페이지는 ERROR 디스패치로 다시 들어오므로 열어두지 않으면
+                                // 비로그인 사용자에게 404 대신 로그인 리다이렉트가 나간다.
+                                "/error",
                                 "/guest",
                                 "/dashboard/guest",
                                 "/css/**",

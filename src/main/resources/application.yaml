@@ -20,7 +20,18 @@ spring:
 
 logging:
   level:
-    org.hibernate.SQL: debug
+    org.hibernate.SQL: error
+
+# 배포 후 Nginx와 운영자가 기동 여부를 확인하는 용도로 health만 연다.
+# 상세 정보에는 DB 접속 상태 등이 포함되므로 노출하지 않는다.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
 
 service:
   legal:
