@@ -545,6 +545,32 @@
             letter-spacing: 0.03em;
         }
 
+        .dashboard-footer {
+            display: flex;
+            justify-content: space-between;
+            gap: 24px;
+            margin-top: 42px;
+            padding: 18px 0 4px;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .dashboard-footer nav {
+            display: flex;
+            gap: 14px;
+        }
+
+        .dashboard-footer a {
+            color: var(--muted);
+            text-underline-offset: 3px;
+        }
+
+        .dashboard-footer a:hover,
+        .dashboard-footer a:focus-visible {
+            color: var(--ink);
+        }
+
         .store-onboarding-layer {
             position: fixed;
             inset: 0;
@@ -746,6 +772,11 @@
 
             .analysis-scope {
                 grid-template-columns: 1fr;
+            }
+
+            .dashboard-footer {
+                flex-direction: column;
+                gap: 10px;
             }
 
             .store-onboarding-layer {
@@ -968,6 +999,14 @@
         </div>
 
     </section>
+
+    <footer class="dashboard-footer" aria-label="법적 고지">
+        <span>배달온도는 영업 판단을 돕는 참고 지표입니다.</span>
+        <nav>
+            <a href="/terms">이용약관</a>
+            <a href="/privacy">개인정보 처리방침</a>
+        </nav>
+    </footer>
 </main>
 
 <div id="store-onboarding-layer"

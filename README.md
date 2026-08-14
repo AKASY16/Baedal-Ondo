@@ -47,6 +47,8 @@
 
 - 인증/게스트 모드
   - Spring Security 기반 로그인/로그아웃
+  - 회원가입 시 약관·개인정보·연령·광고성 이메일 동의 이력 저장
+  - 이용약관 및 개인정보 처리방침 전문 제공
   - 로그인 사용자 소유 Store만 조회
   - 비로그인 사용자를 위한 게스트 모드 제공
 
@@ -81,6 +83,7 @@ src/main/java/com/baedalondo/api
 ├── guest           # 고정 게스트 지역 CSV 로딩 및 조회
 ├── holiday         # 공휴일 API, 공휴일 DB 저장/조회
 ├── location        # 주소 좌표 변환, 기상청 격자 변환
+├── legal           # 이용약관, 개인정보 처리방침 화면과 문서 버전
 ├── score           # 최종 점수 조립, DayWeight/TimeWeight 조회
 ├── store           # 매장 등록, Store 엔티티, BusinessType
 ├── user            # UserAccount 엔티티, 사용자 조회
@@ -152,6 +155,13 @@ Windows에서는 사용자 환경변수로 등록합니다. 등록 후 터미널
 setx DB_PASSWORD "비밀번호"
 ```
 
+공개 배포 전에는 법적 고지에 표시할 실제 운영자명과 개인정보 문의 이메일도 설정해야 합니다. 미설정 상태에서는 문서 화면에 개발용 경고가 표시됩니다.
+
+| 환경변수 | 기본값 | 공개 배포 전 |
+| --- | --- | --- |
+| `SERVICE_OPERATOR_NAME` | `배달온도 운영자` | 실제 운영자명으로 변경 |
+| `SERVICE_CONTACT_EMAIL` | `배포 전 설정 필요` | 실제 문의 이메일로 변경 |
+
 ### 4. 애플리케이션 실행
 
 ```bash
@@ -191,6 +201,8 @@ Windows 환경에서는 다음 명령을 사용할 수 있습니다.
 | `/dashboard/guest` | 게스트 지역 기반 대시보드 화면 | 불필요 |
 | `/login` | 로그인 화면 | 불필요 |
 | `/signup` | 회원가입 화면 | 불필요 |
+| `/terms` | 이용약관 전문 | 불필요 |
+| `/privacy` | 개인정보 처리방침 전문 | 불필요 |
 
 로그인이 필요한 URL에 비로그인 상태로 접근하면 `/login`으로 리다이렉트됩니다.
 
@@ -321,6 +333,8 @@ commercialAreaCode + businessType + 요일  ->  Local DayWeight
 - 대시보드 내 Store 선택 드롭다운
 - Spring Security 기반 로그인/로그아웃
 - 회원가입 및 아이디 중복 검사
+- 가입 시 동의 문서 버전과 동의 시각 저장
+- 이용약관 및 개인정보 처리방침 전문 화면
 - Store 정보 수정
 - 서울 25개 자치구청 CSV 기반 게스트 모드 대시보드
 - 기상청 현재 날씨 API 연동

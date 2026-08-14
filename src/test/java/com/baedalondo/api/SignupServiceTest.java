@@ -3,6 +3,7 @@ package com.baedalondo.api;
 import com.baedalondo.api.auth.dto.SignupRequest;
 import com.baedalondo.api.auth.service.SignupConflictException;
 import com.baedalondo.api.auth.service.SignupService;
+import com.baedalondo.api.legal.LegalDocumentVersions;
 import com.baedalondo.api.user.domain.AgreementType;
 import com.baedalondo.api.user.domain.UserAccount;
 import com.baedalondo.api.user.domain.UserAgreement;
@@ -79,6 +80,8 @@ class SignupServiceTest {
                         .map(UserAgreement::getAgreementType)
                         .toList()
         );
+        assertEquals(LegalDocumentVersions.TERMS, agreementCaptor.getValue().get(0).getDocumentVersion());
+        assertEquals(LegalDocumentVersions.PRIVACY, agreementCaptor.getValue().get(1).getDocumentVersion());
     }
 
     @Test

@@ -22,6 +22,11 @@ logging:
   level:
     org.hibernate.SQL: debug
 
+service:
+  legal:
+    operator-name: "${SERVICE_OPERATOR_NAME:배달온도 운영자}"
+    contact-email: "${SERVICE_CONTACT_EMAIL:배포 전 설정 필요}"
+
 kma:
   api:
     base-url: https://apihub.kma.go.kr/api/typ02/openApi/VilageFcstInfoService_2.0

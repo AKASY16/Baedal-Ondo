@@ -1,6 +1,7 @@
 package com.baedalondo.api.auth.service;
 
 import com.baedalondo.api.auth.dto.SignupRequest;
+import com.baedalondo.api.legal.LegalDocumentVersions;
 import com.baedalondo.api.user.domain.AgreementType;
 import com.baedalondo.api.user.domain.UserAccount;
 import com.baedalondo.api.user.domain.UserAgreement;
@@ -19,8 +20,6 @@ import java.util.Locale;
 public class SignupService {
 
     private static final String DEFAULT_ROLE = "USER";
-    private static final String TERMS_VERSION = "2026-08-14";
-    private static final String PRIVACY_NOTICE_VERSION = "2026-08-14";
     private static final String AGE_CONFIRMATION_VERSION = "1.0";
     private static final String MARKETING_EMAIL_VERSION = "1.0";
 
@@ -63,13 +62,13 @@ public class SignupService {
         agreements.add(UserAgreement.record(
                 savedUserAccount,
                 AgreementType.TERMS_OF_SERVICE,
-                TERMS_VERSION,
+                LegalDocumentVersions.TERMS,
                 agreedAt
         ));
         agreements.add(UserAgreement.record(
                 savedUserAccount,
                 AgreementType.PRIVACY_NOTICE_ACKNOWLEDGEMENT,
-                PRIVACY_NOTICE_VERSION,
+                LegalDocumentVersions.PRIVACY,
                 agreedAt
         ));
         agreements.add(UserAgreement.record(
