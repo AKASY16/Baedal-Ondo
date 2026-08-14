@@ -487,6 +487,133 @@
             letter-spacing: 0.03em;
         }
 
+        .store-onboarding-layer {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background: rgba(16, 16, 14, 0.48);
+        }
+
+        .store-onboarding-layer[hidden] {
+            display: none;
+        }
+
+        .store-onboarding-dialog {
+            width: min(590px, 100%);
+            border: 1px solid var(--ink);
+            border-radius: 2px;
+            background: var(--surface);
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
+        }
+
+        .onboarding-dialog-top {
+            display: flex;
+            min-height: 54px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 0 16px 0 22px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .onboarding-kicker {
+            margin: 0;
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+        }
+
+        .onboarding-close {
+            display: grid;
+            width: 34px;
+            height: 34px;
+            place-items: center;
+            padding: 0;
+            border: 1px solid transparent;
+            border-radius: 2px;
+            background: transparent;
+            color: var(--ink);
+            font-size: 24px;
+            font-weight: 300;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .onboarding-close:hover,
+        .onboarding-close:focus-visible {
+            border-color: var(--line-strong);
+            background: #ffffff;
+            outline: 0;
+        }
+
+        .onboarding-dialog-body {
+            padding: 40px 42px 42px;
+        }
+
+        .onboarding-step {
+            margin: 0 0 14px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+        }
+
+        .onboarding-title {
+            margin: 0;
+            font-size: clamp(30px, 5vw, 44px);
+            line-height: 1.08;
+            letter-spacing: -0.04em;
+        }
+
+        .onboarding-description {
+            margin: 20px 0 0;
+            color: var(--muted);
+            font-size: 15px;
+            line-height: 1.7;
+        }
+
+        .onboarding-actions {
+            display: flex;
+            margin-top: 34px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 22px;
+        }
+
+        .onboarding-note {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .onboarding-primary {
+            display: inline-flex;
+            min-height: 44px;
+            flex: 0 0 auto;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 17px;
+            border: 1px solid var(--accent);
+            border-radius: 2px;
+            background: var(--accent);
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .onboarding-primary:hover,
+        .onboarding-primary:focus-visible {
+            border-color: #c93f33;
+            background: #c93f33;
+            outline: 0;
+        }
+
         @media (max-width: 720px) {
             .page {
                 width: min(100% - 28px, 560px);
@@ -547,6 +674,23 @@
             .analysis-scope {
                 grid-template-columns: 1fr;
             }
+
+            .store-onboarding-layer {
+                padding: 16px;
+            }
+
+            .onboarding-dialog-body {
+                padding: 32px 24px 28px;
+            }
+
+            .onboarding-actions {
+                align-items: stretch;
+                flex-direction: column-reverse;
+            }
+
+            .onboarding-primary {
+                width: 100%;
+            }
         }
 
         @media (max-width: 420px) {
@@ -598,7 +742,7 @@
         </a>
 
         <div class="topbar-actions">
-            <div class="store-picker" th:if="${stores != null}">
+            <div class="store-picker" th:if="${stores != null and not #lists.isEmpty(stores)}">
                 <label for="store-select">현재 가게</label>
                 <select id="store-select" class="store-select" aria-label="가게 선택">
                     <option th:each="store : ${stores}"
@@ -622,6 +766,7 @@
                     <a class="menu-link" role="menuitem" href="/store/register">가게 추가</a>
                     <a class="menu-link"
                        role="menuitem"
+                       th:if="${selectedStoreId != null}"
                        th:href="@{/store/{storeId}/edit(storeId=${dashboard.store.id})}">가게 정보 수정</a>
                     <form action="/logout" method="post">
                         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
@@ -729,7 +874,7 @@
         <div class="analysis-scope" aria-label="배달온도 분석 범위">
             <p class="scope-signals">
                 <strong>함께 본 신호</strong>
-                <span>지역·업종 패턴 · 시간대 · 요일·공휴일 · 강수·기온·바람 · 미세먼지·오존 · 신호 간 조합</span>
+                <span>지역·업종 패턴 · 시간대 · 요일·공휴일 · 강수·기온·바람 · 미세먼지·초미세먼지 · 신호 간 조합</span>
             </p>
             <p>화살표는 예상 수요의 증감 방향을 뜻합니다.</p>
         </div>
@@ -737,11 +882,58 @@
     </section>
 </main>
 
+<div id="store-onboarding-layer"
+     class="store-onboarding-layer"
+     th:if="${showStoreRegistrationPrompt}"
+     role="presentation">
+    <section class="store-onboarding-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="store-onboarding-title"
+             aria-describedby="store-onboarding-description">
+        <div class="onboarding-dialog-top">
+            <p class="onboarding-kicker">STORE SETUP · 01</p>
+            <button id="store-onboarding-close"
+                    class="onboarding-close"
+                    type="button"
+                    aria-label="안내 닫고 게스트 대시보드 보기">×</button>
+        </div>
+        <div class="onboarding-dialog-body">
+            <p class="onboarding-step">시작 준비 1 / 2 · 계정 생성 완료</p>
+            <h2 id="store-onboarding-title" class="onboarding-title">아직 등록된<br>가게가 없어요.</h2>
+            <p id="store-onboarding-description" class="onboarding-description">
+                가게 이름과 업종, 주소만 알려주세요.<br>
+                나머지는 배달온도에서 전부 처리할게요.
+            </p>
+            <div class="onboarding-actions">
+                <p class="onboarding-note">닫으면 서울 지역의 게스트 데이터를 먼저 볼 수 있어요.</p>
+                <a id="store-onboarding-primary" class="onboarding-primary" href="/store/register">첫 가게 등록하기 →</a>
+            </div>
+        </div>
+    </section>
+</div>
+
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const storeSelect = document.getElementById("store-select");
         const accountMenuButton = document.getElementById("account-menu-button");
         const accountMenu = document.getElementById("account-menu");
+        const storeOnboardingLayer = document.getElementById("store-onboarding-layer");
+        const storeOnboardingClose = document.getElementById("store-onboarding-close");
+        const storeOnboardingPrimary = document.getElementById("store-onboarding-primary");
+
+        function closeStoreOnboarding() {
+            if (!storeOnboardingLayer) {
+                return;
+            }
+
+            storeOnboardingLayer.hidden = true;
+            document.body.style.overflow = "";
+
+            if (accountMenuButton) {
+                accountMenuButton.focus();
+            }
+        }
 
         function closeAccountMenu() {
             if (!accountMenuButton || !accountMenu) {
@@ -777,6 +969,19 @@
             document.addEventListener("keydown", function (event) {
                 if (event.key === "Escape") {
                     closeAccountMenu();
+                }
+            });
+        }
+
+        if (storeOnboardingLayer && storeOnboardingClose) {
+            document.body.style.overflow = "hidden";
+            storeOnboardingPrimary?.focus();
+
+            storeOnboardingClose.addEventListener("click", closeStoreOnboarding);
+
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape" && !storeOnboardingLayer.hidden) {
+                    closeStoreOnboarding();
                 }
             });
         }

@@ -2,6 +2,7 @@ package com.baedalondo.api.dashboard.controller;
 
 import com.baedalondo.api.dashboard.dto.DashboardView;
 import com.baedalondo.api.dashboard.service.DashboardService;
+import com.baedalondo.api.store.domain.Store;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
 import java.security.Principal;
+import java.util.List;
 
 @Controller
 public class DashboardController {
@@ -67,11 +69,16 @@ public class DashboardController {
     }
 
     private void addDashboardModel(Model model, DashboardView dashboard, Principal principal) {
+        List<Store> stores = dashboardService.getCurrentUserStores();
+        boolean authenticated = principal != null;
+        boolean hasNoRegisteredStore = stores.isEmpty();
+
         model.addAttribute("dashboard", dashboard);
-        model.addAttribute("stores", dashboardService.getCurrentUserStores());
+        model.addAttribute("stores", stores);
         model.addAttribute("selectedStoreId",
                 dashboard.getStore() == null ? null : dashboard.getStore().getId());
-        model.addAttribute("authenticated", principal != null);
+        model.addAttribute("authenticated", authenticated);
+        model.addAttribute("showStoreRegistrationPrompt", authenticated && hasNoRegisteredStore);
     }
 
     private DashboardView getDashboard(HttpSession session) {
