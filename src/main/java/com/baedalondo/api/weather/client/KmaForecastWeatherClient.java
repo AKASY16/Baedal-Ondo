@@ -193,10 +193,18 @@ public class KmaForecastWeatherClient {
      *   50.0mm 이상     -> 50.0
      *
      * 구간 값은 대푯값이므로 정확한 강수량이 아니라 점수 구간 판정을 위한 값이다.
+     * 값이 비어 있으면 0으로 보지 않고 응답 오류로 처리한다.
      */
     private double parseRainfall(String value) {
 
-        if (value == null || value.isBlank() || "강수없음".equals(value.trim())) {
+        // 빈 값을 0으로 보면 "값을 못 받았다"가 "비가 안 온다"로 조용히 바뀐다.
+        // 강수 점수는 0점이 되고 사용자는 그것이 실제 예보인지 오류인지 알 수 없다.
+        // 응답 이상으로 보고 실패시키면 날씨 보정만 제외되고 대시보드는 계속 표시된다.
+        if (value == null || value.isBlank()) {
+            throw new KmaWeatherApiException("강수량 값이 비어 있습니다.");
+        }
+
+        if ("강수없음".equals(value.trim())) {
             return 0.0;
         }
 

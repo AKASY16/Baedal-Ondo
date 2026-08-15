@@ -27,8 +27,8 @@ public class CurrentWeatherRecord {
     private String baseTime; // 요청 시각
 
     //아래 5개는 CurrentWeatherObservation구조와 동일
-    private int precipitationType; // 강수량
-    private double rainfall; // 비 여부
+    private int precipitationType; // PTY, 강수형태
+    private double rainfall;       // RN1, 1시간 강수량
     private double temperature; // 온도
     private int humidity; // 습도
     private double windSpeed; // 풍속

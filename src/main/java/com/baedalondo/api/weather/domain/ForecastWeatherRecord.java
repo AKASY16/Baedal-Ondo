@@ -19,7 +19,8 @@ import java.time.LocalDateTime;
                 @UniqueConstraint(
                         name = "uk_forecast_weather_record_location_time",
                         // columnNames는 자바 필드명이 아니라 DB 컬럼명이다.
-                        columnNames = {"forecast_at", "nx", "ny", "base_date", "base_time"}
+                        // 조회 조건을 앞에, 정렬 기준인 forecast_at을 마지막에 둔다.
+                        columnNames = {"nx", "ny", "base_date", "base_time", "forecast_at"}
                 )
         }
 )
@@ -28,20 +29,26 @@ public class ForecastWeatherRecord {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private LocalDateTime forecastAt; // 기상 시각
+    @Column(nullable = false)
+    private LocalDateTime forecastAt; // 이 예보가 가리키는 시각
 
-    private int nx; // 기상청 API NX값
-    private int ny; // 기상청 API NY값
-    private String baseDate; // 요청 날짜
-    private String baseTime; // 요청 시각
+    private int nx; // 기상청 격자 X좌표
+    private int ny; // 기상청 격자 Y좌표
 
-    private int precipitationType; // 강수량
-    private double rainfall; // 비 여부
-    private double temperature; // 온도
-    private int humidity; // 습도
-    private double windSpeed; // 풍속
+    @Column(nullable = false)
+    private String baseDate; // 예보 발표 날짜
 
-    private LocalDateTime createdAt; // 데이터 생성 시각
+    @Column(nullable = false)
+    private String baseTime; // 예보 발표 시각
+
+    private int precipitationType; // PTY, 강수형태
+    private double rainfall;       // RN1, 1시간 강수량
+    private double temperature;    // T1H, 기온
+    private int humidity;          // REH, 습도
+    private double windSpeed;      // WSD, 풍속
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt; // 레코드 생성 시각
 
     public Long getId() {
         return id;
