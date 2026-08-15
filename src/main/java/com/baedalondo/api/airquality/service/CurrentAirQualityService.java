@@ -1,16 +1,18 @@
 package com.baedalondo.api.airquality.service;
 
-import com.baedalondo.api.common.ServiceTime;
 import com.baedalondo.api.airquality.calculator.AirQualityCalculator;
 import com.baedalondo.api.airquality.client.AirKoreaAverageAirQualityClient;
 import com.baedalondo.api.airquality.client.AirKoreaCurrentAirQualityClient;
+import com.baedalondo.api.airquality.domain.AirQualityFetchLog;
 import com.baedalondo.api.airquality.domain.CurrentAirQualityObservation;
 import com.baedalondo.api.airquality.domain.CurrentAirQualityRecord;
+import com.baedalondo.api.airquality.repository.AirQualityFetchLogRepository;
 import com.baedalondo.api.airquality.repository.CurrentAirQualityRecordRepository;
 import com.baedalondo.api.airquality.util.KoreanAddressParser;
 import com.baedalondo.api.score.dto.ScoreTarget;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -24,17 +26,20 @@ public class CurrentAirQualityService {
     private final AirKoreaAverageAirQualityClient airKoreaAverageAirQualityClient;
     private final AirQualityCalculator airQualityCalculator;
     private final CurrentAirQualityRecordRepository currentAirQualityRecordRepository;
+    private final AirQualityFetchLogRepository airQualityFetchLogRepository;
     private final KoreanAddressParser koreanAddressParser;
 
     public CurrentAirQualityService(AirKoreaCurrentAirQualityClient airKoreaCurrentAirQualityClient,
                                     AirKoreaAverageAirQualityClient airKoreaAverageAirQualityClient,
                                     AirQualityCalculator airQualityCalculator,
                                     CurrentAirQualityRecordRepository currentAirQualityRecordRepository,
+                                    AirQualityFetchLogRepository airQualityFetchLogRepository,
                                     KoreanAddressParser koreanAddressParser) {
         this.airKoreaCurrentAirQualityClient = airKoreaCurrentAirQualityClient;
         this.airKoreaAverageAirQualityClient = airKoreaAverageAirQualityClient;
         this.airQualityCalculator = airQualityCalculator;
         this.currentAirQualityRecordRepository = currentAirQualityRecordRepository;
+        this.airQualityFetchLogRepository = airQualityFetchLogRepository;
         this.koreanAddressParser = koreanAddressParser;
     }
 
@@ -48,19 +53,15 @@ public class CurrentAirQualityService {
             throw new IllegalArgumentException("가게 주소 정보가 없습니다.");
         }
 
-        LocalDateTime baseTimeData = airQualityCalculator.getSafeAirQualityBaseTime();
+        LocalDateTime expectedBaseTime = airQualityCalculator.getSafeAirQualityBaseTime();
         String sidoName = koreanAddressParser.extractSidoName(scoreTarget.getSidoName());
         String sigunguName = scoreTarget.getSigunguName();
 
-        Optional<CurrentAirQualityRecord> savedAirQuality =
-                currentAirQualityRecordRepository.findTopBySidoNameAndDistrictNameOrderByMeasuredAtDescCreatedAtDesc(
-                        sidoName,
-                        sigunguName
-                );
-
-        if(savedAirQuality.isPresent()
-                && isReusable(savedAirQuality.get())){
-            return savedAirQuality.get().toObservation();
+        // 재사용 판단 기준은 측정 시각이 아니라 "이 기준시각 데이터를 이미 받아왔는가"다.
+        // 측정 시각으로 판단하면 받아왔지만 그 자치구 측정소가 응답에 없던 경우를
+        // 구분하지 못해 매 요청마다 API를 다시 호출하게 된다.
+        if (airQualityFetchLogRepository.existsBySidoNameAndBaseTime(sidoName, expectedBaseTime)) {
+            return findStoredAirQuality(sidoName, sigunguName, expectedBaseTime);
         }
 
         List<CurrentAirQualityObservation> airQualities =
@@ -73,10 +74,47 @@ public class CurrentAirQualityService {
                         airQualities,
                         sidoName,
                         sigunguName,
-                        baseTimeData
+                        expectedBaseTime
                 );
 
+        // 정상적으로 결과를 만든 경우에만 조회 기록을 남긴다.
+        // 위에서 예외가 나면 기록이 없으므로 다음 요청이 다시 시도한다.
+        recordFetched(sidoName, expectedBaseTime);
+
         return targetAirQuality;
+    }
+
+    /**
+     * 이미 조회한 기준시각이면 저장된 측정소 데이터를 쓴다.
+     * 해당 자치구 측정소 데이터가 없으면 시도 평균으로 떨어지는 규칙은 그대로 유지한다.
+     */
+    private CurrentAirQualityObservation findStoredAirQuality(String sidoName,
+                                                              String sigunguName,
+                                                              LocalDateTime expectedBaseTime) {
+        Optional<CurrentAirQualityRecord> savedAirQuality =
+                currentAirQualityRecordRepository.findTopBySidoNameAndDistrictNameOrderByMeasuredAtDescCreatedAtDesc(
+                        sidoName,
+                        sigunguName
+                );
+
+        if (savedAirQuality.isPresent()) {
+            return savedAirQuality.get().toObservation();
+        }
+
+        log.warn("저장된 자치구 측정소 데이터가 없어 시도 평균을 사용합니다. sidoName={}, districtName={}",
+                sidoName,
+                sigunguName);
+
+        return airKoreaAverageAirQualityClient.getHourlyAverage(sidoName, expectedBaseTime);
+    }
+
+    private void recordFetched(String sidoName, LocalDateTime expectedBaseTime) {
+        try {
+            airQualityFetchLogRepository.save(AirQualityFetchLog.of(sidoName, expectedBaseTime));
+        } catch (DataIntegrityViolationException exception) {
+            // 같은 기준시각을 동시에 조회한 다른 요청이 먼저 기록했다. 결과는 동일하므로 넘어간다.
+            log.debug("이미 기록된 대기질 조회입니다. sidoName={}, baseTime={}", sidoName, expectedBaseTime);
+        }
     }
 
 
@@ -143,15 +181,6 @@ public class CurrentAirQualityService {
                     return airKoreaAverageAirQualityClient
                             .getHourlyAverage(sidoName, baseTimeData);
                 });
-    }
-
-
-    private boolean isReusable(CurrentAirQualityRecord record) {
-        LocalDateTime now = ServiceTime.now();
-
-        return record.getMeasuredAt()
-                .plusMinutes(90)
-                .isAfter(now);
     }
 
 
