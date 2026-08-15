@@ -100,33 +100,33 @@ data-processing/    # 서울시 추정매출 CSV -> DayWeight/TimeWeight 전처�
 cd backend/baedal-ondo-api
 ```
 
-### 2. Secret 설정
+### 2. API 키 설정
 
-`src/main/resources/application-secret.yaml` 파일을 생성하고 발급받은 API 키를 설정합니다. 이 파일은 `.gitignore`에 등록되어 있어 저장소에 올라가지 않습니다.
+외부 API 키는 **환경변수로만 주입**합니다. 설정 파일에 두면 빌드 산출물(jar)과 컨테이너 이미지에 그대로 포장되어 배포됩니다.
 
-```yaml
-kma:
-  api:
-    auth-key: "기상청_API_KEY"                       # 필수
+| 환경변수 | 용도 | 필수 여부 |
+| --- | --- | --- |
+| `KMA_AUTH_KEY` | 기상청 초단기실황 | **필수** |
+| `DATAPORTAL_AUTH_KEY` | 공공데이터포털 (에어코리아, 공휴일) | **필수** |
+| `JUSO_COORDINATE_AUTH_KEY` | 도로명주소 좌표제공 | **필수** |
+| `DATAPORTAL_HOLIDAY_AUTH_KEY` | 공휴일 전용 키 | 선택, 미설정 시 `DATAPORTAL_AUTH_KEY` 사용 |
+| `JUSO_POPUP_AUTH_KEY` | 도로명주소 팝업 | 선택, 기본값 `TESTJUSOGOKR` |
 
-dataportal:
-  api:
-    auth-key: "공공데이터포털_API_KEY"                  # 필수
-    holiday-auth-key: "공휴일_API_KEY"               # 선택, 미설정 시 auth-key 사용
+필수 키 3개가 없으면 애플리케이션이 시작되지 않습니다.
 
-jusogokr:
-  api:
-    coordinate-auth-key: "도로명주소_좌표제공_API_KEY"    # 필수
-    popup-auth-key: "도로명주소_팝업_API_KEY"           # 선택, 기본값 TESTJUSOGOKR
+Windows에서는 사용자 환경변수로 등록합니다. 등록 후 터미널과 IDE를 재시작해야 반영됩니다.
 
-kasi:
-  api:
-    startup-refresh-enabled: true                   # 선택, 기본값 true
+```bash
+setx KMA_AUTH_KEY "발급받은_키"
 ```
 
-필수 키 3개가 없으면 애플리케이션이 시작되지 않습니다. 선택 항목은 기본값이 있어 생략할 수 있습니다.
+컨테이너로 실행할 때는 이미지에 넣지 말고 실행 시점에 주입합니다.
 
-`application.yaml`은 `application-secret.yaml`을 optional import 하도록 설정되어 있습니다.
+```bash
+docker run -e KMA_AUTH_KEY=... -e DATAPORTAL_AUTH_KEY=... baedal-ondo-api
+```
+
+> 테스트는 이 설정이 필요 없습니다. `src/test/resources/application.yaml`이 더미 키를 사용합니다.
 
 ### 3. 데이터베이스 설정
 
@@ -186,7 +186,7 @@ Windows 환경에서는 다음 명령을 사용할 수 있습니다.
 ./gradlew.bat test
 ```
 
-**테스트는 위 1~3단계 설정 없이 실행할 수 있습니다.** `src/test/resources/application.yaml`이 인메모리 H2와 더미 API 키를 사용하므로, MySQL이나 `DB_PASSWORD`, `application-secret.yaml`이 없어도 저장소를 clone한 그대로 통과합니다.
+**테스트는 위 1~3단계 설정 없이 실행할 수 있습니다.** `src/test/resources/application.yaml`이 인메모리 H2와 더미 API 키를 사용하므로, MySQL이나 `DB_PASSWORD`, API 키가 없어도 저장소를 clone한 그대로 통과합니다.
 
 ## 주요 URL
 
@@ -378,7 +378,7 @@ commercialAreaCode + businessType + 요일  ->  Local DayWeight
 - 현재 DB는 MySQL 8을 사용하며 접속 정보는 환경변수로 주입합니다.
 - 스키마 변경은 `src/main/resources/db/migration`에 새 Flyway 버전 파일을 추가해 관리합니다. 이미 적용된 마이그레이션 파일은 수정하지 않습니다.
 - Hibernate는 `ddl-auto: validate`로 스키마를 검증하며 직접 생성하거나 변경하지 않습니다.
-- 테스트는 `src/test/resources/application.yaml`을 사용합니다. 테스트 클래스패스가 우선하므로 이 파일이 운영 `application.yaml`을 대체하며, 인메모리 H2와 더미 API 키로 외부 의존 없이 실행됩니다. 이 파일은 `application-secret.yaml`을 import 하지 않으므로 로컬에 실제 키가 있어도 테스트가 외부 API를 호출하지 않습니다.
+- 테스트는 `src/test/resources/application.yaml`을 사용합니다. 테스트 클래스패스가 우선하므로 이 파일이 운영 `application.yaml`을 대체하며, 인메모리 H2와 더미 API 키로 외부 의존 없이 실행됩니다. 실제 API 키 환경변수가 설정되어 있어도 테스트는 더미 값을 사용하므로 외부 API를 호출하지 않습니다.
 - V1 마이그레이션은 `ENUM`, `ENGINE=InnoDB`, `BIT(1)` 등 MySQL 전용 문법을 사용해 H2에서 실행할 수 없습니다. 그래서 테스트는 Flyway를 끄고 엔티티 기준 `create-drop`으로 스키마를 만듭니다. **마이그레이션 자체가 실제 MySQL에서 정상 동작하는지는 이 테스트로 검증되지 않습니다.** 이 검증은 Testcontainers 기반 통합 테스트의 몫으로 남아 있습니다.
 - `/dashboard/main/{storeId}`는 URL을 유지하지 않고 선택 Store ID를 세션에 저장한 뒤 `/dashboard/main`으로 리다이렉트합니다.
 - `/dashboard/main`은 로그인 사용자의 Store를 조회하는 정식 진입점입니다.
