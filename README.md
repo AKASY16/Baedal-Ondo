@@ -64,6 +64,8 @@
 - Flyway
 - H2 Database (테스트 전용)
 - Gradle
+- Docker, Docker Compose
+- GitHub Actions
 - Lombok
 - PROJ4J
 - JTS Topology Suite
@@ -174,7 +176,48 @@ Windows 환경에서는 다음 명령을 사용할 수 있습니다.
 ./gradlew.bat bootRun
 ```
 
-### 5. 테스트 실행
+이 방식은 위 2~3단계에서 설정한 환경변수와 별도로 설치한 MySQL을 사용합니다.
+
+### 5. 컨테이너로 실행
+
+MySQL까지 함께 띄우므로 MySQL을 따로 설치하지 않아도 됩니다.
+
+프로젝트 루트에 `.env` 파일을 만들고 값을 채웁니다. 이 파일은 `.gitignore`에 등록되어 있어 저장소에 올라가지 않습니다.
+
+```
+DB_USERNAME=baedalondo_app
+DB_PASSWORD=앱_계정_비밀번호
+DB_ROOT_PASSWORD=컨테이너_root_비밀번호
+KMA_AUTH_KEY=기상청_API_KEY
+DATAPORTAL_AUTH_KEY=공공데이터포털_API_KEY
+DATAPORTAL_HOLIDAY_AUTH_KEY=공휴일_API_KEY
+JUSO_COORDINATE_AUTH_KEY=도로명주소_좌표제공_API_KEY
+JUSO_POPUP_AUTH_KEY=도로명주소_팝업_API_KEY
+```
+
+이미지는 빌드된 jar를 담기만 하므로 먼저 jar를 만들어야 합니다.
+
+```bash
+./gradlew build
+docker compose up -d --build
+```
+
+| 명령 | 설명 |
+| --- | --- |
+| `docker compose logs -f app` | 애플리케이션 로그 확인 |
+| `docker compose ps` | 컨테이너 상태 확인 |
+| `docker compose down` | 컨테이너 정지 및 삭제. 데이터는 볼륨에 남습니다 |
+| `docker compose down -v` | **볼륨까지 삭제. DB 데이터가 사라집니다** |
+
+MySQL 계정은 볼륨이 비어 있는 최초 실행에만 생성됩니다. 이후 `.env`의 비밀번호를 바꿔도 이미 만들어진 계정에는 반영되지 않으므로, 첫 실행 전에 값을 확정해야 합니다.
+
+DB 컨테이너는 호스트로 포트를 열지 않습니다. 직접 조회하려면 아래처럼 접속합니다.
+
+```bash
+docker compose exec db mysql -u root -p baedalondo
+```
+
+### 6. 테스트 실행
 
 ```bash
 ./gradlew test
@@ -379,7 +422,7 @@ commercialAreaCode + businessType + 요일  ->  Local DayWeight
 - 스키마 변경은 `src/main/resources/db/migration`에 새 Flyway 버전 파일을 추가해 관리합니다. 이미 적용된 마이그레이션 파일은 수정하지 않습니다.
 - Hibernate는 `ddl-auto: validate`로 스키마를 검증하며 직접 생성하거나 변경하지 않습니다.
 - 테스트는 `src/test/resources/application.yaml`을 사용합니다. 테스트 클래스패스가 우선하므로 이 파일이 운영 `application.yaml`을 대체하며, 인메모리 H2와 더미 API 키로 외부 의존 없이 실행됩니다. 실제 API 키 환경변수가 설정되어 있어도 테스트는 더미 값을 사용하므로 외부 API를 호출하지 않습니다.
-- V1 마이그레이션은 `ENUM`, `ENGINE=InnoDB`, `BIT(1)` 등 MySQL 전용 문법을 사용해 H2에서 실행할 수 없습니다. 그래서 테스트는 Flyway를 끄고 엔티티 기준 `create-drop`으로 스키마를 만듭니다. **마이그레이션 자체가 실제 MySQL에서 정상 동작하는지는 이 테스트로 검증되지 않습니다.** 이 검증은 Testcontainers 기반 통합 테스트의 몫으로 남아 있습니다.
+- V1 마이그레이션은 `ENUM`, `ENGINE=InnoDB`, `BIT(1)` 등 MySQL 전용 문법을 사용해 H2에서 실행할 수 없습니다. 그래서 테스트는 Flyway를 끄고 엔티티 기준 `create-drop`으로 스키마를 만듭니다. **마이그레이션 자체가 실제 MySQL에서 정상 동작하는지는 이 테스트로 검증되지 않습니다.** compose로 빈 스키마에 V1이 적용되는 것은 수동으로 확인했으나, 자동 검증은 Testcontainers 기반 통합 테스트의 몫으로 남아 있습니다.
 - `/dashboard/main/{storeId}`는 URL을 유지하지 않고 선택 Store ID를 세션에 저장한 뒤 `/dashboard/main`으로 리다이렉트합니다.
 - `/dashboard/main`은 로그인 사용자의 Store를 조회하는 정식 진입점입니다.
 - 게스트 지역은 `src/main/resources/guest-regions.csv`에 고정된 서울 25개 자치구청 정보를 사용하며 DB에 저장하지 않습니다.
@@ -387,6 +430,10 @@ commercialAreaCode + businessType + 요일  ->  Local DayWeight
 - 개인정보 처리방침은 개인정보보호위원회의 `2026 개인정보 처리방침 작성지침` 구조를 참고하며, 문의 메일은 Gmail을 사용하므로 처리위탁·국외 이전 가능성을 함께 공개합니다.
 - 외부 API 호출은 `RestClientConfig`에서 연결 2초, 응답 4초 타임아웃을 공통 적용합니다. 상대 API가 느려질 때 요청 스레드가 묶이지 않도록 하기 위한 설정이며, 타임아웃으로 실패하면 해당 보정 점수만 제외하고 대시보드는 계속 표시됩니다.
 - 오류 화면은 `templates/error/404.html`, `templates/error/500.html`, 그 외 상태 코드를 받는 `templates/error.html`로 구성되어 있습니다.
+- 컨테이너 이미지는 JRE 위에 실행 jar만 올리는 단일 스테이지로 만듭니다. 빌드는 Gradle 캐시를 쓰는 CI에 맡기고 `Dockerfile`은 결과물만 담습니다. `bootJar`의 파일명을 `app.jar`로 고정해 버전을 올려도 `Dockerfile`을 수정하지 않으며, 실행 불가능한 `-plain.jar`은 생성하지 않습니다.
+- `.dockerignore`는 모두 제외한 뒤 실행 jar만 포함합니다. 제외 목록 방식과 달리 새로 생긴 파일이 이미지로 새어 들어가지 않습니다.
+- compose에서 애플리케이션은 `db` 서비스 이름으로 DB에 접속합니다. 컨테이너 안의 `localhost`는 컨테이너 자신을 가리키므로 사용할 수 없습니다.
+- DB 컨테이너에 헬스체크를 두고 애플리케이션이 `service_healthy` 조건을 기다립니다. 컨테이너가 시작된 것과 접속을 받을 준비가 된 것은 다르며, 이 조건이 없으면 Flyway가 먼저 접속을 시도해 실패합니다.
 
 ## 운영
 

@@ -14,24 +14,16 @@
 - [x] **계측 로그 제거** — `logTiming` 22곳 삭제
 - [x] **DB 백업 스크립트** — `scripts/backup-db.sh`
 - [x] **테스트 재현성** — `src/test/resources/application.yaml`. 인메모리 H2 + 더미 키로 개인 설정 없이 `./gradlew test` 통과
+- [x] **GitHub Actions CI** — push·PR마다 테스트 실행
+- [x] **API 키 환경변수화** — `application-secret.yaml`이 jar에 포장되어 이미지까지 따라가던 문제.
+  키를 전부 환경변수로 옮기고 리소스에서 파일을 제거
 - [x] **시간대 일원화** — `common/ServiceTime` 신설. 시간대 미지정 `.now()` 12곳(main 9 + test 3)을 제거하고,
   각자 정의하던 `Asia/Seoul` 5곳을 한 곳으로 통합. 테스트와 운영 코드가 같은 기준 시각을 쓰므로
   JVM 기본 시간대와 무관하게 동일한 결과가 나온다
 
 ---
 
-## 1단계 · 검증 기반
-
-- [ ] **GitHub Actions CI**
-  `push` / `pull_request` → JDK 17 → `./gradlew test`
-  근거: `.github/` 없음. 테스트 170개가 자동 검증되지 않음
-  선행 조건은 모두 해소됨 — 테스트 재현성(시크릿·MySQL 불필요), 시간대 일원화(UTC 러너 안전),
-  Gradle wrapper 커밋됨, toolchain 17 선언됨. 추가 설정 없이 바로 성립한다
-  확인할 것: UTC 러너에서 실제로 통과하는지. 구조상 어긋날 수 없지만 최종 확인은 CI 실행 자체다
-
----
-
-## 2단계 · 명백한 동작 결함
+## 1단계 · 명백한 동작 결함
 
 - [ ] **공휴일 조회 구조 수정** ⚠️ 최우선
   근거: `HolidayService.isHoliday()`가 `findByDate().orElseGet(refreshMonthAndCheck)` 구조.
@@ -48,7 +40,7 @@
 
 ---
 
-## 3단계 · 점수 척도 (제품 핵심)
+## 2단계 · 점수 척도 (제품 핵심)
 
 - [ ] **점수 분포 시뮬레이션** — 조사만, 가중치 변경 금지
   근거: `BASE 50` + time(`-12`~`+14`) + day(`-6`~`+6`, 공휴일 `+8`) + weather(`0`~`+20`) + air(`0`~`+8`) + interaction(`0`~`+10`)
@@ -62,7 +54,7 @@
 
 ---
 
-## 4단계 · 데이터 정직성
+## 3단계 · 데이터 정직성
 
 - [ ] **"주문" 표현 수정**
   근거: 전처리 문서는 `추정매출`·`매출건수`라고 정확히 기술. 화면은 `ScoreMessageFactory`에서
@@ -78,7 +70,7 @@
 
 ---
 
-## 5단계 · 데이터 무결성
+## 4단계 · 데이터 무결성
 
 - [ ] **주소 payload 서버 검증**
   근거: 표시 주소(`roadFullAddr`, `siNm`, `sggNm`)는 클라이언트 값을 그대로 저장하고,
@@ -89,7 +81,7 @@
 
 ---
 
-## 6단계 · API 계약·견고성
+## 5단계 · API 계약·견고성
 
 - [ ] **`JusoCoordinateClient` 응답 검증** (비용 작음, 앞당겨도 좋음)
   근거: `entX`/`entY`를 `asDouble()`로 읽어 필드 누락 시 `0.0`이 정상 좌표처럼 전달됨.
@@ -120,7 +112,7 @@
 
 ---
 
-## 7단계 · 스키마·테스트
+## 6단계 · 스키마·테스트
 
 - [ ] **DB NOT NULL 정합** (Flyway V2)
   근거: 앱에서는 사실상 필수인 `name`, `business_type`, `user_id`, `nx`, `ny`, `created_at`이 V1에서 nullable
@@ -134,7 +126,7 @@
 
 ---
 
-## 8단계 · 마감
+## 7단계 · 마감
 
 - [ ] **시각 고정 가능한 구조 (선택)**
   시간대 문제는 `ServiceTime`으로 해소됨. 남은 것은 **테스트에서 시각을 고정하지 못한다**는 점 하나다.
@@ -144,7 +136,7 @@
   - 기상청 기준시각 전환 경계
   방향: `Clock` 빈 주입 또는 `ServiceTime`을 인터페이스로 분리.
   단 엔티티(`@PrePersist`)는 빈을 주입받을 수 없어 정적 경로가 일부 남는다.
-  ⚠️ 3단계 점수 시뮬레이션에서 특정 시각을 가정해야 한다면 그때 필요해진다. 그 전까지는 선택 사항
+  ⚠️ 2단계 점수 시뮬레이션에서 특정 시각을 가정해야 한다면 그때 필요해진다. 그 전까지는 선택 사항
 
 - [ ] **SQL 로깅 프로필 분리**
   근거: `show-sql: true`, `org.hibernate.SQL: debug`가 운영에도 그대로 적용됨
@@ -166,16 +158,27 @@
 
 위 목록과 병행합니다. AWS 계정이 필요한 시점부터 갈라집니다.
 
-- [ ] `Dockerfile` (멀티스테이지)
-- [ ] `docker-compose.yml` (앱 + MySQL)
-- [ ] EC2 + Elastic IP + swap
-- [ ] Nginx 리버스 프록시
-- [ ] HTTPS (Let's Encrypt) — A 레코드 전파 확인 후 발급. 실패에도 rate limit 있음
-- [ ] GitHub Actions 배포 (이미지 빌드 → EC2 pull)
+- [x] **`Dockerfile`** — 단일 스테이지. 멀티스테이지는 쓰지 않는다.
+  CI가 Gradle 캐시로 빌드하는 편이 빠르고, `Dockerfile`은 결과물만 담는다
+- [x] **`.dockerignore`** — 모두 제외 후 실행 jar만 포함. 빌드 컨텍스트 112MB → 73MB
+- [x] **`docker-compose.yml`** (앱 + MySQL) — 볼륨, 헬스체크, `service_healthy` 대기, `.env` 주입
+- [ ] **EC2 + Elastic IP + swap**
+- [ ] **Nginx 리버스 프록시**
+- [ ] **HTTPS** (Let's Encrypt) — A 레코드 전파 확인 후 발급. 실패에도 rate limit 있음
+- [ ] **GitHub Actions 배포** (이미지 빌드 → GHCR → EC2 pull)
+
+EC2 단계에서 처리할 것
+- **compose의 `build: .` 를 `image:` 로 바꿔야 한다.** 서버에는 소스와 jar를 두지 않는다.
+  로컬은 빌드, 서버는 pull 하도록 override 파일로 나누는 방법을 검토
+- **서버 `.env`는 새로 만든다.** API 키는 동일하지만 `DB_PASSWORD`와 `DB_ROOT_PASSWORD`는
+  운영용으로 따로 정한다. 만든 뒤 `chmod 600`
+- ⚠️ **MySQL 계정은 볼륨이 빈 최초 실행에만 생성된다.** 이후 `.env`의 비밀번호를 바꿔도
+  이미 만들어진 계정에는 반영되지 않아 `Access denied`가 난다. 첫 `up` 전에 값을 확정할 것
 
 메모
 - 인스턴스는 2GB 예정. JVM 기본 힙이 512MB가 되어 GeoJSON·CSV 로딩에 여유가 생김
-- **EC2에서 Gradle 빌드는 하지 않음.** 66MB fat jar 빌드는 2GB에서도 빠듯하므로 Actions에서 빌드
+- **EC2에서 Gradle 빌드는 하지 않음.** fat jar 빌드는 2GB에서도 빠듯하므로 Actions에서 빌드
+- 이미지는 약 600MB(JRE 베이스 + jar)지만 베이스 레이어는 한 번만 받고 이후엔 jar 레이어만 갱신됨
 - Flyway는 새 스키마로 시작하면 그대로 통과. 데이터가 있는 스키마에 처음 적용하면 실패함
 
 ---
@@ -192,8 +195,9 @@ Redis · Kafka · MSA · Kubernetes · Repository 추상화 · Service마다 Int
 
 ## 알려진 검증 공백
 
-- **Flyway 마이그레이션 자체는 테스트되지 않습니다.** 테스트는 H2에서 엔티티 기준 `create-drop`을 쓰고,
+- **Flyway 마이그레이션의 자동 검증이 없습니다.** 테스트는 H2에서 엔티티 기준 `create-drop`을 쓰고,
   V1은 `ENUM`/`ENGINE=InnoDB`/`BIT(1)` 등 MySQL 전용 문법이라 H2에서 실행할 수 없습니다.
+  compose로 빈 스키마에 V1이 적용되는 것은 **수동으로 확인했지만**, 매번 자동으로 확인되지는 않습니다.
   Testcontainers 기반 통합 테스트로 메워야 합니다.
 - **캐시 테이블에 정리 로직이 없습니다.** `current_weather_record`, `current_air_quality_record`가
   무한 증가합니다. 사전 적재 스케줄러를 도입하면 증가 속도가 빨라지므로 보존 기간 정리를 함께 넣어야 합니다.
