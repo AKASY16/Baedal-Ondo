@@ -42,3 +42,6 @@ out/
 
 application-secret.yaml
 src/main/resources/application-secret.yaml
+
+# 로컬 시크릿. 절대 커밋하지 않는다.
+.env
