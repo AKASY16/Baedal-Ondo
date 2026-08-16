@@ -3,7 +3,7 @@ package com.baedalondo.api.score.calculator;
 import com.baedalondo.api.score.ScoreCalculationResult;
 import com.baedalondo.api.score.status.DayDemandLevel;
 import com.baedalondo.api.score.status.TimeDemandLevel;
-import com.baedalondo.api.weather.domain.CurrentWeatherObservation;
+import com.baedalondo.api.weather.domain.WeatherMeasurement;
 import com.baedalondo.api.weather.domain.WeatherScoreResult;
 import org.springframework.stereotype.Component;
 
@@ -28,7 +28,7 @@ public class WeightedScoreCalculator {
                                             DayDemandLevel dayDemandLevel,
                                             int marketDayWeight,
                                             WeatherScoreResult weatherScoreResult,
-                                            CurrentWeatherObservation weather,
+                                            WeatherMeasurement weather,
                                             int rawAirQualityScore) {
         int timeScore = calculateTimeScore(timeDemandLevel);
         int dayScore = calculateDayScore(dayDemandLevel, marketDayWeight);
@@ -89,7 +89,7 @@ public class WeightedScoreCalculator {
     private int calculateInteractionScore(TimeDemandLevel timeLevel,
                                           DayDemandLevel dayLevel,
                                           int marketDayWeight,
-                                          CurrentWeatherObservation weather) {
+                                          WeatherMeasurement weather) {
         int score = 0;
 
         if (isEveningPeak(timeLevel)) {
@@ -142,7 +142,8 @@ public class WeightedScoreCalculator {
         return timeLevel == TimeDemandLevel.VERY_HIGH || timeLevel == TimeDemandLevel.HIGH;
     }
 
-    private boolean isRainy(CurrentWeatherObservation weather) {
+    // 실황과 예보를 모두 받는다. 미래 시각 점수를 계산할 때 예보 관측값이 그대로 들어온다.
+    private boolean isRainy(WeatherMeasurement weather) {
         if (weather == null) {
             return false;
         }

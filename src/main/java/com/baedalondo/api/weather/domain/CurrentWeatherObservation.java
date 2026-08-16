@@ -1,6 +1,6 @@
 package com.baedalondo.api.weather.domain;
 
-public class CurrentWeatherObservation {
+public class CurrentWeatherObservation implements WeatherMeasurement {
 
     private final int precipitationType; // PTY, 강수형태
     private final double rainfall;       // RN1, 1시간 강수량

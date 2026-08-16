@@ -2,7 +2,7 @@ package com.baedalondo.api.weather.domain;
 
 import java.time.LocalDateTime;
 
-public class ForecastWeatherObservation {
+public class ForecastWeatherObservation implements WeatherMeasurement {
 
     private final LocalDateTime forecastAt;
     private final int precipitationType; // PTY, 강수형태

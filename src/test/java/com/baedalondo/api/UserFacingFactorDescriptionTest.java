@@ -6,6 +6,7 @@ import com.baedalondo.api.score.factory.ScoreMessageFactory;
 import com.baedalondo.api.score.status.DayDemandLevel;
 import com.baedalondo.api.score.status.TimeDemandLevel;
 import com.baedalondo.api.weather.calculator.CurrentWeatherWeightCalculator;
+import com.baedalondo.api.weather.calculator.WeatherWeightCalculator;
 import com.baedalondo.api.weather.domain.CurrentWeatherObservation;
 import org.junit.jupiter.api.Test;
 
@@ -16,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class UserFacingFactorDescriptionTest {
 
-    private final CurrentWeatherWeightCalculator weatherCalculator = new CurrentWeatherWeightCalculator();
+    private final CurrentWeatherWeightCalculator weatherCalculator = new CurrentWeatherWeightCalculator(new WeatherWeightCalculator());
     private final ScoreMessageFactory messageFactory = new ScoreMessageFactory();
 
     @Test

@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class CurrentWeatherWeightCalculatorTest {
 
-    private final CurrentWeatherWeightCalculator calculator =  new CurrentWeatherWeightCalculator();
+    private final CurrentWeatherWeightCalculator calculator =  new CurrentWeatherWeightCalculator(new WeatherWeightCalculator());
 
     @Test
     void rainfallScoreTest(){
