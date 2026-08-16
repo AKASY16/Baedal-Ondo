@@ -145,24 +145,16 @@ public class ScoreMessageFactory {
         };
     }
 
+    // calculateStatus와 같은 구간을 써야 상태 라벨과 안내 문구가 어긋나지 않는다.
+    // 경계를 여기 따로 두면 한쪽만 바뀌었을 때 "높음"인데 보수적으로 준비하라는 문구가 나온다.
     public String createMessage(int score) {
-        if (score >= 80) {
-            return "오늘은 배달 수요가 높을 가능성이 큽니다. 연장 영업과 재료 추가 준비를 고려하세요.";
-        }
-
-        if (score >= 60) {
-            return "평소보다 주문이 늘 수 있습니다. 피크 시간대 준비를 조금 더 여유 있게 가져가세요.";
-        }
-
-        if (score >= 40) {
-            return "평균적인 수요가 예상됩니다. 평상시의 영업 흐름을 유지하세요.";
-        }
-
-        if (score >= 20) {
-            return "현재 수요가 낮은 편입니다. 생산과 인력 운영을 보수적으로 가져가세요.";
-        }
-
-        return "기대 수요가 매우 낮습니다. 운영 비용을 고려해 보수적으로 준비하세요.";
+        return switch (ScoreStatusLevel.from(score)) {
+            case VERY_HIGH -> "오늘은 배달 수요가 높을 가능성이 큽니다. 연장 영업과 재료 추가 준비를 고려하세요.";
+            case HIGH -> "평소보다 주문이 늘 수 있습니다. 피크 시간대 준비를 조금 더 여유 있게 가져가세요.";
+            case MEDIUM -> "평균적인 수요가 예상됩니다. 평상시의 영업 흐름을 유지하세요.";
+            case LOW -> "현재 수요가 낮은 편입니다. 생산과 인력 운영을 보수적으로 가져가세요.";
+            case CLOSED -> "기대 수요가 매우 낮습니다. 운영 비용을 고려해 보수적으로 준비하세요.";
+        };
     }
 
     public String createAirQualityDetail(CurrentAirQualityObservation airQuality) {

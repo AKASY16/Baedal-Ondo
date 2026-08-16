@@ -45,3 +45,7 @@ src/main/resources/application-secret.yaml
 
 # 로컬 시크릿. 절대 커밋하지 않는다.
 .env
+
+# 점수 분포 시뮬레이션 산출물. simulate_score_distribution.py로 재생성한다.
+# 리포트(score-distribution-report.txt)는 근거 자료라 커밋한다.
+data-processing/output/score-distribution.csv
