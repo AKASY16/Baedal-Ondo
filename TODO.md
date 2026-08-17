@@ -247,18 +247,28 @@ CSV 소량  → CREDIBILITY_BASELINE   (상권 prior + Gamma-Poisson shrinkage)
 
 **착수 전 반드시 확인** (둘 중 하나라도 실패하면 설계가 바뀐다)
 - [ ] 쿠팡이츠 CSV `time(1)` 컬럼이 **주문 시각**인지 — 고유값 개수로 판별
-- [ ] 기상청 **과거 초단기예보** 확보 가능한지 — 실패 시 Weather Model 보류
+- [ ] 기상청 API허브 초단기예보 **과거 자료 보관 기간** — `tmfc`에 12·9·6·3개월 전을
+  지정해 응답이 오는지 integration test. API·파라미터 존재는 확인됨, 보관 기간이 관건
 
-**지금 착수해야 하는 것**
-- [ ] ⚠️ **예보 아카이빙 시작** — 과거 예보는 소급 생성 불가.
-  `forecast_weather_record`가 이미 있으므로 삭제·덮어쓰기만 안 하면 된다.
+**선행 작업**
+- [ ] 전처리에 **city 레벨 index 출력 추가** — 현재 index는 `*-audit.csv`의 local에만 있음.
+  rate floor의 City fallback 전제
+- [ ] **prior cutoff snapshot 생성** — 백테스트 fold보다 미래의 상권 데이터가
+  prior에 섞이면 안 됨. `preprocess_*.py`의 연도 범위를 제한해 재실행
+- [ ] `Store`에 요일별 영업시간 필드 — 노출시간 `E` 계산의 전제
+- [ ] 예보 아카이빙 — 보관 기간이 12개월에 미달하는 만큼만 필요.
   ⚠️ 위 "배포 후 1순위"의 캐시 보존 기간 정리와 충돌하지 않도록 할 것
+
+**설계에서 특히 놓치기 쉬운 것**
+- **`asOf` / `forecastAt` / `leadHour`** — 학습을 (예측시점, 대상시점) 쌍으로 구성해야 한다.
+  "주문 시각 당시 예보"만 쓰면 nowcast를 학습하고 +6시간 예보로 서빙하게 됨
+- **`ScoreStatusLevel` 임계값 `64/56/42/37`은 v2에서 폐기.** percentile 공간에서는
+  20점 균등 구간이 옳다. 두 엔진 공존 기간에는 모델 종류로 분기 필요
 
 **연결점**
 - `output/*-audit.csv`의 `time_index` / `day_index`가 그대로 `MarketDemandPrior` 재료가 된다.
   v1 전처리 때 검증용으로 남긴 중간 산출물이 v2 prior의 원천이 됨
 - `simulate_score_distribution.py`를 백테스트 하네스로 전환하면 v1 병렬 비교가 저렴해진다
-- `Store`에 요일별 영업시간 필드가 필요하다 (노출시간 `E` 계산의 전제)
 
 ---
 
