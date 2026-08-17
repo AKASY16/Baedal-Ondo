@@ -230,6 +230,38 @@ EC2 단계에서 처리할 것
 
 ---
 
+## 별도 트랙 · v2 개인화 수요예측
+
+설계 확정, 착수 전. 상세는 **[docs/v2-design.md](docs/v2-design.md)**
+
+점주가 업로드한 쿠팡이츠 주문 CSV로 매장별 시간당 주문량을 예측하고,
+그 예측값을 OOS 예측분포 percentile로 0~100 배달온도로 변환한다.
+v1은 폐기하지 않고 **CSV 업로드 이전 구간의 cold-start 전용**으로 남는다.
+
+```
+CSV 없음  → v1
+CSV 소량  → CREDIBILITY_BASELINE   (상권 prior + Gamma-Poisson shrinkage)
+3개월+    → Time Model 후보
+12개월+   → Weather Model 후보
+```
+
+**착수 전 반드시 확인** (둘 중 하나라도 실패하면 설계가 바뀐다)
+- [ ] 쿠팡이츠 CSV `time(1)` 컬럼이 **주문 시각**인지 — 고유값 개수로 판별
+- [ ] 기상청 **과거 초단기예보** 확보 가능한지 — 실패 시 Weather Model 보류
+
+**지금 착수해야 하는 것**
+- [ ] ⚠️ **예보 아카이빙 시작** — 과거 예보는 소급 생성 불가.
+  `forecast_weather_record`가 이미 있으므로 삭제·덮어쓰기만 안 하면 된다.
+  ⚠️ 위 "배포 후 1순위"의 캐시 보존 기간 정리와 충돌하지 않도록 할 것
+
+**연결점**
+- `output/*-audit.csv`의 `time_index` / `day_index`가 그대로 `MarketDemandPrior` 재료가 된다.
+  v1 전처리 때 검증용으로 남긴 중간 산출물이 v2 prior의 원천이 됨
+- `simulate_score_distribution.py`를 백테스트 하네스로 전환하면 v1 병렬 비교가 저렴해진다
+- `Store`에 요일별 영업시간 필드가 필요하다 (노출시간 `E` 계산의 전제)
+
+---
+
 ## 지금은 하지 않을 것
 
 Redis · Kafka · MSA · Kubernetes · Repository 추상화 · Service마다 Interface+Impl ·
