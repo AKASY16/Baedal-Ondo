@@ -20,6 +20,12 @@ spring:
       ddl-auto: validate
     show-sql: false
 
+  # 운영과 같은 값을 써야 페이지 렌더링 문제가 테스트에서 드러난다.
+  # 자세한 사유는 main의 application.yaml 참고.
+  thymeleaf:
+    servlet:
+      produce-partial-output-while-processing: false
+
 logging:
   level:
     org.hibernate.SQL: warn

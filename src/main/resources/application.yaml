@@ -12,6 +12,15 @@ spring:
     hibernate:
       ddl-auto: validate
 
+  # 템플릿을 다 만든 뒤에 한 번에 내보낸다.
+  # 기본값(true)이면 Thymeleaf가 렌더하면서 바로 흘려보내는데, 페이지가 톰캣 응답 버퍼(8KB)를
+  # 넘으면 그 지점에서 응답이 커밋된다. 그 뒤에 나오는 th:action이 CSRF 토큰을 넣으려고
+  # 세션을 만들려다 "Cannot create a session after the response has been committed"로 터진다.
+  # 세션이 이미 있는 사용자는 멀쩡하고 첫 방문자만 페이지가 잘려, 개발 중에는 잘 드러나지 않는다.
+  thymeleaf:
+    servlet:
+      produce-partial-output-while-processing: false
+
 # SQL 로깅은 여기 두지 않는다. 이 파일의 값이 곧 운영 설정이라 켜 두면 서버에도 그대로 적용된다.
 # 로컬에서 쿼리를 보려면 SPRING_PROFILES_ACTIVE=local 로 실행한다. application-local.yaml 참고.
 

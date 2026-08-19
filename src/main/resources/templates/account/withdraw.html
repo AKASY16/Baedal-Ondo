@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회원 탈퇴 - 배달온도</title>
+    <link rel="icon" href="/images/baedal-ondo-icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/baedal-ui.css">
+    <style>
+        .withdraw-shell {
+            display: grid;
+            width: min(880px, calc(100% - 48px));
+            min-height: calc(100vh - 86px);
+            margin: 0 auto;
+            align-content: center;
+            padding: 64px 0;
+        }
+
+        .withdraw-kicker {
+            margin: 0 0 14px;
+            color: var(--bo-danger);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+        }
+
+        .withdraw-shell h1 {
+            margin: 0 0 12px;
+            font-size: clamp(30px, 4.4vw, 42px);
+            line-height: 1.18;
+            letter-spacing: -0.03em;
+        }
+
+        .withdraw-lead {
+            max-width: 560px;
+            margin: 0 0 36px;
+            color: var(--bo-muted);
+            font-size: 15px;
+            line-height: 1.7;
+            word-break: keep-all;
+        }
+
+        .withdraw-body {
+            display: grid;
+            gap: 34px;
+            grid-template-columns: minmax(0, 1fr) minmax(300px, 0.85fr);
+            padding-top: 30px;
+            border-top: 1px solid var(--bo-ink);
+        }
+
+        .withdraw-section-title {
+            margin: 0 0 14px;
+            font-size: 15px;
+            letter-spacing: -0.01em;
+        }
+
+        /* 무엇이 지워지는지 먼저 보여준다. 되돌릴 수 없는 동작이라 목록을 접어 두지 않는다. */
+        .delete-list {
+            margin: 0;
+            padding: 0;
+            border-top: 1px solid var(--bo-line);
+            list-style: none;
+        }
+
+        .delete-list li {
+            display: grid;
+            gap: 4px 18px;
+            padding: 13px 0;
+            border-bottom: 1px solid var(--bo-line);
+            grid-template-columns: 104px minmax(0, 1fr);
+            font-size: 14px;
+        }
+
+        .delete-list dt,
+        .delete-item-name {
+            color: var(--bo-muted);
+            font-size: 13px;
+        }
+
+        .delete-item-detail {
+            color: var(--bo-ink);
+            line-height: 1.55;
+            word-break: keep-all;
+        }
+
+        .withdraw-note {
+            margin: 18px 0 0;
+            color: var(--bo-muted);
+            font-size: 13px;
+            line-height: 1.65;
+            word-break: keep-all;
+        }
+
+        .withdraw-note a {
+            color: var(--bo-ink);
+        }
+
+        .withdraw-panel {
+            padding: 26px 24px;
+            border: 1px solid var(--bo-line);
+            background: var(--bo-surface);
+        }
+
+        .withdraw-panel h2 {
+            margin: 0 0 8px;
+            font-size: 17px;
+            letter-spacing: -0.02em;
+        }
+
+        .withdraw-panel p {
+            margin: 0 0 22px;
+            color: var(--bo-muted);
+            font-size: 13px;
+            line-height: 1.6;
+            word-break: keep-all;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--bo-muted);
+            font-size: 13px;
+        }
+
+        .form-group input {
+            width: 100%;
+            min-height: 48px;
+            padding: 11px 12px;
+            border: 1px solid var(--bo-line);
+            border-radius: 4px;
+            background: var(--bo-canvas);
+            color: var(--bo-ink);
+            font-size: 15px;
+        }
+
+        .form-group input:focus {
+            border-color: var(--bo-ink);
+            outline: 2px solid rgba(29, 29, 27, 0.1);
+        }
+
+        .withdraw-error {
+            margin: 0 0 18px;
+            padding: 11px 13px;
+            border: 1px solid var(--bo-danger);
+            border-radius: 4px;
+            color: var(--bo-danger);
+            font-size: 13px;
+            line-height: 1.55;
+        }
+
+        .withdraw-button,
+        .withdraw-cancel {
+            display: flex;
+            width: 100%;
+            min-height: 48px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        /* 주 색(--bo-accent)은 배달온도 점수와 긍정 동작에 쓴다.
+           지우는 동작은 danger로 구분해 실수로 누르지 않게 한다. */
+        .withdraw-button {
+            border: 1px solid var(--bo-danger);
+            background: var(--bo-danger);
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .withdraw-button:hover {
+            background: #8f2a23;
+        }
+
+        .withdraw-cancel {
+            margin-top: 10px;
+            border: 1px solid var(--bo-line-strong);
+            color: var(--bo-ink);
+        }
+
+        .withdraw-cancel:hover {
+            border-color: var(--bo-ink);
+        }
+
+        @media (max-width: 780px) {
+            .withdraw-body {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 28px;
+            }
+
+            .delete-list li {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 4px;
+            }
+        }
+    </style>
+</head>
+<body class="login-page">
+<header class="bo-topbar">
+    <a class="bo-brand" href="/dashboard" aria-label="배달온도 홈">
+        <img src="/images/baedal-ondo-icon.svg" alt="">
+        <span class="bo-brand-copy">
+            <span class="bo-brand-name">배달온도</span>
+            <span class="bo-brand-description">오늘의 배달 수요 판단 도구</span>
+        </span>
+    </a>
+    <span class="bo-topbar-note">ACCOUNT</span>
+</header>
+
+<main class="withdraw-shell">
+    <p class="withdraw-kicker">ACCOUNT · WITHDRAWAL</p>
+    <h1>회원 탈퇴</h1>
+    <p class="withdraw-lead">
+        탈퇴하면 계정과 등록한 가게 정보가 모두 삭제됩니다.
+        삭제된 정보는 복구할 수 없고, 같은 정보로 다시 만들어 드릴 수도 없습니다.
+    </p>
+
+    <div class="withdraw-body">
+        <section aria-labelledby="delete-target-title">
+            <h2 class="withdraw-section-title" id="delete-target-title">삭제되는 정보</h2>
+
+            <ul class="delete-list">
+                <li>
+                    <span class="delete-item-name">계정</span>
+                    <span class="delete-item-detail">로그인 ID, 이메일, 비밀번호 해시값, 가입·로그인 기록</span>
+                </li>
+                <li>
+                    <span class="delete-item-name">가게</span>
+                    <span class="delete-item-detail">등록한 모든 가게의 이름, 주소, 업종, 상권 정보</span>
+                </li>
+                <li>
+                    <span class="delete-item-name">동의 이력</span>
+                    <span class="delete-item-detail">약관·개인정보 안내 동의와 철회 기록</span>
+                </li>
+            </ul>
+
+            <p class="withdraw-note">
+                배달온도는 결제나 거래 기록을 다루지 않아 법령에 따라 따로 보관해야 하는 정보가 없습니다.
+                위 정보는 탈퇴 즉시 삭제되며, 백업본은 설정된 보존 기간이 지난 뒤 함께 삭제됩니다.
+                자세한 내용은 <a href="/privacy">개인정보 처리방침</a>에서 확인하실 수 있습니다.
+            </p>
+        </section>
+
+        <section class="withdraw-panel" aria-labelledby="withdraw-form-title">
+            <h2 id="withdraw-form-title">비밀번호 확인</h2>
+            <p>되돌릴 수 없는 작업이라 비밀번호를 한 번 더 확인합니다.</p>
+
+            <div class="withdraw-error" th:if="${errorMessage}" role="alert" aria-live="assertive">
+                <span th:text="${errorMessage}">비밀번호가 올바르지 않습니다.</span>
+            </div>
+
+            <form th:action="@{/account/withdraw}" method="post">
+                <div class="form-group">
+                    <label for="password">비밀번호</label>
+                    <input type="password" id="password" name="password"
+                           placeholder="비밀번호를 입력하세요"
+                           autocomplete="current-password" required>
+                </div>
+
+                <button type="submit" class="withdraw-button">탈퇴하고 모든 정보 삭제</button>
+            </form>
+
+            <a class="withdraw-cancel" href="/dashboard">돌아가기</a>
+        </section>
+    </div>
+</main>
+</body>
+</html>

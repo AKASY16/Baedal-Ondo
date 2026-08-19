@@ -12,4 +12,7 @@ public interface UserAgreementRepository extends JpaRepository<UserAgreement, Lo
             Long userAccountId,
             AgreementType agreementType
     );
+
+    /** 회원 탈퇴 시 동의 이력을 지운다. 반환값은 지운 행 수다. */
+    int deleteByUserAccountId(Long userAccountId);
 }

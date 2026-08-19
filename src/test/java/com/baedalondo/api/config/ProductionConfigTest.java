@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- SQL 로깅이 운영에 새지 않는지 확인한다.
+ 운영 기본 설정이 지켜지는지 확인한다.
 
  application.yaml은 프로필을 지정하지 않았을 때의 값이라 곧 운영 설정이다.
  로컬에서 쿼리를 보려고 여기에 show-sql을 켜 두면 서버에도 그대로 적용된다.
@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  설정 파일을 직접 읽는다. 테스트 클래스패스가 main보다 앞서므로
  스프링에 올려서는 운영 설정을 볼 수 없다.
  **/
-class SqlLoggingProfileTest {
+class ProductionConfigTest {
 
     @Test
     @DisplayName("운영 기본 설정에는 SQL 로깅이 없다")
@@ -44,6 +44,20 @@ class SqlLoggingProfileTest {
         assertTrue(config.contains("org.hibernate.SQL: debug"));
         // 파라미터 바인딩까지 있어야 물음표 자리의 값을 볼 수 있다.
         assertTrue(config.contains("org.hibernate.orm.jdbc.bind: trace"));
+    }
+
+
+    @Test
+    @DisplayName("템플릿을 다 만든 뒤에 내보내도록 설정되어 있다")
+    void keepsThymeleafOutputBuffered() {
+        // 이 값이 빠지면 8KB를 넘는 페이지가 렌더 도중 커밋되고,
+        // 뒤에 나오는 th:action이 세션을 만들지 못해 회원가입 페이지가 잘린다.
+        // 세션이 있는 사용자는 멀쩡해서 개발 중에는 드러나지 않는다.
+        String config = read("application.yaml");
+
+        assertTrue(config.contains("produce-partial-output-while-processing: false"),
+                "application.yaml에서 Thymeleaf 부분 출력이 꺼져 있지 않다. "
+                        + "첫 방문자의 회원가입 페이지가 잘린다");
     }
 
     private String read(String name) {

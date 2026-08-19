@@ -14,6 +14,9 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
 
     List<Store> findByUserIdOrderByIdAsc(Long userId);
 
+    /** 회원 탈퇴 시 해당 회원의 가게를 지운다. 반환값은 지운 행 수다. */
+    int deleteByUserId(Long userId);
+
     /**
      사전 적재 대상 격자. 날씨 캐시가 격자 단위라 매장 수가 아니라 격자 수만큼만 호출한다.
      좌표가 없는 매장은 조회해도 호출할 수 없으므로 제외한다.

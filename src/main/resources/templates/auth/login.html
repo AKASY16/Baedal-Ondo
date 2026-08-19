@@ -183,6 +183,28 @@
             font-size: 13px;
         }
 
+        /* 오류가 아니라 정상 종료 안내다. 경고색 대신 기본 톤을 쓴다. */
+        .login-notice {
+            display: grid;
+            gap: 3px;
+            margin: 0 0 22px;
+            padding: 12px 13px;
+            border: 1px solid var(--bo-line);
+            border-radius: 4px;
+            background: var(--bo-surface);
+            color: var(--bo-ink);
+            line-height: 1.45;
+        }
+
+        .login-notice strong {
+            font-size: 14px;
+        }
+
+        .login-notice span {
+            color: var(--bo-muted);
+            font-size: 13px;
+        }
+
         .signup-prompt {
             margin: 22px 0 0;
             color: var(--bo-muted);
@@ -255,6 +277,11 @@
         <div class="login-error" th:if="${param.error != null}" role="alert" aria-live="assertive">
             <strong>로그인할 수 없어요.</strong>
             <span>아이디 또는 비밀번호가 올바르지 않습니다.<br>입력한 정보를 다시 확인해 주세요.</span>
+        </div>
+
+        <div class="login-notice" th:if="${param.withdrawn != null}" role="status" aria-live="polite">
+            <strong>탈퇴가 완료되었습니다.</strong>
+            <span>계정과 가게 정보가 모두 삭제되었습니다.<br>그동안 이용해 주셔서 감사합니다.</span>
         </div>
 
         <form action="/login" method="post">
