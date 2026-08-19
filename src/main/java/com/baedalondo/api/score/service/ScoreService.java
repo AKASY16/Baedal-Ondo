@@ -21,7 +21,6 @@ import com.baedalondo.api.weather.calculator.ForecastWeatherWeightCalculator;
 import com.baedalondo.api.weather.domain.ForecastWeatherObservation;
 import com.baedalondo.api.weather.domain.WeatherScoreResult;
 import com.baedalondo.api.weather.exception.KmaWeatherApiException;
-import com.baedalondo.api.weather.service.CurrentWeatherService;
 import com.baedalondo.api.weather.service.ForecastWeatherService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +43,6 @@ public class ScoreService {
     private final DayWeightCalculator dayWeightCalculator;
     private final DayWeightProvider dayWeightProvider;
     private final TimeWeightProvider timeWeightProvider;
-    private final CurrentWeatherService currentWeatherService;
     private final CurrentAirQualityService currentAirQualityService;
     private final AirQualityCalculator airQualityCalculator;
     private final HolidayService holidayService;
@@ -57,7 +55,6 @@ public class ScoreService {
                         DayWeightCalculator dayWeightCalculator,
                         DayWeightProvider dayWeightProvider,
                         TimeWeightProvider timeWeightProvider,
-                        CurrentWeatherService currentWeatherService,
                         CurrentAirQualityService currentAirQualityService,
                         AirQualityCalculator airQualityCalculator,
                         HolidayService holidayService,
@@ -69,7 +66,6 @@ public class ScoreService {
         this.dayWeightCalculator = dayWeightCalculator;
         this.dayWeightProvider = dayWeightProvider;
         this.timeWeightProvider = timeWeightProvider;
-        this.currentWeatherService = currentWeatherService;
         this.currentAirQualityService = currentAirQualityService;
         this.airQualityCalculator = airQualityCalculator;
         this.holidayService = holidayService;
@@ -94,6 +90,9 @@ public class ScoreService {
      날씨는 실황이 아니라 현재 시각의 예보를 쓴다. 실황은 매시 40분에야 제공되어
      그 전까지는 직전 시각 관측밖에 없고, 그러면 시간대·대기질 점수와 기준 시각이 어긋난다.
      예보를 쓰면 세 요소가 모두 같은 시각을 가리킨다.
+
+     실황은 요청 경로에서 아예 호출하지 않는다. 점수에 쓰이지 않는데 매시 첫 요청이
+     기상청 응답을 기다리게 되고, 지난 관측이 필요해지면 ASOS로 소급해 받을 수 있다.
      */
     public ScoreResult calculateCurrentScore(ScoreTarget scoreTarget) {
         Long scoreTargetId = scoreTargetId(scoreTarget);
@@ -102,8 +101,6 @@ public class ScoreService {
         LocalDateTime now = ServiceTime.now();
         LocalDate currentDate = now.toLocalDate();
         LocalTime currentTime = now.toLocalTime();
-
-        collectCurrentWeather(scoreTarget, scoreTargetId);
 
         int airQualityScore = 0;
         String airQualityDescription = "대기질 정보를 확인하지 못했어요";
@@ -159,21 +156,6 @@ public class ScoreService {
                 airQualityDescription,
                 airQualityDetail
         );
-    }
-
-    /**
-     실황은 점수에 쓰지 않지만 수집은 유지한다.
-
-     예보로 점수를 내는 이상 그 예보가 얼마나 맞았는지 재려면 같은 시각의 실측이 필요하다.
-     v2에서 학습 날씨의 예보 오차를 추정할 때 쓸 재료이므로 지금부터 쌓아 둔다.
-     실패해도 점수에는 영향이 없다.
-     */
-    private void collectCurrentWeather(ScoreTarget scoreTarget, Long scoreTargetId) {
-        try {
-            currentWeatherService.getCurrentWeather(scoreTarget);
-        } catch (KmaWeatherApiException e) {
-            log.warn("실황 수집 실패. 점수에는 영향이 없습니다. storeId={}", scoreTargetId, e);
-        }
     }
 
     private ForecastWeatherObservation findForecastAt(ScoreTarget scoreTarget, LocalDateTime at) {

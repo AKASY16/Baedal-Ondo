@@ -10,14 +10,17 @@ import com.baedalondo.api.airquality.repository.AirQualityFetchLogRepository;
 import com.baedalondo.api.airquality.repository.CurrentAirQualityRecordRepository;
 import com.baedalondo.api.airquality.util.KoreanAddressParser;
 import com.baedalondo.api.score.dto.ScoreTarget;
+import com.baedalondo.api.store.repository.StoreRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class CurrentAirQualityService {
@@ -28,19 +31,22 @@ public class CurrentAirQualityService {
     private final CurrentAirQualityRecordRepository currentAirQualityRecordRepository;
     private final AirQualityFetchLogRepository airQualityFetchLogRepository;
     private final KoreanAddressParser koreanAddressParser;
+    private final StoreRepository storeRepository;
 
     public CurrentAirQualityService(AirKoreaCurrentAirQualityClient airKoreaCurrentAirQualityClient,
                                     AirKoreaAverageAirQualityClient airKoreaAverageAirQualityClient,
                                     AirQualityCalculator airQualityCalculator,
                                     CurrentAirQualityRecordRepository currentAirQualityRecordRepository,
                                     AirQualityFetchLogRepository airQualityFetchLogRepository,
-                                    KoreanAddressParser koreanAddressParser) {
+                                    KoreanAddressParser koreanAddressParser,
+                                    StoreRepository storeRepository) {
         this.airKoreaCurrentAirQualityClient = airKoreaCurrentAirQualityClient;
         this.airKoreaAverageAirQualityClient = airKoreaAverageAirQualityClient;
         this.airQualityCalculator = airQualityCalculator;
         this.currentAirQualityRecordRepository = currentAirQualityRecordRepository;
         this.airQualityFetchLogRepository = airQualityFetchLogRepository;
         this.koreanAddressParser = koreanAddressParser;
+        this.storeRepository = storeRepository;
     }
 
     public CurrentAirQualityObservation getCurrentAirQuality(ScoreTarget scoreTarget) {
@@ -82,6 +88,60 @@ public class CurrentAirQualityService {
         recordFetched(sidoName, expectedBaseTime);
 
         return targetAirQuality;
+    }
+
+    /**
+     등록된 매장이 속한 시도의 대기질을 미리 채운다. 스케줄러가 매시 호출한다.
+
+     전국 17개 시도를 모두 도는 방법도 있지만 그렇게 하지 않는다.
+     에어코리아 개발계정은 일 500건인데 17개 시도를 매시 조회하면 하루 408건이 되어,
+     사용자 요청과 시도 평균 fallback에 쓸 여유가 거의 남지 않는다.
+     매장이 없는 시도의 데이터는 조회해도 아무도 보지 않는다.
+
+     시도 하나가 실패해도 나머지는 계속 채운다.
+     */
+    public int preloadStoreSidoNames() {
+        LocalDateTime expectedBaseTime = airQualityCalculator.getSafeAirQualityBaseTime();
+        Set<String> sidoNames = findTargetSidoNames();
+        int loaded = 0;
+
+        for (String sidoName : sidoNames) {
+            // 이미 이 기준시각을 받아왔다면 다시 부르지 않는다. 사용자 요청이 먼저 채웠을 수 있다.
+            if (airQualityFetchLogRepository.existsBySidoNameAndBaseTime(sidoName, expectedBaseTime)) {
+                continue;
+            }
+
+            try {
+                List<CurrentAirQualityObservation> airQualities =
+                        airKoreaCurrentAirQualityClient.getCurrentAirQualities(sidoName);
+
+                saveAllAirQualityRecords(airQualities);
+                recordFetched(sidoName, expectedBaseTime);
+                loaded++;
+            } catch (RuntimeException e) {
+                log.warn("대기질 사전 적재 실패. sidoName={}", sidoName, e);
+            }
+        }
+
+        log.info("대기질 사전 적재 완료. 시도 {}개 중 {}개 조회", sidoNames.size(), loaded);
+        return loaded;
+    }
+
+    /**
+     매장에 저장된 시도명은 "서울"과 "서울특별시"가 섞여 있을 수 있어 정규화 후 다시 중복을 제거한다.
+     */
+    private Set<String> findTargetSidoNames() {
+        Set<String> sidoNames = new LinkedHashSet<>();
+
+        for (String rawSidoName : storeRepository.findDistinctSidoNames()) {
+            String sidoName = koreanAddressParser.extractSidoName(rawSidoName);
+
+            if (sidoName != null && !sidoName.isBlank()) {
+                sidoNames.add(sidoName);
+            }
+        }
+
+        return sidoNames;
     }
 
     /**

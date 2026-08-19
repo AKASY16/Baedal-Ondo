@@ -21,7 +21,6 @@ import com.baedalondo.api.weather.calculator.ForecastWeatherWeightCalculator;
 import com.baedalondo.api.weather.domain.ForecastWeatherObservation;
 import com.baedalondo.api.weather.domain.WeatherScoreResult;
 import com.baedalondo.api.weather.exception.KmaWeatherApiException;
-import com.baedalondo.api.weather.service.CurrentWeatherService;
 import com.baedalondo.api.weather.service.ForecastWeatherService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -64,9 +63,6 @@ class ScoreServiceTest {
 
     @Mock
     private TimeWeightProvider timeWeightProvider;
-
-    @Mock
-    private CurrentWeatherService currentWeatherService;
 
     @Mock
     private CurrentAirQualityService currentAirQualityService;
@@ -415,49 +411,6 @@ class ScoreServiceTest {
                 .thenReturn(createAirQuality());
         when(airQualityCalculator.getWeight(any(CurrentAirQualityObservation.class)))
                 .thenReturn(0);
-    }
-
-    @Test
-    @DisplayName("실황은 점수에 쓰지 않지만 수집은 계속한다")
-    void collectsCurrentWeatherWithoutScoringIt() {
-        // 예보 오차를 나중에 재려면 같은 시각의 실측이 필요하다.
-        ScoreTarget scoreTarget = createScoreTarget();
-
-        when(holidayService.isHoliday(any(LocalDate.class))).thenReturn(false);
-        when(timeWeightCalculator.calculate(any(LocalTime.class)))
-                .thenReturn(createNoImpactTime());
-        when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
-                .thenReturn(DayDemandLevel.WEEKDAY);
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
-                .thenReturn(List.of(createCurrentHourForecast()));
-        when(forecastWeatherWeightCalculator.calculate(any(ForecastWeatherObservation.class)))
-                .thenReturn(new WeatherScoreResult(0, List.of(), "날씨 영향 없음"));
-
-        scoreService.calculateCurrentScore(scoreTarget);
-
-        verify(currentWeatherService).getCurrentWeather(scoreTarget);
-    }
-
-    @Test
-    @DisplayName("실황 수집이 실패해도 점수는 그대로 나온다")
-    void keepsScoreWhenCurrentWeatherCollectionFails() {
-        ScoreTarget scoreTarget = createScoreTarget();
-
-        when(holidayService.isHoliday(any(LocalDate.class))).thenReturn(false);
-        when(timeWeightCalculator.calculate(any(LocalTime.class)))
-                .thenReturn(createNoImpactTime());
-        when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
-                .thenReturn(DayDemandLevel.WEEKDAY);
-        when(currentWeatherService.getCurrentWeather(any(ScoreTarget.class)))
-                .thenThrow(new KmaWeatherApiException("실황 수집 실패"));
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
-                .thenReturn(List.of(createCurrentHourForecast()));
-        when(forecastWeatherWeightCalculator.calculate(any(ForecastWeatherObservation.class)))
-                .thenReturn(new WeatherScoreResult(0, List.of(), "날씨 영향 없음"));
-
-        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
-
-        assertEquals(50, result.getScore());
     }
 
     @Test

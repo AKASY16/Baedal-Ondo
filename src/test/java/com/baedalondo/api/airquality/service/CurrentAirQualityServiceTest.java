@@ -11,6 +11,7 @@ import com.baedalondo.api.airquality.repository.AirQualityFetchLogRepository;
 import com.baedalondo.api.airquality.repository.CurrentAirQualityRecordRepository;
 import com.baedalondo.api.airquality.util.KoreanAddressParser;
 import com.baedalondo.api.score.dto.ScoreTarget;
+import com.baedalondo.api.store.repository.StoreRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -43,6 +44,8 @@ class CurrentAirQualityServiceTest {
             mock(CurrentAirQualityRecordRepository.class);
     private final AirQualityFetchLogRepository airQualityFetchLogRepository =
             mock(AirQualityFetchLogRepository.class);
+    private final StoreRepository storeRepository =
+            mock(StoreRepository.class);
     private final CurrentAirQualityService currentAirQualityService =
             new CurrentAirQualityService(
                     airKoreaClient,
@@ -50,7 +53,8 @@ class CurrentAirQualityServiceTest {
                     airQualityCalculator,
                     currentAirQualityRecordRepository,
                     airQualityFetchLogRepository,
-                    new KoreanAddressParser()
+                    new KoreanAddressParser(),
+                    storeRepository
             );
 
     @Test

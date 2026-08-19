@@ -33,10 +33,8 @@ public class CurrentWeatherService {
      *
      * 기준 시간이 바뀌었거나 아직 저장되지 않은 격자라면 그 조합의 첫 요청에서
      * 기상청 API 응답 시간이 사용자 대시보드 지연으로 그대로 드러난다.
-     *
-     * 추후 개선 방향:
-     * 스케줄러가 기준 시간이 바뀐 뒤 등록된 매장들의 고유 nx/ny 조합을 순회하며
-     * current_weather_record를 사전 적재하면, 사용자 요청은 대부분 캐시 경로를 탄다.
+     * 실황은 사전 적재하지 않는다. 점수에 쓰이지 않고, 지난 관측은 기상자료개방포털의
+     * 종관기상관측(ASOS)으로 언제든 소급해 받을 수 있다.
      */
     public CurrentWeatherObservation getCurrentWeather(ScoreTarget scoreTarget) {
         if (scoreTarget == null) {
@@ -47,9 +45,10 @@ public class CurrentWeatherService {
             throw new IllegalStateException("가게의 기상청 격자 좌표가 없습니다.");
         }
 
-        int nx = scoreTarget.getNx();
-        int ny = scoreTarget.getNy();
+        return loadOrFetch(scoreTarget.getNx(), scoreTarget.getNy());
+    }
 
+    private CurrentWeatherObservation loadOrFetch(int nx, int ny) {
         LocalDateTime baseDateTime = kmaTimeCalculator.getSafeBaseDateTime();
         String baseDate = baseDateTime.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String baseTime = baseDateTime.format(DateTimeFormatter.ofPattern("HH00"));

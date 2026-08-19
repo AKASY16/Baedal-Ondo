@@ -65,21 +65,83 @@ public class HolidayService {
 
     @Transactional
     public void refreshHolidaysForMonth(int year, int month) {
+
+        List<Holiday> holidays = holidayClient.fetchHolidays(year, month);
+
         LocalDate startDate = LocalDate.of(year, month, 1);
         LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
 
         holidayRepository.deleteByDateBetween(startDate, endDate);
         holidayRepository.flush();
 
-        List<Holiday> holidays = holidayClient.fetchHolidays(year, month);
         Map<LocalDate, Holiday> holidaysByDate = new LinkedHashMap<>();
+
         for (Holiday holiday : holidays) {
             holidaysByDate.putIfAbsent(holiday.getDate(), holiday);
         }
 
         holidayRepository.saveAll(holidaysByDate.values());
-        log.info("공휴일 월 갱신 완료: year={}, month={}, count={}", year, month, holidaysByDate.size());
     }
+
+    @Transactional
+    public void refreshHolidaysForMonthAndNextMonth(int year, int month) {
+
+        int nextYear = year;
+        int nextMonth = month + 1;
+
+        if (month == 12) {
+            nextMonth = 1;
+            nextYear++;
+        }
+
+        List<Holiday> holidays = holidayClient.fetchHolidays(year, month);
+        List<Holiday> holidaysNextMonth =
+                holidayClient.fetchHolidays(nextYear, nextMonth);
+
+        LocalDate startDate = LocalDate.of(year, month, 1);
+        LocalDate startDateNextMonth = LocalDate.of(nextYear, nextMonth, 1);
+
+        LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
+        LocalDate endDateNextMonth =
+                startDateNextMonth.withDayOfMonth(startDateNextMonth.lengthOfMonth());
+
+
+        holidayRepository.deleteByDateBetween(startDate, endDate);
+        holidayRepository.deleteByDateBetween(startDateNextMonth, endDateNextMonth);
+        holidayRepository.flush();
+
+        Map<LocalDate, Holiday> holidaysByDate = new LinkedHashMap<>();
+
+        for (Holiday holiday : holidays) {
+            holidaysByDate.putIfAbsent(holiday.getDate(), holiday);
+        }
+
+        for (Holiday holiday : holidaysNextMonth) {
+            holidaysByDate.putIfAbsent(holiday.getDate(), holiday);
+        }
+
+        LocalDate date = startDate;
+
+        while (!date.isAfter(endDateNextMonth)) {
+
+            holidaysByDate.putIfAbsent(
+                    date,
+                    new Holiday(
+                            date,
+                            "비공휴일",
+                            null,
+                            false,
+                            null
+                    )
+            );
+
+            date = date.plusDays(1);
+        }
+
+        holidayRepository.saveAll(holidaysByDate.values());
+    }
+
+
 
     @EventListener(ApplicationReadyEvent.class)
     public void refreshCurrentYearHolidaysOnStartup() {
@@ -99,7 +161,10 @@ public class HolidayService {
     }
 
     private boolean refreshMonthAndCheck(LocalDate date) {
-        refreshHolidaysForMonth(date.getYear(), date.getMonthValue());
+        refreshHolidaysForMonthAndNextMonth(
+                date.getYear(),
+                date.getMonthValue()
+        );
 
         return holidayRepository.findByDate(date)
                 .map(Holiday::getHoliday)
