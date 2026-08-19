@@ -17,9 +17,7 @@ import com.baedalondo.api.score.timeweight.TimeWeightProvider;
 import com.baedalondo.api.score.status.DayDemandLevel;
 import com.baedalondo.api.score.status.TimeDemandLevel;
 import com.baedalondo.api.score.calculator.TimeWeightCalculator;
-import com.baedalondo.api.weather.calculator.CurrentWeatherWeightCalculator;
 import com.baedalondo.api.weather.calculator.ForecastWeatherWeightCalculator;
-import com.baedalondo.api.weather.domain.CurrentWeatherObservation;
 import com.baedalondo.api.weather.domain.ForecastWeatherObservation;
 import com.baedalondo.api.weather.domain.WeatherScoreResult;
 import com.baedalondo.api.weather.exception.KmaWeatherApiException;
@@ -32,6 +30,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -45,7 +44,6 @@ public class ScoreService {
     private final DayWeightCalculator dayWeightCalculator;
     private final DayWeightProvider dayWeightProvider;
     private final TimeWeightProvider timeWeightProvider;
-    private final CurrentWeatherWeightCalculator currentWeatherWeightCalculator;
     private final CurrentWeatherService currentWeatherService;
     private final CurrentAirQualityService currentAirQualityService;
     private final AirQualityCalculator airQualityCalculator;
@@ -59,7 +57,6 @@ public class ScoreService {
                         DayWeightCalculator dayWeightCalculator,
                         DayWeightProvider dayWeightProvider,
                         TimeWeightProvider timeWeightProvider,
-                        CurrentWeatherWeightCalculator currentWeatherWeightCalculator,
                         CurrentWeatherService currentWeatherService,
                         CurrentAirQualityService currentAirQualityService,
                         AirQualityCalculator airQualityCalculator,
@@ -72,7 +69,6 @@ public class ScoreService {
         this.dayWeightCalculator = dayWeightCalculator;
         this.dayWeightProvider = dayWeightProvider;
         this.timeWeightProvider = timeWeightProvider;
-        this.currentWeatherWeightCalculator = currentWeatherWeightCalculator;
         this.currentWeatherService = currentWeatherService;
         this.currentAirQualityService = currentAirQualityService;
         this.airQualityCalculator = airQualityCalculator;
@@ -84,7 +80,7 @@ public class ScoreService {
     }
 
 
-    private static final int FORECAST_HOURS = 6;
+    private static final int FORECAST_HOURS = 5;
 
     private static final WeatherScoreResult NO_WEATHER_SCORE = new WeatherScoreResult(
             0,
@@ -92,6 +88,13 @@ public class ScoreService {
             "날씨 정보 없음"
     );
 
+    /**
+     현재 시각의 점수를 계산한다.
+
+     날씨는 실황이 아니라 현재 시각의 예보를 쓴다. 실황은 매시 40분에야 제공되어
+     그 전까지는 직전 시각 관측밖에 없고, 그러면 시간대·대기질 점수와 기준 시각이 어긋난다.
+     예보를 쓰면 세 요소가 모두 같은 시각을 가리킨다.
+     */
     public ScoreResult calculateCurrentScore(ScoreTarget scoreTarget) {
         Long scoreTargetId = scoreTargetId(scoreTarget);
 
@@ -100,23 +103,30 @@ public class ScoreService {
         LocalDate currentDate = now.toLocalDate();
         LocalTime currentTime = now.toLocalTime();
 
+        collectCurrentWeather(scoreTarget, scoreTargetId);
+
         int airQualityScore = 0;
         String airQualityDescription = "대기질 정보를 확인하지 못했어요";
         String airQualityDetail = "대기질 정보 없음";
-        CurrentWeatherObservation weather = null;
 
         TimeDemandLevel timeDemandLevel = findMarketTimeDemandLevel(scoreTarget, currentTime);
         DayDemandLevel dayDemandLevel =
                 dayWeightCalculator.calculate(currentDate, isHoliday(currentDate, scoreTargetId));
         int marketDayWeight = findMarketDayWeight(scoreTarget, currentDate);
 
-        WeatherScoreResult weatherScoreResult;
+        ForecastWeatherObservation weather = null;
+        WeatherScoreResult weatherScoreResult = NO_WEATHER_SCORE;
+
         try {
-            weather = currentWeatherService.getCurrentWeather(scoreTarget);
-            weatherScoreResult = currentWeatherWeightCalculator.calculate(weather);
+            weather = findForecastAt(scoreTarget, now.truncatedTo(ChronoUnit.HOURS));
+
+            if (weather == null) {
+                log.warn("현재 시각 예보가 없습니다. 날씨 보정 점수를 제외합니다. storeId={}", scoreTargetId);
+            } else {
+                weatherScoreResult = forecastWeatherWeightCalculator.calculate(weather);
+            }
         } catch (KmaWeatherApiException e) {
             log.warn("기상청 API 에러. 날씨 보정 점수를 제외합니다. storeId={}", scoreTargetId, e);
-            weatherScoreResult = NO_WEATHER_SCORE;
         }
 
         try {
@@ -152,8 +162,31 @@ public class ScoreService {
     }
 
     /**
-     앞으로 최대 6시간의 시각별 점수를 계산한다.
-     예보 조회에 실패하면 빈 Map을 돌려준다. 현재 점수는 그대로 나온다.
+     실황은 점수에 쓰지 않지만 수집은 유지한다.
+
+     예보로 점수를 내는 이상 그 예보가 얼마나 맞았는지 재려면 같은 시각의 실측이 필요하다.
+     v2에서 학습 날씨의 예보 오차를 추정할 때 쓸 재료이므로 지금부터 쌓아 둔다.
+     실패해도 점수에는 영향이 없다.
+     */
+    private void collectCurrentWeather(ScoreTarget scoreTarget, Long scoreTargetId) {
+        try {
+            currentWeatherService.getCurrentWeather(scoreTarget);
+        } catch (KmaWeatherApiException e) {
+            log.warn("실황 수집 실패. 점수에는 영향이 없습니다. storeId={}", scoreTargetId, e);
+        }
+    }
+
+    private ForecastWeatherObservation findForecastAt(ScoreTarget scoreTarget, LocalDateTime at) {
+        return forecastWeatherService.getForecastWeather(scoreTarget).stream()
+                .filter(forecast -> at.equals(forecast.getForecastAt()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     현재 시각 다음부터 5시간의 시각별 점수를 계산한다.
+     현재 시각 점수는 calculateCurrentScore가 따로 내므로 화면은 항상 6칸이 된다.
+     예보 조회에 실패하면 빈 Map을 돌려준다.
      */
     public Map<LocalDateTime, ScoreResult> calculateForecastScore(ScoreTarget scoreTarget) {
         Long scoreTargetId = scoreTargetId(scoreTarget);
@@ -231,11 +264,10 @@ public class ScoreService {
     }
 
     /**
-     이미 지난 예보를 걸러내고 앞으로 최대 6시간까지만 남긴다.
+     현재 시각 이후의 예보만 남긴다.
 
-     초단기예보는 발표시각 +1 ~ +6시간을 준다. 발표는 매시 :30이지만 조회가 가능해지는 건
-     :45 무렵이라 그 전에는 직전 발표분을 쓴다. 그래서 응답의 첫 항목이 이미 지난 시각일 수 있고,
-     그 구간에서는 남는 예보가 5개가 된다. 화면은 5개와 6개를 모두 처리할 수 있어야 한다.
+     기준 발표분이 항상 직전 시각 :30이므로 응답은 현재 시각부터 6시간이다.
+     현재 시각 항목은 calculateCurrentScore가 쓰므로 여기서는 제외되고, 남는 것은 언제나 5개다.
      */
     private List<ForecastWeatherObservation> selectUpcomingForecasts(
             List<ForecastWeatherObservation> forecasts) {

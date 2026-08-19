@@ -198,6 +198,10 @@
   - `CurrentAirQualityRecord` — 주석 처리된 줄 17개
   - Lombok — 실사용이 `CustomUserDetailsService` 1개 파일뿐. 유지 여부 결정
   - 미사용 import 정리
+  - ⚠️ **`CurrentWeatherWeightCalculator`는 호출부가 0건이지만 지우지 않는다.**
+    현재 점수가 예보 기준으로 바뀌면서 빠졌다. v2에서 예보 오차를 점수 단위로 재려면
+    같은 관측에 실황·예보 두 계산기를 돌려 비교해야 하므로 그때 필요하다.
+    실황 수집(`ScoreService.collectCurrentWeather`)도 같은 이유로 유지한다
 
 ---
 
