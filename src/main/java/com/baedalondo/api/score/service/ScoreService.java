@@ -18,18 +18,25 @@ import com.baedalondo.api.score.status.DayDemandLevel;
 import com.baedalondo.api.score.status.TimeDemandLevel;
 import com.baedalondo.api.score.calculator.TimeWeightCalculator;
 import com.baedalondo.api.weather.calculator.CurrentWeatherWeightCalculator;
+import com.baedalondo.api.weather.calculator.ForecastWeatherWeightCalculator;
 import com.baedalondo.api.weather.domain.CurrentWeatherObservation;
+import com.baedalondo.api.weather.domain.ForecastWeatherObservation;
 import com.baedalondo.api.weather.domain.WeatherScoreResult;
 import com.baedalondo.api.weather.exception.KmaWeatherApiException;
 import com.baedalondo.api.weather.service.CurrentWeatherService;
+import com.baedalondo.api.weather.service.ForecastWeatherService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.ZoneId;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class ScoreService {
@@ -45,6 +52,8 @@ public class ScoreService {
     private final HolidayService holidayService;
     private final ScoreMessageFactory scoreMessageFactory;
     private final WeightedScoreCalculator weightedScoreCalculator;
+    private final ForecastWeatherService forecastWeatherService;
+    private final ForecastWeatherWeightCalculator forecastWeatherWeightCalculator;
 
     public ScoreService(TimeWeightCalculator timeWeightCalculator,
                         DayWeightCalculator dayWeightCalculator,
@@ -56,7 +65,9 @@ public class ScoreService {
                         AirQualityCalculator airQualityCalculator,
                         HolidayService holidayService,
                         ScoreMessageFactory scoreMessageFactory,
-                        WeightedScoreCalculator weightedScoreCalculator) {
+                        WeightedScoreCalculator weightedScoreCalculator,
+                        ForecastWeatherService forecastWeatherService,
+                        ForecastWeatherWeightCalculator forecastWeatherWeightCalculator) {
         this.timeWeightCalculator = timeWeightCalculator;
         this.dayWeightCalculator = dayWeightCalculator;
         this.dayWeightProvider = dayWeightProvider;
@@ -68,20 +79,31 @@ public class ScoreService {
         this.holidayService = holidayService;
         this.scoreMessageFactory = scoreMessageFactory;
         this.weightedScoreCalculator = weightedScoreCalculator;
+        this.forecastWeatherService = forecastWeatherService;
+        this.forecastWeatherWeightCalculator = forecastWeatherWeightCalculator;
     }
+
+
+    private static final int FORECAST_HOURS = 6;
+
+    private static final WeatherScoreResult NO_WEATHER_SCORE = new WeatherScoreResult(
+            0,
+            List.of("날씨 정보 없음"),
+            "날씨 정보 없음"
+    );
 
     public ScoreResult calculateCurrentScore(ScoreTarget scoreTarget) {
         Long scoreTargetId = scoreTargetId(scoreTarget);
 
+        // 날짜와 시각을 따로 읽으면 자정 경계에서 서로 다른 날을 가리킬 수 있다.
+        LocalDateTime now = ServiceTime.now();
+        LocalDate currentDate = now.toLocalDate();
+        LocalTime currentTime = now.toLocalTime();
+
         int airQualityScore = 0;
-        String airQualityFactor = "영향 없음";
         String airQualityDescription = "대기질 정보를 확인하지 못했어요";
         String airQualityDetail = "대기질 정보 없음";
         CurrentWeatherObservation weather = null;
-        CurrentAirQualityObservation airQuality = null;
-
-        LocalDate currentDate = ServiceTime.today();
-        LocalTime currentTime = ServiceTime.currentTime();
 
         TimeDemandLevel timeDemandLevel = findMarketTimeDemandLevel(scoreTarget, currentTime);
         DayDemandLevel dayDemandLevel =
@@ -94,19 +116,16 @@ public class ScoreService {
             weatherScoreResult = currentWeatherWeightCalculator.calculate(weather);
         } catch (KmaWeatherApiException e) {
             log.warn("기상청 API 에러. 날씨 보정 점수를 제외합니다. storeId={}", scoreTargetId, e);
-            weatherScoreResult = new WeatherScoreResult(
-                    0,
-                    List.of("날씨 정보 없음"),
-                    "날씨 정보 없음"
-            );
+            weatherScoreResult = NO_WEATHER_SCORE;
         }
 
         try {
-            airQuality = currentAirQualityService.getCurrentAirQuality(scoreTarget);
+            CurrentAirQualityObservation airQuality =
+                    currentAirQualityService.getCurrentAirQuality(scoreTarget);
             airQualityScore = airQualityCalculator.getWeight(airQuality);
-            airQualityFactor = scoreMessageFactory.createAirQualityFactor(airQualityScore);
             airQualityDetail = scoreMessageFactory.createAirQualityDetail(airQuality);
-            airQualityDescription = scoreMessageFactory.createAirQualityDescription(airQuality, airQualityScore);
+            airQualityDescription =
+                    scoreMessageFactory.createAirQualityDescription(airQuality, airQualityScore);
         } catch (AirKoreaApiException | IllegalStateException | IllegalArgumentException e) {
             log.warn("공기질 데이터 처리 실패. 공기질 보정 점수를 제외합니다. storeId={}", scoreTargetId, e);
         }
@@ -119,48 +138,157 @@ public class ScoreService {
                 weather,
                 airQualityScore
         );
-        int score = scoreCalculationResult.score();
 
-        String status = scoreMessageFactory.calculateStatus(score);
-        String message = scoreMessageFactory.createMessage(score);
-
-        String timeFactor = timeDemandLevel.getTimeFactor();
-        String timeDescription = scoreMessageFactory.createTimeDescription(timeDemandLevel, currentTime);
-
-        String businessTypeName = scoreTarget != null && scoreTarget.getBusinessType() != null
-                ? scoreTarget.getBusinessType().getDisplayName()
-                : null;
-
-        // 화살표는 실제 적용된 요일 점수 기준이어야 한다.
-        // 상권에 따라 주말도 음수가 될 수 있어 enum의 고정 화살표를 쓰면 표시가 어긋난다.
-        String dayFactor = scoreMessageFactory.createDayFactor(scoreCalculationResult.dayScore());
-        String dayDescription = scoreMessageFactory.createLocalPatternDescription(
+        return createScoreResult(
+                scoreTarget,
+                now,
+                timeDemandLevel,
                 dayDemandLevel,
-                scoreCalculationResult.dayScore(),
-                businessTypeName,
-                currentDate.getDayOfWeek()
-        );
-
-        String currentWeatherFactor = scoreMessageFactory.createWeatherFactor(weatherScoreResult);
-        String currentWeatherDescription = weatherScoreResult.getDescription();
-        airQualityFactor = scoreMessageFactory.createAirQualityFactor(scoreCalculationResult.airQualityScore());
-
-        return new ScoreResult(score,
-                status,
-                message,
-                timeFactor,
-                timeDescription,
-                dayFactor,
-                dayDescription,
-                currentWeatherFactor,
-                currentWeatherDescription,
-                airQualityFactor,
+                weatherScoreResult,
+                scoreCalculationResult,
                 airQualityDescription,
                 airQualityDetail
         );
     }
 
+    /**
+     앞으로 최대 6시간의 시각별 점수를 계산한다.
+     예보 조회에 실패하면 빈 Map을 돌려준다. 현재 점수는 그대로 나온다.
+     */
+    public Map<LocalDateTime, ScoreResult> calculateForecastScore(ScoreTarget scoreTarget) {
+        Long scoreTargetId = scoreTargetId(scoreTarget);
 
+        List<ForecastWeatherObservation> forecastWeather = List.of();
+        Map<LocalDateTime, WeatherScoreResult> weatherScoreResults = Map.of();
+
+        try {
+            forecastWeather = selectUpcomingForecasts(
+                    forecastWeatherService.getForecastWeather(scoreTarget));
+            weatherScoreResults = forecastWeatherWeightCalculator.calculateAll(forecastWeather);
+        } catch (KmaWeatherApiException e) {
+            log.warn("기상청 API 에러. 미래 날씨 정보를 제외합니다. storeId={}", scoreTargetId, e);
+        }
+
+        // 대기질 예보는 일 단위라 시간별 점수에 쓸 수 없다. 현재 값을 6시간까지 그대로 사용한다.
+        int airQualityScore = 0;
+        String airQualityDescription = "대기질 정보를 확인하지 못했어요";
+        String airQualityDetail = "대기질 정보 없음";
+
+        try {
+            CurrentAirQualityObservation airQuality =
+                    currentAirQualityService.getCurrentAirQuality(scoreTarget);
+            airQualityScore = airQualityCalculator.getWeight(airQuality);
+            airQualityDetail = scoreMessageFactory.createAirQualityDetail(airQuality);
+            airQualityDescription =
+                    scoreMessageFactory.createAirQualityDescription(airQuality, airQualityScore);
+        } catch (AirKoreaApiException | IllegalStateException | IllegalArgumentException e) {
+            log.warn("공기질 데이터 처리 실패. 공기질 보정 점수를 제외합니다. storeId={}", scoreTargetId, e);
+        }
+
+        // 공휴일 조회는 날짜당 한 번만 한다. 자정을 넘겨도 날짜는 최대 두 개다.
+        Map<LocalDate, Boolean> holidayByDate = new HashMap<>();
+        Map<LocalDateTime, ScoreResult> forecastScores = new LinkedHashMap<>();
+
+        for (ForecastWeatherObservation forecast : forecastWeather) {
+            LocalDateTime forecastAt = forecast.getForecastAt();
+            LocalDate forecastDate = forecastAt.toLocalDate();
+
+            TimeDemandLevel timeDemandLevel =
+                    findMarketTimeDemandLevel(scoreTarget, forecastAt.toLocalTime());
+
+            boolean holiday = holidayByDate.computeIfAbsent(
+                    forecastDate, date -> isHoliday(date, scoreTargetId));
+
+            DayDemandLevel dayDemandLevel = dayWeightCalculator.calculate(forecastDate, holiday);
+            int marketDayWeight = findMarketDayWeight(scoreTarget, forecastDate);
+
+            WeatherScoreResult weatherScoreResult =
+                    weatherScoreResults.getOrDefault(forecastAt, NO_WEATHER_SCORE);
+
+            ScoreCalculationResult scoreCalculationResult = weightedScoreCalculator.calculate(
+                    timeDemandLevel,
+                    dayDemandLevel,
+                    marketDayWeight,
+                    weatherScoreResult,
+                    // 이번 시각의 예보 한 건이다. List 전체를 넘기면 안 된다.
+                    forecast,
+                    airQualityScore
+            );
+
+            forecastScores.put(forecastAt, createScoreResult(
+                    scoreTarget,
+                    forecastAt,
+                    timeDemandLevel,
+                    dayDemandLevel,
+                    weatherScoreResult,
+                    scoreCalculationResult,
+                    airQualityDescription,
+                    airQualityDetail
+            ));
+        }
+
+        return forecastScores;
+    }
+
+    /**
+     이미 지난 예보를 걸러내고 앞으로 최대 6시간까지만 남긴다.
+
+     초단기예보는 발표시각 +1 ~ +6시간을 준다. 발표는 매시 :30이지만 조회가 가능해지는 건
+     :45 무렵이라 그 전에는 직전 발표분을 쓴다. 그래서 응답의 첫 항목이 이미 지난 시각일 수 있고,
+     그 구간에서는 남는 예보가 5개가 된다. 화면은 5개와 6개를 모두 처리할 수 있어야 한다.
+     */
+    private List<ForecastWeatherObservation> selectUpcomingForecasts(
+            List<ForecastWeatherObservation> forecasts) {
+        LocalDateTime now = ServiceTime.now();
+
+        return forecasts.stream()
+                .filter(forecast -> forecast.getForecastAt().isAfter(now))
+                .sorted(Comparator.comparing(ForecastWeatherObservation::getForecastAt))
+                .limit(FORECAST_HOURS)
+                .toList();
+    }
+
+    /**
+     계산 결과를 화면 표시용 ScoreResult로 조립한다.
+     현재 점수와 예보 점수가 같은 문구 규칙을 쓰므로 한 곳에 둔다.
+     문구를 바꿀 때 두 경로가 어긋나는 것을 막으려는 목적이다.
+     */
+    private ScoreResult createScoreResult(ScoreTarget scoreTarget,
+                                          LocalDateTime at,
+                                          TimeDemandLevel timeDemandLevel,
+                                          DayDemandLevel dayDemandLevel,
+                                          WeatherScoreResult weatherScoreResult,
+                                          ScoreCalculationResult calculationResult,
+                                          String airQualityDescription,
+                                          String airQualityDetail) {
+        int score = calculationResult.score();
+
+        String businessTypeName = scoreTarget != null && scoreTarget.getBusinessType() != null
+                ? scoreTarget.getBusinessType().getDisplayName()
+                : null;
+
+        return new ScoreResult(
+                score,
+                scoreMessageFactory.calculateStatus(score),
+                scoreMessageFactory.createMessage(score),
+                timeDemandLevel.getTimeFactor(),
+                scoreMessageFactory.createTimeDescription(timeDemandLevel, at.toLocalTime()),
+                // 화살표는 실제 적용된 요일 점수 기준이어야 한다.
+                // 상권에 따라 주말도 음수가 될 수 있어 enum의 고정 화살표를 쓰면 표시가 어긋난다.
+                scoreMessageFactory.createDayFactor(calculationResult.dayScore()),
+                scoreMessageFactory.createLocalPatternDescription(
+                        dayDemandLevel,
+                        calculationResult.dayScore(),
+                        businessTypeName,
+                        at.getDayOfWeek()
+                ),
+                scoreMessageFactory.createWeatherFactor(weatherScoreResult),
+                weatherScoreResult.getDescription(),
+                scoreMessageFactory.createAirQualityFactor(calculationResult.airQualityScore()),
+                airQualityDescription,
+                airQualityDetail
+        );
+    }
 
     /**
      상권 x 업종 x 요일 가중치를 조회한다.

@@ -10,7 +10,9 @@ import com.baedalondo.api.store.domain.Store;
 import com.baedalondo.api.store.service.StoreService;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class DashboardService {
@@ -35,8 +37,10 @@ public class DashboardService {
         ScoreTarget scoreTarget = ScoreTarget.from(region);
 
         ScoreResult scoreResult = scoreService.calculateCurrentScore(scoreTarget);
+        Map<LocalDateTime, ScoreResult> forecastScores =
+                scoreService.calculateForecastScore(scoreTarget);
 
-        return DashboardView.from(guestStore, scoreResult);
+        return DashboardView.from(guestStore, scoreResult, forecastScores);
     }
 
     public DashboardView getRandomGuestDashboard() {
@@ -54,16 +58,20 @@ public class DashboardService {
         Store store = storeList.get(0);
         ScoreTarget scoreTarget = ScoreTarget.from(store);
         ScoreResult scoreResult = scoreService.calculateCurrentScore(scoreTarget);
+        Map<LocalDateTime, ScoreResult> forecastScores =
+                scoreService.calculateForecastScore(scoreTarget);
 
-        return DashboardView.from(store, scoreResult);
+        return DashboardView.from(store, scoreResult, forecastScores);
     }
 
     public DashboardView getDashboardById(Long storeId) {
         Store store = storeService.getCurrentUserStoreById(storeId);
         ScoreTarget scoreTarget = ScoreTarget.from(store);
         ScoreResult scoreResult = scoreService.calculateCurrentScore(scoreTarget);
+        Map<LocalDateTime, ScoreResult> forecastScores =
+                scoreService.calculateForecastScore(scoreTarget);
 
-        return DashboardView.from(store, scoreResult);
+        return DashboardView.from(store, scoreResult, forecastScores);
     }
 
     public List<Store> getCurrentUserStores() {

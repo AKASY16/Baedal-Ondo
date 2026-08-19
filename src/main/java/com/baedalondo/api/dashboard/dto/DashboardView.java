@@ -4,6 +4,9 @@ import com.baedalondo.api.score.ScoreResult;
 import com.baedalondo.api.score.status.ScoreStatusLevel;
 import com.baedalondo.api.store.domain.Store;
 
+import java.time.LocalDateTime;
+import java.util.Map;
+
 public class DashboardView {
     private final Store store;
     private final int score;
@@ -18,6 +21,7 @@ public class DashboardView {
     private final String airQualityFactor;
     private final String airQualityDescription;
     private final String airQualityDetail;
+    private final Map<LocalDateTime, ScoreResult> forecastScores;
 
     public DashboardView(Store store,
                          int score,
@@ -25,13 +29,14 @@ public class DashboardView {
                          String message,
                          String timeFactor,
                          String timeDescription,
-                          String dayFactor,
-                          String dayDescription,
-                          String currentWeatherFactor,
-                          String currentWeatherDescription,
-                          String airQualityFactor,
-                          String airQualityDescription,
-                          String airQualityDetail) {
+                         String dayFactor,
+                         String dayDescription,
+                         String currentWeatherFactor,
+                         String currentWeatherDescription,
+                         String airQualityFactor,
+                         String airQualityDescription,
+                         String airQualityDetail,
+                         Map<LocalDateTime, ScoreResult> forecastScores) {
         this.store = store;
         this.score = score;
         this.status = status;
@@ -45,10 +50,16 @@ public class DashboardView {
         this.airQualityFactor = airQualityFactor;
         this.airQualityDescription = airQualityDescription;
         this.airQualityDetail = airQualityDetail;
+        this.forecastScores = forecastScores;
     }
 
-    public static DashboardView from(Store store, ScoreResult scoreResult) {
-        return new DashboardView(store,
+    public static DashboardView from(
+            Store store,
+            ScoreResult scoreResult,
+            Map<LocalDateTime, ScoreResult> forecastScores
+    ) {
+        return new DashboardView(
+                store,
                 scoreResult.getScore(),
                 scoreResult.getStatus(),
                 scoreResult.getMessage(),
@@ -60,9 +71,15 @@ public class DashboardView {
                 scoreResult.getCurrentWeatherDescription(),
                 scoreResult.getAirQualityFactor(),
                 scoreResult.getAirQualityDescription(),
-                scoreResult.getAirQualityDetail());
+                scoreResult.getAirQualityDetail(),
+                forecastScores
+        );
     }
 
+
+    public Map<LocalDateTime, ScoreResult> getForecastScores() {
+        return forecastScores;
+    }
 
     public Store getStore() {
         return store;
