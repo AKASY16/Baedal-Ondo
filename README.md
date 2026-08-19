@@ -472,30 +472,54 @@ curl http://localhost:8080/actuator/health
 
 `management.endpoints.web.exposure.include`를 `health`로 제한해 다른 actuator 엔드포인트는 열지 않으며, `show-details: never`로 DB 접속 상태 같은 내부 정보도 노출하지 않습니다. Nginx나 로드밸런서의 상태 확인 대상으로 사용합니다.
 
-### DB 백업
+### DB 백업과 복구
 
-`scripts/backup-db.sh`가 `mysqldump` 기반 백업과 보관 기간 정리를 수행합니다.
+DB는 compose 컨테이너 안에 있고 호스트로 포트를 열지 않습니다. 그래서 호스트에서 `127.0.0.1:3306`으로 붙는 방식은 동작하지 않습니다. 두 스크립트 모두 컨테이너 안에서 `mysqldump`/`mysql`을 실행하고 결과만 주고받습니다.
 
 ```bash
-DB_PASSWORD=... ./scripts/backup-db.sh
+./scripts/backup-db.sh                                  # 백업
+./scripts/restore-db.sh <백업파일.sql.gz>                # 복구
 ```
+
+**비밀번호를 인자로 넘기지 않습니다.** `db` 컨테이너가 이미 `MYSQL_USER`와 `MYSQL_PASSWORD`를 갖고 있으므로 컨테이너 안에서 그대로 씁니다. 호스트의 `ps` 목록이나 셸 히스토리에 비밀번호가 남지 않습니다.
 
 | 환경변수 | 기본값 | 설명 |
 | --- | --- | --- |
 | `BACKUP_DIR` | `/var/backups/baedalondo` | 백업 파일 저장 위치 |
 | `RETENTION_DAYS` | `14` | 보관 기간, 지난 파일은 삭제 |
-| `DB_NAME` | `baedalondo` | 대상 스키마 |
-| `DB_PASSWORD` | 없음 | **필수** |
+| `DB_SERVICE` | `db` | compose 서비스 이름 |
+| `FORCE` | 없음 | 복구 시 `1`이면 확인 없이 진행 |
 
-`--single-transaction`으로 InnoDB를 잠그지 않고 일관된 시점을 덤프하며, 비밀번호는 `ps` 목록에 노출되지 않도록 `MYSQL_PWD`로 전달합니다.
+`--single-transaction`으로 InnoDB를 잠그지 않고 일관된 시점을 덤프합니다. `--no-tablespaces`가 필요한데, MySQL 8의 `mysqldump`는 기본으로 테이블스페이스를 덤프하려 하면서 `PROCESS` 권한을 요구하고 앱 계정에는 그 권한이 없기 때문입니다.
+
+**성공 판정은 파일 크기가 아니라 `-- Dump completed` 표식으로 합니다.** `mysqldump`는 일부 오류에서 경고만 내고 종료 코드 0으로 끝나기 때문에, 크기만 보면 중간에 잘린 덤프를 성공으로 오인합니다.
+
+덤프에는 `flyway_schema_history`가 함께 담깁니다. 그래서 복구 후 앱은 마이그레이션을 다시 실행하지 않고 `validate`만 수행합니다.
 
 크론 등록 예시입니다.
 
 ```bash
-0 4 * * * DB_PASSWORD=... /home/ubuntu/baedal-ondo-api/scripts/backup-db.sh >> /var/log/baedalondo-backup.log 2>&1
+0 4 * * * /home/ubuntu/baedal-ondo-api/scripts/backup-db.sh >> /var/log/baedalondo-backup.log 2>&1
 ```
 
 개인정보 처리방침에 공개한 보관 기간과 `RETENTION_DAYS`를 일치시켜야 합니다.
+
+#### 복구 절차 검증
+
+백업은 복구해 봐야 백업입니다. 아래 순서로 실제 데이터를 건드리지 않고 확인할 수 있습니다. `COMPOSE_PROJECT_NAME`을 바꾸면 별도 볼륨이 생겨 기존 데이터와 격리됩니다.
+
+```bash
+export COMPOSE_PROJECT_NAME=baedalondo-restoretest
+docker compose up -d db app
+BACKUP_DIR=./build/backup-test ./scripts/backup-db.sh
+docker compose down -v                                   # 볼륨까지 삭제
+docker compose up -d db
+FORCE=1 ./scripts/restore-db.sh ./build/backup-test/<파일>.sql.gz
+docker compose up -d app                                 # validate 후 기동되면 성공
+docker compose down -v
+```
+
+⚠️ **서버 디스크가 통째로 사라지면 여기 있는 백업도 함께 사라집니다.** 외부 저장소로의 2차 복사는 배포 단계에서 추가합니다.
 
 ### AWS 개인정보 처리 설정
 
