@@ -45,45 +45,6 @@ public class HolidayService {
     }
 
     @Transactional
-    public void refreshHolidaysForYear(int year) {
-        LocalDate startDate = LocalDate.of(year, 1, 1);
-        LocalDate endDate = LocalDate.of(year, 12, 31);
-
-        holidayRepository.deleteByDateBetween(startDate, endDate);
-        holidayRepository.flush();
-
-        Map<LocalDate, Holiday> holidaysByDate = new LinkedHashMap<>();
-        for (int month = 1; month <= 12; month++) {
-            for (Holiday holiday : holidayClient.fetchHolidays(year, month)) {
-                holidaysByDate.putIfAbsent(holiday.getDate(), holiday);
-            }
-        }
-
-        holidayRepository.saveAll(holidaysByDate.values());
-        log.info("공휴일 연도 갱신 완료: year={}, count={}", year, holidaysByDate.size());
-    }
-
-    @Transactional
-    public void refreshHolidaysForMonth(int year, int month) {
-
-        List<Holiday> holidays = holidayClient.fetchHolidays(year, month);
-
-        LocalDate startDate = LocalDate.of(year, month, 1);
-        LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
-
-        holidayRepository.deleteByDateBetween(startDate, endDate);
-        holidayRepository.flush();
-
-        Map<LocalDate, Holiday> holidaysByDate = new LinkedHashMap<>();
-
-        for (Holiday holiday : holidays) {
-            holidaysByDate.putIfAbsent(holiday.getDate(), holiday);
-        }
-
-        holidayRepository.saveAll(holidaysByDate.values());
-    }
-
-    @Transactional
     public void refreshHolidaysForMonthAndNextMonth(int year, int month) {
 
         int nextYear = year;
@@ -143,20 +104,31 @@ public class HolidayService {
 
 
 
+    /**
+     서버가 뜨면 이번 달과 다음 달을 채운다. 스케줄러가 매일 6시에 도는 것과 같은 범위다.
+
+     연 단위로 채우던 것을 바꿨다. 연 단위 갱신은 그 해 전체를 지우고 실제 공휴일만 저장해서
+     비공휴일 행을 전부 날려 버렸고, 그러면 재시작 직후 첫 요청이 다시 외부 API를 호출했다.
+     트랜잭션을 연 채로 API를 12번 부르는 문제도 함께 사라진다.
+     */
     @EventListener(ApplicationReadyEvent.class)
-    public void refreshCurrentYearHolidaysOnStartup() {
+    public void refreshHolidaysOnStartup() {
         if (!startupRefreshEnabled) {
             log.info("서버 시작 시 공휴일 갱신을 건너뜁니다.");
             return;
         }
 
-        // 서버 시간대와 무관하게 한국 기준 연도를 갱신해야 한다.
-        // UTC 서버에서는 1월 1일 오전에 아직 전년도로 계산되어 신정 공휴일이 비어 있게 된다.
-        int currentYear = ServiceTime.today().getYear();
+        // 서버 시간대와 무관하게 한국 기준 날짜를 써야 한다.
+        // UTC 서버에서는 자정 직후에 아직 전날로 계산되어 월이 어긋난다.
+        LocalDate today = ServiceTime.today();
+        int year = today.getYear();
+        int month = today.getMonthValue();
+
         try {
-            transactionTemplate.executeWithoutResult(status -> refreshHolidaysForYear(currentYear));
+            transactionTemplate.executeWithoutResult(
+                    status -> refreshHolidaysForMonthAndNextMonth(year, month));
         } catch (RuntimeException e) {
-            log.warn("서버 시작 시 공휴일 갱신에 실패했습니다. year={}", currentYear, e);
+            log.warn("서버 시작 시 공휴일 갱신에 실패했습니다. year={}, month={}", year, month, e);
         }
     }
 

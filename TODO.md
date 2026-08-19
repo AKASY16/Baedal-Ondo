@@ -25,13 +25,25 @@
 
 ## 1단계 · 명백한 동작 결함
 
-- [ ] **공휴일 조회 구조 수정** ⚠️ 최우선
-  근거: `HolidayService.isHoliday()`가 `findByDate().orElseGet(refreshMonthAndCheck)` 구조.
-  공휴일만 저장되므로 **비공휴일에는 항상 miss** → 대시보드 요청마다
-  `DELETE 월 전체 → 외부 API 호출 → INSERT`가 실행됨. 읽기 요청이 쓰기 트랜잭션과 외부 I/O를 유발
-  방향: "공휴일 아님"과 "아직 동기화 안 됨"을 구분(`holiday_sync` 등).
-  request path에서 외부 API 제거, fetch와 DB 트랜잭션 분리
-  같이: `refreshHolidaysForYear`가 트랜잭션 안에서 API를 12회 호출하는 것도 분리
+- [x] **공휴일 조회 구조 수정**
+  공휴일만 저장해서 **비공휴일은 항상 조회 miss**였고, 대시보드 요청마다
+  `DELETE 월 전체 → 외부 API → INSERT`가 돌았다.
+
+  해결: 별도 동기화 테이블 대신 **두 달 범위의 모든 날짜에 행을 채운다.**
+  실제 공휴일이 아닌 날은 `holiday=false`인 자리채움 행이 들어가므로 조회가 항상 hit한다.
+  `putIfAbsent` 순서 덕에 실제 공휴일이 자리채움에 덮이지 않는다.
+
+  같이 정리한 것
+  - **fetch를 delete보다 먼저** 한다. API가 실패하면 롤백되어 기존 데이터가 살아남는다
+  - 시작 시 갱신을 연 단위에서 **두 달 범위로** 바꿨다. 연 단위 갱신은 그 해 전체를 지우고
+    실제 공휴일만 저장해 자리채움을 날려 버렸고, 재시작 직후 첫 요청이 다시 API를 불렀다
+  - `refreshHolidaysForYear`(트랜잭션 안에서 API 12회)와 `refreshHolidaysForMonth`를 제거했다
+  - `HolidayServiceTest` 6개로 고정
+
+  ⚠️ **남은 한계** — `isHoliday`는 여전히 읽기 메서드인데 `@Transactional`이고,
+  두 달 창 **밖**의 날짜를 조회하면 `refreshMonthAndCheck`가 돌아 쓰기와 외부 I/O를 유발한다.
+  스케줄러가 매일 창을 갱신하고 예보는 오늘·내일만 보므로 실제로는 거의 걸리지 않는다.
+  다중 인스턴스나 먼 미래 날짜 조회가 생기면 그때 분리할 것
 
 - [ ] **`StoreFactory.editStore`의 sidoName 정규화** + editStore 테스트
   근거: `StoreFactory:47`은 `extractSidoName(...)`, `StoreFactory:82`는 `newAddress.getSiNm()` 원본 그대로.
