@@ -24,5 +24,8 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
+      # 테스트가 Testcontainers로 MySQL을 띄운다.
+      # ubuntu-latest 러너에는 Docker가 이미 올라와 있어 별도 설정이 필요 없다.
+      # 여기서 Flyway 마이그레이션이 실제로 실행되므로, 실패하면 배포까지 가지 않는다.
       - name: Run tests
         run: ./gradlew test

@@ -62,7 +62,7 @@
 - Spring Security
 - MySQL 8
 - Flyway
-- H2 Database (테스트 전용)
+- Testcontainers (테스트에서 실제 MySQL 기동)
 - Gradle
 - Docker, Docker Compose
 - GitHub Actions
@@ -249,7 +249,7 @@ Windows 환경에서는 다음 명령을 사용할 수 있습니다.
 ./gradlew.bat test
 ```
 
-**테스트는 위 1~3단계 설정 없이 실행할 수 있습니다.** `src/test/resources/application.yaml`이 인메모리 H2와 더미 API 키를 사용하므로, MySQL이나 `DB_PASSWORD`, API 키가 없어도 저장소를 clone한 그대로 통과합니다.
+**테스트는 위 1~3단계 설정 없이 실행할 수 있습니다.** `src/test/resources/application.yaml`이 더미 API 키를 사용하고, DB는 Testcontainers가 MySQL 컨테이너를 띄워 주므로 `DB_PASSWORD`나 API 키가 없어도 저장소를 clone한 그대로 통과합니다. 다만 **Docker는 실행 중이어야 합니다.**
 
 ## 주요 URL
 
@@ -441,8 +441,14 @@ commercialAreaCode + businessType + 요일  ->  Local DayWeight
 - 현재 DB는 MySQL 8을 사용하며 접속 정보는 환경변수로 주입합니다.
 - 스키마 변경은 `src/main/resources/db/migration`에 새 Flyway 버전 파일을 추가해 관리합니다. 이미 적용된 마이그레이션 파일은 수정하지 않습니다.
 - Hibernate는 `ddl-auto: validate`로 스키마를 검증하며 직접 생성하거나 변경하지 않습니다.
-- 테스트는 `src/test/resources/application.yaml`을 사용합니다. 테스트 클래스패스가 우선하므로 이 파일이 운영 `application.yaml`을 대체하며, 인메모리 H2와 더미 API 키로 외부 의존 없이 실행됩니다. 실제 API 키 환경변수가 설정되어 있어도 테스트는 더미 값을 사용하므로 외부 API를 호출하지 않습니다.
-- V1 마이그레이션은 `ENUM`, `ENGINE=InnoDB`, `BIT(1)` 등 MySQL 전용 문법을 사용해 H2에서 실행할 수 없습니다. 그래서 테스트는 Flyway를 끄고 엔티티 기준 `create-drop`으로 스키마를 만듭니다. **마이그레이션 자체가 실제 MySQL에서 정상 동작하는지는 이 테스트로 검증되지 않습니다.** compose로 빈 스키마에 V1이 적용되는 것은 수동으로 확인했으나, 자동 검증은 Testcontainers 기반 통합 테스트의 몫으로 남아 있습니다.
+- 테스트는 `src/test/resources/application.yaml`을 사용합니다. 테스트 클래스패스가 우선하므로 이 파일이 운영 `application.yaml`을 대체하며, 더미 API 키로 외부 API 호출 없이 실행됩니다. 실제 API 키 환경변수가 설정되어 있어도 테스트는 더미 값을 사용합니다.
+- DB는 Testcontainers가 MySQL 8 컨테이너를 띄웁니다. `MySqlTestSupport`를 상속한 테스트가 이 컨테이너를 씁니다. 컨테이너는 `static`으로 한 번만 뜨고 테스트 JVM 전체가 공유합니다. `@TestConfiguration` 빈으로 두면 `@SpringBootTest`와 `@DataJpaTest`가 서로 다른 컨텍스트라 컨테이너가 여러 개 뜹니다.
+
+- **테스트가 운영과 같은 방식으로 스키마를 만듭니다.** Flyway가 V1부터 순서대로 실행되고, `ddl-auto: validate`가 그 스키마와 엔티티 매핑이 맞는지 검사합니다. 이전에는 H2에서 V1을 실행할 수 없어(`ENUM`, `ENGINE=InnoDB`, `BIT(1)`) Flyway를 끄고 엔티티 기준 `create-drop`으로 만들었고, 그 결과 **마이그레이션이 CI에서 한 번도 실행되지 않았습니다.**
+
+- `BaedalOndoApiApplicationTests`가 이 검증을 맡습니다. 컨텍스트가 뜨면 마이그레이션 전체가 성공했고 엔티티 매핑도 일치한다는 뜻입니다. 마이그레이션에 문법 오류를 넣어 실패하는 것까지 확인했습니다.
+
+- CD로 자동 배포하면 마이그레이션이 도는 것을 사람이 보지 않습니다. MySQL은 DDL에 트랜잭션이 없어 중간에 실패하면 앞선 구문이 적용된 채 남고, 앱은 뜨지 않으며 `flyway repair`가 필요합니다. CI가 이를 배포 전에 막는 유일한 관문입니다.
 - `/dashboard/main/{storeId}`는 URL을 유지하지 않고 선택 Store ID를 세션에 저장한 뒤 `/dashboard/main`으로 리다이렉트합니다.
 - `/dashboard/main`은 로그인 사용자의 Store를 조회하는 정식 진입점입니다.
 - 게스트 지역은 `src/main/resources/guest-regions.csv`에 고정된 서울 25개 자치구청 정보를 사용하며 DB에 저장하지 않습니다.

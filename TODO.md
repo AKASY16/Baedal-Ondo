@@ -13,7 +13,13 @@
 - [x] **헬스체크** — `/actuator/health`만 노출, `show-details: never`
 - [x] **계측 로그 제거** — `logTiming` 22곳 삭제
 - [x] **DB 백업 스크립트** — `scripts/backup-db.sh`
-- [x] **테스트 재현성** — `src/test/resources/application.yaml`. 인메모리 H2 + 더미 키로 개인 설정 없이 `./gradlew test` 통과
+- [x] **테스트 재현성** — `src/test/resources/application.yaml`. 더미 키로 개인 설정 없이 `./gradlew test` 통과
+- [x] **테스트 DB를 Testcontainers MySQL로 전환** — H2에서는 V1을 실행할 수 없어 Flyway를 끄고
+  엔티티 기준 `create-drop`을 쓰고 있었다. 그래서 **마이그레이션이 CI에서 한 번도 돌지 않았다.**
+  운영과 같은 MySQL에서 V1부터 실행하고 `ddl-auto: validate`로 엔티티 매핑까지 검사한다.
+  CD를 붙이면 마이그레이션이 도는 걸 아무도 보지 않으므로 CI가 유일한 관문이 된다.
+  DB를 쓰는 테스트는 3개뿐이라 두 벌의 DB 설정을 유지하는 것보다 하나로 가는 편이 단순하다.
+  17초 → 39초. Docker가 켜져 있어야 한다
 - [x] **GitHub Actions CI** — push·PR마다 테스트 실행
 - [x] **API 키 환경변수화** — `application-secret.yaml`이 jar에 포장되어 이미지까지 따라가던 문제.
   키를 전부 환경변수로 옮기고 리소스에서 파일을 제거

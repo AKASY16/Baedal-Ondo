@@ -3,9 +3,11 @@ package com.baedalondo.api.store.repository;
 import com.baedalondo.api.store.domain.BusinessType;
 import com.baedalondo.api.store.domain.Store;
 import com.baedalondo.api.weather.domain.WeatherGrid;
+import com.baedalondo.api.support.MySqlTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 
@@ -18,11 +20,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  사전 적재 대상을 뽑는 조회를 확인한다.
  스케줄러가 매시 도는 만큼 호출 수가 격자 수와 시도 수를 넘지 않아야 한다.
  **/
-@DataJpaTest(properties = {
-        "spring.flyway.enabled=false",
-        "spring.jpa.hibernate.ddl-auto=create-drop"
-})
-class StorePreloadTargetTest {
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+class StorePreloadTargetTest extends MySqlTestSupport {
 
     @Autowired
     private TestEntityManager entityManager;

@@ -40,7 +40,6 @@ dependencies {
 
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.mysql:mysql-connector-j'
-	testRuntimeOnly 'com.h2database:h2'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-thymeleaf-test'
@@ -50,6 +49,14 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testAnnotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.mockito:mockito-junit-jupiter'
+
+	// 테스트도 운영과 같은 MySQL에서 돈다.
+	// H2로는 V1 마이그레이션(ENUM, ENGINE=InnoDB, BIT(1))을 실행할 수 없어
+	// 스키마를 엔티티에서 만들었고, 그래서 마이그레이션이 한 번도 검증되지 않았다.
+	testImplementation platform('org.testcontainers:testcontainers-bom:1.20.4')
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'org.testcontainers:mysql'
 }
 
 tasks.named('test') {

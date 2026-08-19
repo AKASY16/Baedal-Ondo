@@ -1,28 +1,23 @@
 # 테스트 전용 설정.
 #
 # 테스트 클래스패스가 우선하므로 이 파일이 main의 application.yaml을 대체한다.
-# 목표는 저장소를 clone한 사람이 개인 환경변수나 application-secret.yaml 없이
-# ./gradlew test 를 그대로 성공시키는 것이다.
+# 개인 환경변수나 application-secret.yaml 없이 ./gradlew test 가 통과해야 한다.
+# 다만 DB는 Testcontainers로 실제 MySQL을 띄우므로 Docker는 켜져 있어야 한다.
 #
-# 따라서 여기서는 application-secret.yaml을 import 하지 않는다.
+# 여기서는 application-secret.yaml을 import 하지 않는다.
 # 로컬에 실제 키가 있어도 테스트가 외부 API를 호출하지 않도록 격리한다.
 
 spring:
-  datasource:
-    url: jdbc:h2:mem:baedalondo;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: ""
+  # datasource는 MySqlTestSupport가 Testcontainers 컨테이너 정보로 주입한다.
 
-  # V1 마이그레이션은 MySQL 전용 문법(ENUM, ENGINE=InnoDB, BIT(1))을 사용하므로
-  # H2에서 실행할 수 없다. 테스트 스키마는 엔티티에서 생성한다.
-  # 마이그레이션 자체의 검증은 실제 MySQL이 필요하며 별도 통합 테스트의 몫이다.
+  # 운영과 같은 방식으로 스키마를 만든다.
+  # 마이그레이션이 실제로 실행되고, 엔티티 매핑이 그 스키마와 맞는지 validate가 검사한다.
   flyway:
-    enabled: false
+    enabled: true
 
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: validate
     show-sql: false
 
 logging:

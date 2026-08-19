@@ -1,8 +1,10 @@
 package com.baedalondo.api.store.domain;
 
+import com.baedalondo.api.support.MySqlTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 
@@ -11,11 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  businessType이 ordinal 숫자가 아니라 Enum 이름 문자열로 저장되는지 확인한다.
  **/
-@DataJpaTest(properties = {
-        "spring.flyway.enabled=false",
-        "spring.jpa.hibernate.ddl-auto=create-drop"
-})
-class StoreBusinessTypePersistenceTest {
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+class StoreBusinessTypePersistenceTest extends MySqlTestSupport {
 
     @Autowired
     private TestEntityManager entityManager;
