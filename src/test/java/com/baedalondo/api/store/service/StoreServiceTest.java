@@ -11,7 +11,9 @@ import com.baedalondo.api.location.dto.WeatherGridResult;
 import com.baedalondo.api.location.dto.Wgs84CoordinateResult;
 import com.baedalondo.api.store.domain.BusinessType;
 import com.baedalondo.api.store.domain.Store;
+import com.baedalondo.api.store.dto.StoreEditRequest;
 import com.baedalondo.api.store.dto.StoreRegisterRequest;
+import com.baedalondo.api.location.JusoAddressVerifier;
 import com.baedalondo.api.store.factory.StoreFactory;
 import com.baedalondo.api.store.repository.StoreRepository;
 import com.baedalondo.api.user.domain.UserAccount;
@@ -58,6 +60,9 @@ class StoreServiceTest {
     @Mock
     private UserAccountRepository userAccountRepository;
 
+    @Mock
+    private JusoAddressVerifier jusoAddressVerifier;
+
     private StoreService storeService;
 
     @BeforeEach
@@ -71,8 +76,18 @@ class StoreServiceTest {
                 commercialAreaLocator,
                 storeFactory,
                 currentUserService,
-                userAccountRepository
+                userAccountRepository,
+                jusoAddressVerifier
         );
+
+        // 검증기는 이 테스트의 대상이 아니다. 요청에 담긴 주소를 그대로 돌려주게 두고,
+        // 검증 로직 자체는 JusoAddressVerifier 쪽에서 따로 본다.
+        lenient().when(jusoAddressVerifier.storeRegisterCheckAddress(any(StoreRegisterRequest.class)))
+                .thenAnswer(invocation ->
+                        invocation.getArgument(0, StoreRegisterRequest.class).getJusoAddress());
+        lenient().when(jusoAddressVerifier.storeEditCheckAddress(any(StoreEditRequest.class)))
+                .thenAnswer(invocation ->
+                        invocation.getArgument(0, StoreEditRequest.class).getJusoAddress());
 
         // 업종 검증에서 먼저 실패하는 테스트도 있어 lenient로 둔다.
         lenient().when(addressCoordinateResolver.resolveCoordinate(any()))

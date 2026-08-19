@@ -4,6 +4,7 @@ import com.baedalondo.api.auth.service.CurrentUserService;
 import com.baedalondo.api.commercialarea.dto.CommercialAreaMatch;
 import com.baedalondo.api.commercialarea.locator.CommercialAreaLocator;
 import com.baedalondo.api.location.AddressCoordinateResolver;
+import com.baedalondo.api.location.JusoAddressVerifier;
 import com.baedalondo.api.location.dto.JusoAddressRequest;
 import com.baedalondo.api.location.dto.ResolvedCoordinateResult;
 import com.baedalondo.api.location.dto.WeatherGridResult;
@@ -32,47 +33,65 @@ public class StoreService {
     private final StoreFactory storeFactory;
     private final CurrentUserService currentUserService;
     private final UserAccountRepository userAccountRepository;
+    private final JusoAddressVerifier jusoAddressVerifier;
 
     public StoreService(StoreRepository storeRepository,
                         AddressCoordinateResolver addressCoordinateResolver,
                         CommercialAreaLocator commercialAreaLocator,
                         StoreFactory storeFactory,
                         CurrentUserService currentUserService,
-                        UserAccountRepository userAccountRepository) {
+                        UserAccountRepository userAccountRepository,
+                        JusoAddressVerifier jusoAddressVerifier) {
         this.storeRepository = storeRepository;
         this.addressCoordinateResolver = addressCoordinateResolver;
         this.commercialAreaLocator = commercialAreaLocator;
         this.storeFactory = storeFactory;
         this.currentUserService = currentUserService;
         this.userAccountRepository = userAccountRepository;
+        this.jusoAddressVerifier = jusoAddressVerifier;
     }
 
     public Store registerStore(StoreRegisterRequest request) {
 
         validateRegisterRequest(request);
 
-        JusoAddressRequest jusoAddress =  request.getJusoAddress();
+        // 사용자가 보낸 주소를 행안부 API로 다시 검증하고,
+        // 서버가 확인한 주소 정보를 반환받는다.
+        JusoAddressRequest verifiedAddress =
+                jusoAddressVerifier.storeRegisterCheckAddress(request);
 
+        // 검증된 주소를 기준으로 좌표를 계산한다.
         // WGS84 좌표는 격자 계산과 상권 판별에만 쓰고 Store에 저장하지 않는다.
         ResolvedCoordinateResult resolvedCoordinate =
-                addressCoordinateResolver.resolveCoordinate(jusoAddress);
+                addressCoordinateResolver.resolveCoordinate(verifiedAddress);
 
-        WeatherGridResult weatherGridCoordinate = resolvedCoordinate.getWeatherGrid();
+        WeatherGridResult weatherGridCoordinate =
+                resolvedCoordinate.getWeatherGrid();
 
         CommercialAreaMatch commercialAreaMatch = commercialAreaLocator
-                .find(resolvedCoordinate.getLatitude(), resolvedCoordinate.getLongitude())
+                .find(
+                        resolvedCoordinate.getLatitude(),
+                        resolvedCoordinate.getLongitude()
+                )
                 .orElse(null);
 
-        Store store = storeFactory.storeCreate(request, weatherGridCoordinate, commercialAreaMatch);
+        // Store에도 사용자가 보낸 원본 주소가 아니라
+        // 검증된 주소를 저장한다.
+        Store store = storeFactory.storeCreate(
+                request,
+                verifiedAddress,
+                weatherGridCoordinate,
+                commercialAreaMatch
+        );
 
-        // 인증된 세션의 ID이므로 존재가 보장된다. FK 설정에만 쓰므로 프록시로 조회 쿼리를 생략한다.
+        // 인증된 세션의 ID이므로 존재가 보장된다.
+        // FK 설정에만 쓰므로 프록시로 조회 쿼리를 생략한다.
         UserAccount user = userAccountRepository
                 .getReferenceById(currentUserService.getCurrentUserId());
 
         store.setUser(user);
 
         return storeRepository.save(store);
-
     }
 
     @Transactional
@@ -86,24 +105,33 @@ public class StoreService {
                 .findByIdAndUserId(storeId, currentUserId)
                 .orElseThrow(() -> new IllegalArgumentException("가게를 찾을 수 없습니다."));
 
-        JusoAddressRequest newAddress = request.getJusoAddress();
+        JusoAddressRequest requestedAddress = request.getJusoAddress();
 
         boolean addressChanged =
-                !Objects.equals(newAddress.getRoadFullAddr(), currentStore.getAddress());
+                !Objects.equals(
+                        requestedAddress.getRoadFullAddr(),
+                        currentStore.getAddress()
+                );
 
         boolean nameChanged =
-                !Objects.equals(request.getName(), currentStore.getName());
+                !Objects.equals(
+                        request.getName(),
+                        currentStore.getName()
+                );
 
         boolean businessTypeChanged =
                 request.getBusinessType() != currentStore.getBusinessType();
 
         boolean addressDetailChanged =
                 !Objects.equals(
-                        newAddress.getAddrDetail(),
+                        requestedAddress.getAddrDetail(),
                         currentStore.getAddressDetail()
                 );
 
-        if (!addressChanged && !nameChanged && !businessTypeChanged && !addressDetailChanged) {
+        if (!addressChanged
+                && !nameChanged
+                && !businessTypeChanged
+                && !addressDetailChanged) {
             return currentStore;
         }
 
@@ -111,23 +139,41 @@ public class StoreService {
         currentStore.setBusinessType(request.getBusinessType());
 
         if (addressChanged) {
-            //기상청 좌표 및 상권값 수정
-            ResolvedCoordinateResult resolvedCoordinate =
-                    addressCoordinateResolver.resolveCoordinate(newAddress);
 
-            WeatherGridResult weatherGridCoordinate = resolvedCoordinate.getWeatherGrid();
+            // 사용자가 보낸 주소를 행안부 API로 다시 검증하고,
+            // 서버가 확인한 주소 정보를 사용한다.
+            JusoAddressRequest verifiedAddress =
+                    jusoAddressVerifier.storeEditCheckAddress(request);
+
+            // 검증된 주소를 기준으로 기상청 격자 및 상권 좌표를 계산한다.
+            ResolvedCoordinateResult resolvedCoordinate =
+                    addressCoordinateResolver.resolveCoordinate(verifiedAddress);
+
+            WeatherGridResult weatherGridCoordinate =
+                    resolvedCoordinate.getWeatherGrid();
 
             CommercialAreaMatch commercialAreaMatch = commercialAreaLocator
                     .find(
                             resolvedCoordinate.getLatitude(),
-                            resolvedCoordinate.getLongitude())
+                            resolvedCoordinate.getLongitude()
+                    )
                     .orElse(null);
 
-            storeFactory.editStore(currentStore, request, weatherGridCoordinate, commercialAreaMatch);
+            // Store에도 클라이언트 원본 주소가 아니라 검증된 주소를 반영한다.
+            storeFactory.editStore(
+                    currentStore,
+                    request,
+                    verifiedAddress,
+                    weatherGridCoordinate,
+                    commercialAreaMatch
+            );
 
-        }else if(addressDetailChanged){
-            //상세 주소만 바뀌었을 경우
-            currentStore.setAddressDetail(newAddress.getAddrDetail());
+        } else if (addressDetailChanged) {
+
+            // 상세주소는 사용자가 직접 입력하는 값이므로 request 값을 사용한다.
+            currentStore.setAddressDetail(
+                    requestedAddress.getAddrDetail()
+            );
         }
 
         return currentStore;

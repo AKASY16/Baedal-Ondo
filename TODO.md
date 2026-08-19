@@ -108,20 +108,30 @@
 
 ## 4단계 · 데이터 무결성
 
-- [ ] **주소 payload 서버 검증**
-  근거: 표시 주소(`roadFullAddr`, `siNm`, `sggNm`)는 클라이언트 값을 그대로 저장하고,
-  좌표는 `admCd`/`rnMgtSn`/건물번호로 계산. API를 직접 호출하면 둘이 다른 지역을 가리킬 수 있음
-  → 화면 주소는 강남, 기상청 좌표·상권은 종로가 되는 상태가 가능
-  방향: ① 좌표 API 결과와 클라이언트 `siNm`/`sggNm` 일치 검증(경량) → ② 전체 canonicalization
-  ⚠️ 이 목록에서 비용이 가장 큼. 등록·수정 흐름과 프런트 계약까지 바뀜
+- [x] **주소 payload 서버 검증**
+  표시 주소는 클라이언트 값을 그대로 저장하고 좌표는 `admCd`/`rnMgtSn`/건물번호로 계산해서,
+  조작된 payload면 화면 주소는 강남인데 기상청 좌표와 상권은 종로가 되는 상태가 가능했다.
+
+  `JusoAddressVerifier`가 클라이언트가 보낸 도로명주소로 **서버가 행안부 API를 다시 조회**하고,
+  식별정보 6개(`admCd`, `rnMgtSn`, `udrtYn`, `buldMnnm`, `buldSlno`, `bdMgtSn`)를 대조해
+  다르면 거부한다. 저장은 서버가 받은 값으로 하고 상세주소만 사용자 입력을 쓴다.
+  `StoreService`가 등록·수정 양쪽에서 호출한다.
 
 ---
 
 ## 5단계 · API 계약·견고성
 
-- [ ] **`JusoCoordinateClient` 응답 검증** (비용 작음, 앞당겨도 좋음)
-  근거: `entX`/`entY`를 `asDouble()`로 읽어 필드 누락 시 `0.0`이 정상 좌표처럼 전달됨.
-  errorCode/resultCode 검증도 주소 검색 클라이언트보다 얕음
+- [x] **`JusoCoordinateClient` 응답 검증**
+  `entX`/`entY`를 `asDouble()`로 읽어 필드가 없으면 `0.0`이 정상 좌표처럼 전달됐다.
+  누락·오류코드·국내 범위를 모두 검사한다.
+
+  범위 검사가 필요한 이유: `0.0`만 막으면 `1.0` 같은 값이 통과하고, 그 격자로도
+  기상청이 응답을 주기 때문에 **조용히 틀린 날씨**를 보게 된다.
+  EPSG:5179 기준 남한이 들어오는 범위(X 60만~150만, Y 125만~215만)를 넉넉히 잡았다.
+
+  `IllegalStateException`을 다시 던지도록 고쳤다. 이전에는 `catch (Exception)`이
+  방금 구분해 던진 사유까지 삼켜 전부 "호출 중 오류"로 덮였다.
+  `JusoCoordinateClientTest` 6개로 고정
 
 - [ ] **Bean Validation 도입**
   근거: `validateRegisterRequest`/`validateEditRequest`가 거의 같은 검증을 중복. Signup은 이미 잘 사용 중
@@ -276,6 +286,41 @@ EC2 단계에서 처리할 것
 - **EC2에서 Gradle 빌드는 하지 않음.** fat jar 빌드는 2GB에서도 빠듯하므로 Actions에서 빌드
 - 이미지는 약 600MB(JRE 베이스 + jar)지만 베이스 레이어는 한 번만 받고 이후엔 jar 레이어만 갱신됨
 - Flyway는 새 스키마로 시작하면 그대로 통과. 데이터가 있는 스키마에 처음 적용하면 실패함
+
+---
+
+## 배포 전 · 외부 점검 대응
+
+`docs`에 없는 외부 감사 보고서(2026-08-19, 기준 커밋 `0884d91`)에서 나온 항목이다.
+보고서가 P0로 잡은 주소 검증 두 건은 보고서 작성 중에 반영되어 이미 닫혔다.
+
+- [x] **앱 컨테이너에 DB root 비밀번호 전달 제거**
+  `app`이 `env_file`로 `.env` 전체를 받아 쓰지도 않는 `DB_ROOT_PASSWORD`까지 갖고 있었다.
+  앱이 뚫리면 `env` 한 번으로 DB 최고권한이 노출된다.
+  필요한 값만 `environment`에 명시했다. `docker compose config`로 빠진 것을 확인
+
+- [ ] **백업 스크립트가 compose 구성에서 동작하지 않음** ⚠️ 배포 전 필수
+  `scripts/backup-db.sh`는 `DB_HOST=127.0.0.1`로 붙는데 compose의 `db`는 포트를 열지 않는다.
+  **compose로 띄운 DB는 이 스크립트로 백업되지 않는다.** 로컬에 MySQL을 따로 깔던 시절 기준이다.
+  방향: `docker compose exec -T db mysqldump` 방식으로 바꾸고,
+  **실제로 새 볼륨에 복원해 앱이 뜨는 것까지** 확인. 외부 저장소 2차 백업도 함께
+
+- [ ] **개인정보처리방침과 실제 기능 불일치** ⚠️ 배포 전 필수
+  `privacy.html`은 탈퇴·삭제·동의 철회를 약속하는데 **탈퇴 API가 없다.**
+  `WITHDRAWN` 상태는 로그인 차단에만 쓰이고 상태를 바꾸는 경로가 없다.
+  결정 필요: 탈퇴 기능을 구현할지, 방침을 현재 MVP에 맞게 고칠지
+
+- [ ] **운영에서 `TESTJUSOGOKR` fail-fast**
+  `application.yaml`과 템플릿 2곳에 테스트 키가 기본값으로 있다.
+  운영에서 키가 없으면 조용히 테스트 키로 도는 대신 기동을 막는 편이 낫다
+
+- [ ] **개발 흔적 정리** (7단계 죽은 코드와 함께)
+  `/js/**` permitAll(실제 `static/js` 없음), `frameOptions().sameOrigin()`(H2 콘솔이 없으니 DENY 검토),
+  주소 팝업 raw JSON fallback, `console.error`
+
+- [ ] **로그인·회원가입 rate limit** — Nginx 단계에서 IP 기반으로. 배포 트랙과 함께
+- [ ] **Spring Boot 4.0.x 최신 패치 확인**
+- [ ] **외부 API 키가 예외 로그 URI에 남는지 확인** — 실패 케이스 로그를 실제로 볼 것
 
 ---
 

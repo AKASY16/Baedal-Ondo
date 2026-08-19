@@ -14,14 +14,8 @@ public class StoreFactory {
 
     private final KoreanAddressParser koreanAddressParser;
 
-    public  StoreFactory(KoreanAddressParser koreanAddressParser) {
+    public StoreFactory(KoreanAddressParser koreanAddressParser) {
         this.koreanAddressParser = koreanAddressParser;
-    }
-
-    public Store storeCreate(StoreRegisterRequest request,
-                              WeatherGridResult weatherGridCoordinate){
-
-        return storeCreate(request, weatherGridCoordinate, null);
     }
 
     /**
@@ -29,10 +23,11 @@ public class StoreFactory {
      이때 매장은 상권 정보 없이 정상 등록된다.
      */
     public Store storeCreate(StoreRegisterRequest request,
+                              JusoAddressRequest verifiedAddress,
                               WeatherGridResult weatherGridCoordinate,
                               CommercialAreaMatch commercialAreaMatch){
 
-        JusoAddressRequest jusoAddress =  request.getJusoAddress();
+        JusoAddressRequest jusoAddress = verifiedAddress;
 
         Store store = new Store(
                 request.getName(),
@@ -68,10 +63,11 @@ public class StoreFactory {
 
     public void editStore(Store store,
                            StoreEditRequest request,
+                           JusoAddressRequest verifiedAddress,
                            WeatherGridResult weatherGridCoordinate,
                            CommercialAreaMatch commercialAreaMatch){
 
-        JusoAddressRequest newAddress = request.getJusoAddress();
+        JusoAddressRequest newAddress = verifiedAddress;
 
         store.setAddress(newAddress.getRoadFullAddr());
         store.setRoadAddress(newAddress.getRoadAddrPart1());
@@ -99,4 +95,5 @@ public class StoreFactory {
 
         store.assignCommercialArea(commercialAreaMatch);
     }
+
 }

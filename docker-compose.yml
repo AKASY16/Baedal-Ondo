@@ -45,8 +45,17 @@ services:
       # 서버에서는 채우지 않는다. 이 compose를 서버로 가져갈 때 값이 따라가지 않도록
       # 기본값을 빈 문자열로 둔다.
       SPRING_PROFILES_ACTIVE: "${SPRING_PROFILES_ACTIVE:-}"
-    env_file:
-      - .env
+      # .env를 env_file로 통째로 넘기지 않는다. 그렇게 하면 앱이 쓰지도 않는
+      # DB_ROOT_PASSWORD까지 컨테이너 환경변수로 들어가, 앱이 뚫렸을 때
+      # DB 최고권한 비밀번호가 env 한 번으로 노출된다.
+      # 값 자체는 compose가 .env에서 읽어 채운다.
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      KMA_AUTH_KEY: ${KMA_AUTH_KEY}
+      DATAPORTAL_AUTH_KEY: ${DATAPORTAL_AUTH_KEY}
+      DATAPORTAL_HOLIDAY_AUTH_KEY: ${DATAPORTAL_HOLIDAY_AUTH_KEY}
+      JUSO_COORDINATE_AUTH_KEY: ${JUSO_COORDINATE_AUTH_KEY}
+      JUSO_POPUP_AUTH_KEY: ${JUSO_POPUP_AUTH_KEY}
     ports:
       - "8080:8080"
     depends_on:
