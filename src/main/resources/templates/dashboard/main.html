@@ -392,29 +392,15 @@
             background: var(--surface);
         }
 
-        .scale-marker.closed-end { left: 20%; }
-        .scale-marker.low-end { left: 40%; }
-        .scale-marker.medium-end { left: 60%; }
-        .scale-marker.high-end { left: 80%; }
-
-        .scale-labels {
-            display: grid;
-            grid-template-columns: repeat(5, minmax(0, 1fr));
-            color: var(--muted);
-            font-size: 11px;
-        }
-
-        .scale-labels span {
-            text-align: center;
-        }
-
-        .scale-labels span:first-child {
-            text-align: left;
-        }
-
-        .scale-labels span:last-child {
-            text-align: right;
-        }
+        /*
+           구간 경계가 아니라 0~100을 읽기 위한 눈금이다.
+           구간 판정은 상태 줄이 말하므로 축에 구간 이름을 적지 않는다.
+           경계 값(ScoreStatusLevel)이 바뀌어도 이 눈금은 손대지 않아도 된다.
+        */
+        .scale-marker.tick-20 { left: 20%; }
+        .scale-marker.tick-40 { left: 40%; }
+        .scale-marker.tick-60 { left: 60%; }
+        .scale-marker.tick-80 { left: 80%; }
 
         .temperature-guidance {
             display: grid;
@@ -929,17 +915,10 @@
             <div class="temperature-scale" aria-label="배달온도 범위">
                 <div class="track">
                     <span class="fill" th:style="|width: ${dashboard.score}%|"></span>
-                    <span class="scale-marker closed-end" aria-hidden="true"></span>
-                    <span class="scale-marker low-end" aria-hidden="true"></span>
-                    <span class="scale-marker medium-end" aria-hidden="true"></span>
-                    <span class="scale-marker high-end" aria-hidden="true"></span>
-                </div>
-                <div class="scale-labels" aria-hidden="true">
-                    <span>매우 낮음</span>
-                    <span>낮음</span>
-                    <span>보통</span>
-                    <span>높음</span>
-                    <span>매우 높음</span>
+                    <span class="scale-marker tick-20" aria-hidden="true"></span>
+                    <span class="scale-marker tick-40" aria-hidden="true"></span>
+                    <span class="scale-marker tick-60" aria-hidden="true"></span>
+                    <span class="scale-marker tick-80" aria-hidden="true"></span>
                 </div>
             </div>
         </div>

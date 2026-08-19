@@ -1,10 +1,13 @@
 package com.baedalondo.api.dashboard.dto;
 
+import com.baedalondo.api.common.ServiceTime;
 import com.baedalondo.api.score.ScoreResult;
 import com.baedalondo.api.score.status.ScoreStatusLevel;
 import com.baedalondo.api.store.domain.Store;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 public class DashboardView {
@@ -21,7 +24,7 @@ public class DashboardView {
     private final String airQualityFactor;
     private final String airQualityDescription;
     private final String airQualityDetail;
-    private final Map<LocalDateTime, ScoreResult> forecastScores;
+    private final List<ForecastScoreView> forecastScores;
 
     public DashboardView(Store store,
                          int score,
@@ -36,7 +39,7 @@ public class DashboardView {
                          String airQualityFactor,
                          String airQualityDescription,
                          String airQualityDetail,
-                         Map<LocalDateTime, ScoreResult> forecastScores) {
+                         List<ForecastScoreView> forecastScores) {
         this.store = store;
         this.score = score;
         this.status = status;
@@ -72,13 +75,45 @@ public class DashboardView {
                 scoreResult.getAirQualityFactor(),
                 scoreResult.getAirQualityDescription(),
                 scoreResult.getAirQualityDetail(),
-                forecastScores
+                toForecastViews(forecastScores)
         );
     }
 
 
-    public Map<LocalDateTime, ScoreResult> getForecastScores() {
+    public List<ForecastScoreView> getForecastScores() {
         return forecastScores;
+    }
+
+    /**
+     예보 Map을 화면이 그대로 쓸 수 있는 형태로 바꾼다.
+     시각 라벨을 여기서 만들어 템플릿이 날짜 포맷과 자정 넘김을 다루지 않게 한다.
+     */
+    private static List<ForecastScoreView> toForecastViews(
+            Map<LocalDateTime, ScoreResult> forecastScores) {
+        if (forecastScores == null || forecastScores.isEmpty()) {
+            return List.of();
+        }
+
+        LocalDate today = ServiceTime.today();
+
+        return forecastScores.entrySet().stream()
+                .map(entry -> new ForecastScoreView(
+                        createHourLabel(entry.getKey(), today),
+                        entry.getValue().getScore(),
+                        entry.getValue().getStatusLevel()
+                ))
+                .toList();
+    }
+
+    private static String createHourLabel(LocalDateTime forecastAt, LocalDate today) {
+        String hour = forecastAt.getHour() + "시";
+
+        // 밤에 조회하면 예보 5칸이 자정을 넘어간다. 그때 "0시"만 쓰면 오늘로 읽힌다.
+        if (forecastAt.toLocalDate().isAfter(today)) {
+            return "내일 " + hour;
+        }
+
+        return hour;
     }
 
     public Store getStore() {
