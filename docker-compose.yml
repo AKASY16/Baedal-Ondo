@@ -41,6 +41,10 @@ services:
       # 컨테이너 안에서 localhost는 자기 자신이다.
       # compose가 서비스 이름으로 내부 DNS를 만들어 주므로 db로 접속한다.
       DB_URL: jdbc:mysql://db:3306/baedalondo
+      # 비워 두면 운영 기본값으로 뜬다. SQL 로그를 보려면 .env에 local을 넣는다.
+      # 서버에서는 채우지 않는다. 이 compose를 서버로 가져갈 때 값이 따라가지 않도록
+      # 기본값을 빈 문자열로 둔다.
+      SPRING_PROFILES_ACTIVE: "${SPRING_PROFILES_ACTIVE:-}"
     env_file:
       - .env
     ports:

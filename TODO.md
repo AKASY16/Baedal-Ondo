@@ -45,10 +45,12 @@
   스케줄러가 매일 창을 갱신하고 예보는 오늘·내일만 보므로 실제로는 거의 걸리지 않는다.
   다중 인스턴스나 먼 미래 날짜 조회가 생기면 그때 분리할 것
 
-- [ ] **`StoreFactory.editStore`의 sidoName 정규화** + editStore 테스트
-  근거: `StoreFactory:47`은 `extractSidoName(...)`, `StoreFactory:82`는 `newAddress.getSiNm()` 원본 그대로.
-  같은 필드에 `서울`과 `서울특별시`가 공존 가능
-  성격: 즉시 장애는 아님(`CurrentAirQualityService`가 사용 시 다시 정규화). Store 불변조건 불일치 문제
+- [x] **`StoreFactory.editStore`의 sidoName 정규화**
+  생성 경로는 `extractSidoName(...)`, 수정 경로는 `newAddress.getSiNm()` 원본을 그대로 넣어
+  같은 필드에 `서울`과 `서울특별시`가 공존할 수 있었다. 수정 경로도 정규화를 거치게 했다.
+  대기질 사전 적재가 매장 시도명을 그대로 쓰므로 이 불일치가 조회 대상을 갈라놓을 수 있었다.
+
+- [ ] **editStore 테스트 보강** (6단계 항목과 같음)
 
 ---
 
@@ -211,9 +213,17 @@
   단 엔티티(`@PrePersist`)는 빈을 주입받을 수 없어 정적 경로가 일부 남는다.
   ⚠️ 2단계 점수 시뮬레이션에서 특정 시각을 가정해야 한다면 그때 필요해진다. 그 전까지는 선택 사항
 
-- [ ] **SQL 로깅 프로필 분리**
-  근거: `show-sql: true`, `org.hibernate.SQL: debug`가 운영에도 그대로 적용됨
-  ⚠️ 배포 전 필수
+- [x] **SQL 로깅 프로필 분리**
+  `show-sql: true`와 `org.hibernate.SQL: debug`가 `application.yaml`에 있어 운영에도 적용됐다.
+  프로필을 지정하지 않았을 때의 값이 곧 운영 설정이다.
+
+  `application-local.yaml`로 옮겼다. 로컬은 `SPRING_PROFILES_ACTIVE=local`로 켜고,
+  서버는 아무것도 지정하지 않으면 꺼진 상태로 뜬다. compose에도 빈 기본값을 넣어
+  파일을 서버로 가져가도 값이 따라가지 않게 했다.
+  로컬 프로필에는 `org.hibernate.orm.jdbc.bind: trace`도 넣어 물음표 자리의 실제 값을 본다.
+
+  `SqlLoggingProfileTest`가 `application.yaml`에 SQL 로깅이 다시 들어오면 실패한다.
+  주석 처리로 껐다 켰다 하면 그 상태로 커밋되기 쉬워서 가드를 뒀다.
 
 - [ ] **REH(습도) 정책 결정**
   근거: `KmaCurrentWeatherClient`가 `hasReh`를 필수로 요구하나 점수 계산에는 미사용.

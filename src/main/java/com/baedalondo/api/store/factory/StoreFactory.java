@@ -79,7 +79,9 @@ public class StoreFactory {
         store.setJibunAddress(newAddress.getJibunAddr());
         store.setPostalCode(newAddress.getZipNo());
 
-        store.setSidoName(newAddress.getSiNm());
+        store.setSidoName(
+                koreanAddressParser.extractSidoName(newAddress.getSiNm())
+        );
         store.setSigunguName(newAddress.getSggNm());
         store.setDongName(newAddress.getEmdNm());
 

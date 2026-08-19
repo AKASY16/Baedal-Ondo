@@ -157,6 +157,26 @@ Windows에서는 사용자 환경변수로 등록합니다. 등록 후 터미널
 setx DB_PASSWORD "비밀번호"
 ```
 
+#### SQL 로그 보기
+
+기본 설정에는 SQL 로깅이 없습니다. `application.yaml`은 프로필을 지정하지 않았을 때의 값이라 곧 운영 설정이고, 여기에 켜 두면 서버에도 그대로 적용됩니다.
+
+로컬에서 쿼리를 보려면 `local` 프로필로 실행합니다.
+
+```bash
+SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
+```
+
+Docker Compose로 띄운다면 `.env`에 넣습니다.
+
+```
+SPRING_PROFILES_ACTIVE=local
+```
+
+`application-local.yaml`은 실행된 SQL과 함께 물음표 자리에 들어간 실제 파라미터까지 출력합니다. 비밀값이 없으므로 저장소에 포함되어 있습니다.
+
+**서버에서는 이 값을 채우지 않습니다.** compose의 기본값이 빈 문자열이라 지정하지 않으면 운영 설정으로 뜹니다.
+
 법적 고지에 표시되는 운영 정보는 아래 환경변수로 실행 환경마다 덮어쓸 수 있습니다.
 
 | 환경변수 | 기본값 | 용도 |
