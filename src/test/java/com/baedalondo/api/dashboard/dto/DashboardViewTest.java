@@ -16,6 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DashboardViewTest {
 
+    private static final int CURRENT_SCORE = 45;
+
     @Test
     @DisplayName("예보 시각을 화면 라벨로 바꾼다")
     void createsHourLabel() {
@@ -66,6 +68,22 @@ class DashboardViewTest {
     }
 
     @Test
+    @DisplayName("현재 점수 대비 증감을 함께 낸다")
+    void calculatesDeltaFromCurrentScore() {
+        Map<LocalDateTime, ScoreResult> forecastScores = new LinkedHashMap<>();
+        forecastScores.put(ServiceTime.today().atTime(17, 0), createScoreResult(58));
+        forecastScores.put(ServiceTime.today().atTime(18, 0), createScoreResult(39));
+        forecastScores.put(ServiceTime.today().atTime(19, 0), createScoreResult(45));
+
+        // createView가 현재 점수를 45로 넘긴다.
+        List<ForecastScoreView> forecasts = createView(forecastScores).getForecastScores();
+
+        assertEquals("현재 대비 +13", forecasts.get(0).getDeltaLabel());
+        assertEquals("현재 대비 -6", forecasts.get(1).getDeltaLabel());
+        assertEquals("현재와 같음", forecasts.get(2).getDeltaLabel());
+    }
+
+    @Test
     @DisplayName("예보가 없으면 빈 목록이 된다")
     void handlesEmptyForecast() {
         assertTrue(createView(Map.of()).getForecastScores().isEmpty());
@@ -73,7 +91,7 @@ class DashboardViewTest {
     }
 
     private DashboardView createView(Map<LocalDateTime, ScoreResult> forecastScores) {
-        return DashboardView.from(null, createScoreResult(60), forecastScores);
+        return DashboardView.from(null, createScoreResult(CURRENT_SCORE), forecastScores);
     }
 
     private ScoreResult createScoreResult(int score) {

@@ -75,7 +75,7 @@ public class DashboardView {
                 scoreResult.getAirQualityFactor(),
                 scoreResult.getAirQualityDescription(),
                 scoreResult.getAirQualityDetail(),
-                toForecastViews(forecastScores)
+                toForecastViews(forecastScores, scoreResult.getScore())
         );
     }
 
@@ -86,10 +86,10 @@ public class DashboardView {
 
     /**
      예보 Map을 화면이 그대로 쓸 수 있는 형태로 바꾼다.
-     시각 라벨을 여기서 만들어 템플릿이 날짜 포맷과 자정 넘김을 다루지 않게 한다.
+     시각 라벨과 현재 점수 대비 증감을 여기서 만들어 템플릿이 계산하지 않게 한다.
      */
     private static List<ForecastScoreView> toForecastViews(
-            Map<LocalDateTime, ScoreResult> forecastScores) {
+            Map<LocalDateTime, ScoreResult> forecastScores, int currentScore) {
         if (forecastScores == null || forecastScores.isEmpty()) {
             return List.of();
         }
@@ -100,7 +100,8 @@ public class DashboardView {
                 .map(entry -> new ForecastScoreView(
                         createHourLabel(entry.getKey(), today),
                         entry.getValue().getScore(),
-                        entry.getValue().getStatusLevel()
+                        entry.getValue().getStatusLevel(),
+                        entry.getValue().getScore() - currentScore
                 ))
                 .toList();
     }
