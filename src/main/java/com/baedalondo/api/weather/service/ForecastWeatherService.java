@@ -14,6 +14,7 @@ import com.baedalondo.api.guest.service.GuestRegionService;
 import com.baedalondo.api.store.repository.StoreRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -104,7 +105,27 @@ public class ForecastWeatherService {
         return grids;
     }
 
+    /**
+     조회해서 없으면 받아온다. 유니크 충돌이 나면 조회부터 다시 한다.
+
+     조회와 저장 사이가 벌어져 있어 같은 격자를 동시에 처음 조회하면 둘 다 빈 결과를 보고
+     둘 다 저장하러 들어간다. 서버를 새로 띄운 직후, 발표 시각이 넘어가는 순간,
+     스케줄러와 사용자 요청이 겹치는 순간에 실제로 일어난다.
+
+     충돌했다는 것은 다른 요청이 같은 발표분을 이미 저장했다는 뜻이다.
+     조회부터 다시 하면 그 결과를 읽어 쓰게 되므로 외부 API를 다시 부르지 않는다.
+     */
     private List<ForecastWeatherObservation> loadOrFetch(int nx, int ny) {
+        try {
+            return loadOrFetchOnce(nx, ny);
+        } catch (DataIntegrityViolationException e) {
+            log.debug("같은 발표분을 다른 요청이 먼저 저장했습니다. 다시 조회합니다. nx={}, ny={}", nx, ny);
+
+            return loadOrFetchOnce(nx, ny);
+        }
+    }
+
+    private List<ForecastWeatherObservation> loadOrFetchOnce(int nx, int ny) {
         // 초단기예보는 실황과 발표 주기가 달라 예보 전용 기준 시각을 쓴다.
         LocalDateTime baseDateTime = kmaTimeCalculator.getSafeForecastBaseDateTime();
         String baseDate = baseDateTime.format(BASE_DATE_FORMATTER);

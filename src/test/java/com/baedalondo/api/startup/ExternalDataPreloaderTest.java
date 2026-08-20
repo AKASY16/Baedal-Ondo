@@ -51,14 +51,14 @@ class ExternalDataPreloaderTest {
         LocalDate today = ServiceTime.today();
 
         verify(holidayService).refreshHolidaysForMonthAndNextMonth(today.getYear(), today.getMonthValue());
-        verify(currentAirQualityService).preloadStoreSidoNames();
+        verify(currentAirQualityService).preloadDashboardSidoNames();
         verify(forecastWeatherService).preloadDashboardGrids();
     }
 
     @Test
     @DisplayName("하나가 실패해도 나머지는 계속 채운다")
     void keepsGoingWhenOneSourceFails() {
-        when(currentAirQualityService.preloadStoreSidoNames())
+        when(currentAirQualityService.preloadDashboardSidoNames())
                 .thenThrow(new IllegalStateException("에어코리아 응답 없음"));
 
         assertDoesNotThrow(() -> preloader(true).preloadOnStartup());
@@ -72,7 +72,7 @@ class ExternalDataPreloaderTest {
     void neverFailsStartup() {
         doThrow(new IllegalStateException("공휴일 API 실패"))
                 .when(holidayService).refreshHolidaysForMonthAndNextMonth(anyInt(), anyInt());
-        when(currentAirQualityService.preloadStoreSidoNames())
+        when(currentAirQualityService.preloadDashboardSidoNames())
                 .thenThrow(new IllegalStateException("에어코리아 응답 없음"));
         when(forecastWeatherService.preloadDashboardGrids())
                 .thenThrow(new IllegalStateException("기상청 응답 없음"));

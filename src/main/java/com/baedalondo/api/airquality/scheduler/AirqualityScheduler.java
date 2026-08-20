@@ -14,7 +14,7 @@ public class AirqualityScheduler {
     }
 
     /**
-     매시 21분에 등록된 매장이 속한 시도의 대기질을 미리 채운다.
+     매시 21분에 대시보드가 조회할 시도의 대기질을 미리 채운다.
 
      정각 측정값은 15분 내외로 반영되고 AirQualityCalculator는 20분까지 기다렸다가
      기준 시각을 넘긴다. 그 직후인 21분에 돌려야 새 기준 시각을 곧바로 채운다.
@@ -25,8 +25,8 @@ public class AirqualityScheduler {
     @Scheduled(
             cron = "0 21 * * * *",
             zone = "Asia/Seoul")
-    public void preloadStoreAirQuality() {
-        currentAirQualityService.preloadStoreSidoNames();
+    public void preloadDashboardAirQuality() {
+        currentAirQualityService.preloadDashboardSidoNames();
     }
 
 }

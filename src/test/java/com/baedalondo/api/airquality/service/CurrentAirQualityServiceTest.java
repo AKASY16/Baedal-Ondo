@@ -11,10 +11,13 @@ import com.baedalondo.api.airquality.repository.AirQualityFetchLogRepository;
 import com.baedalondo.api.airquality.repository.CurrentAirQualityRecordRepository;
 import com.baedalondo.api.airquality.util.KoreanAddressParser;
 import com.baedalondo.api.common.ExternalCallGuard;
+import com.baedalondo.api.guest.domain.GuestRegion;
+import com.baedalondo.api.guest.service.GuestRegionService;
 import com.baedalondo.api.score.dto.ScoreTarget;
 import com.baedalondo.api.store.repository.StoreRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.client.ResourceAccessException;
 
 import java.net.SocketTimeoutException;
@@ -53,6 +56,8 @@ class CurrentAirQualityServiceTest {
             mock(AirQualityFetchLogRepository.class);
     private final StoreRepository storeRepository =
             mock(StoreRepository.class);
+    private final GuestRegionService guestRegionService =
+            mock(GuestRegionService.class);
 
     // 쿨다운이 풀리는 순간을 실제로 기다리지 않고 확인하려고 시계를 직접 쥔다.
     private Instant now = Instant.parse("2026-08-16T13:00:00Z");
@@ -69,6 +74,7 @@ class CurrentAirQualityServiceTest {
                     airQualityFetchLogRepository,
                     new KoreanAddressParser(),
                     storeRepository,
+                    guestRegionService,
                     externalCallGuard
             );
 
@@ -98,7 +104,7 @@ class CurrentAirQualityServiceTest {
         when(airQualityFetchLogRepository.existsBySidoNameAndBaseTime("서울", BASE_TIME))
                 .thenReturn(true);
         when(currentAirQualityRecordRepository
-                .findTopBySidoNameAndDistrictNameOrderByMeasuredAtDescCreatedAtDesc("서울", "중구"))
+                .findTopBySidoNameAndDistrictNameAndMeasuredAtGreaterThanEqualOrderByMeasuredAtDescCreatedAtDesc("서울", "중구", BASE_TIME))
                 .thenReturn(Optional.of(storedRecord));
         when(storedRecord.toObservation()).thenReturn(stored);
 
@@ -222,7 +228,7 @@ class CurrentAirQualityServiceTest {
         when(airQualityFetchLogRepository.existsBySidoNameAndBaseTime("서울", BASE_TIME))
                 .thenReturn(true);
         when(currentAirQualityRecordRepository
-                .findTopBySidoNameAndDistrictNameOrderByMeasuredAtDescCreatedAtDesc("서울", "마포구"))
+                .findTopBySidoNameAndDistrictNameAndMeasuredAtGreaterThanEqualOrderByMeasuredAtDescCreatedAtDesc("서울", "마포구", BASE_TIME))
                 .thenReturn(Optional.empty());
         when(averageAirQualityClient.getHourlyAverage("서울", BASE_TIME))
                 .thenReturn(seoulAverage);
@@ -290,7 +296,7 @@ class CurrentAirQualityServiceTest {
 
         // 저장된 값이 있어도 쓰지 않는다.
         when(currentAirQualityRecordRepository
-                .findTopBySidoNameAndDistrictNameOrderByMeasuredAtDescCreatedAtDesc("서울", "중구"))
+                .findTopBySidoNameAndDistrictNameAndMeasuredAtGreaterThanEqualOrderByMeasuredAtDescCreatedAtDesc("서울", "중구", BASE_TIME))
                 .thenReturn(Optional.of(storedRecord));
 
         assertThrows(AirKoreaApiException.class,
@@ -369,11 +375,166 @@ class CurrentAirQualityServiceTest {
         when(storeRepository.findDistinctSidoNames()).thenReturn(List.of("서울특별시"));
         when(airKoreaClient.getCurrentAirQualities("서울")).thenThrow(timeout());
 
-        assertEquals(0, currentAirQualityService.preloadStoreSidoNames());
+        assertEquals(0, currentAirQualityService.preloadDashboardSidoNames());
         verify(airKoreaClient, times(2)).getCurrentAirQualities("서울");
 
-        assertEquals(0, currentAirQualityService.preloadStoreSidoNames());
+        assertEquals(0, currentAirQualityService.preloadDashboardSidoNames());
         verify(airKoreaClient, times(2)).getCurrentAirQualities("서울");
+    }
+
+    @Test
+    @DisplayName("매장이 없어도 게스트 지역의 시도는 사전 적재한다")
+    void preloadsGuestRegionSidoWithoutStores() {
+        // 게스트 대시보드는 매장 없이도 열린다. 매장만 보면 아무것도 채우지 않아
+        // 첫 방문자가 외부 호출을 그대로 맞는다.
+        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(storeRepository.findDistinctSidoNames()).thenReturn(List.of());
+        when(guestRegionService.getRegions()).thenReturn(List.of(guestRegion("서울특별시")));
+        when(airKoreaClient.getCurrentAirQualities("서울"))
+                .thenReturn(List.of(createObservation("중구")));
+
+        assertEquals(1, currentAirQualityService.preloadDashboardSidoNames());
+
+        verify(airKoreaClient).getCurrentAirQualities("서울");
+        verify(airQualityFetchLogRepository).save(any(AirQualityFetchLog.class));
+    }
+
+    @Test
+    @DisplayName("게스트 지역과 매장의 시도가 같으면 한 번만 호출한다")
+    void callsOncePerSidoAcrossGuestRegionsAndStores() {
+        // 게스트 25개 자치구와 서울 매장이 모두 같은 시도라 정규화 후 중복을 제거해야 한다.
+        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(storeRepository.findDistinctSidoNames()).thenReturn(List.of("서울"));
+        when(guestRegionService.getRegions())
+                .thenReturn(List.of(guestRegion("서울특별시"), guestRegion("서울특별시")));
+        when(airKoreaClient.getCurrentAirQualities("서울"))
+                .thenReturn(List.of(createObservation("중구")));
+
+        assertEquals(1, currentAirQualityService.preloadDashboardSidoNames());
+
+        verify(airKoreaClient, times(1)).getCurrentAirQualities("서울");
+    }
+
+    @Test
+    @DisplayName("이전 기준시각에 측정된 저장분은 쓰지 않는다")
+    void ignoresStoredRecordMeasuredBeforeCurrentBaseTime() {
+        // 조회에 시간 조건이 없으면 몇 시간 전 측정값이 현재 값처럼 화면에 나간다.
+        // 조회 기록도 기준시각으로 판단하므로 둘의 기준이 같아야 한다.
+        ScoreTarget scoreTarget = createScoreTarget("중구");
+        CurrentAirQualityObservation seoulAverage = createAverageObservation();
+
+        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityFetchLogRepository.existsBySidoNameAndBaseTime("서울", BASE_TIME))
+                .thenReturn(true);
+        when(currentAirQualityRecordRepository
+                .findTopBySidoNameAndDistrictNameAndMeasuredAtGreaterThanEqualOrderByMeasuredAtDescCreatedAtDesc(
+                        "서울", "중구", BASE_TIME))
+                .thenReturn(Optional.empty());
+        when(averageAirQualityClient.getHourlyAverage("서울", BASE_TIME))
+                .thenReturn(seoulAverage);
+
+        assertSame(seoulAverage, currentAirQualityService.getCurrentAirQuality(scoreTarget));
+    }
+
+    @Test
+    @DisplayName("방금 받아온 배치에서 자치구가 빠졌을 때 평균 호출도 재시도한다")
+    void retriesAverageCallOnFreshBatch() {
+        // 평균도 같은 API라 재시도와 실패 기록을 똑같이 적용해야 한다.
+        ScoreTarget scoreTarget = createScoreTarget("마포구");
+        CurrentAirQualityObservation seoulAverage = createAverageObservation();
+
+        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airKoreaClient.getCurrentAirQualities("서울"))
+                .thenReturn(List.of(createObservation("중구")));
+        when(averageAirQualityClient.getHourlyAverage("서울", BASE_TIME))
+                .thenThrow(timeout())
+                .thenReturn(seoulAverage);
+
+        assertSame(seoulAverage, currentAirQualityService.getCurrentAirQuality(scoreTarget));
+
+        verify(averageAirQualityClient, times(2)).getHourlyAverage("서울", BASE_TIME);
+        verify(airQualityFetchLogRepository).save(any(AirQualityFetchLog.class));
+    }
+
+    @Test
+    @DisplayName("평균 호출이 두 번 다 실패하면 그 시도도 쿨다운에 들어간다")
+    void startsCooldownWhenAverageCallFailsTwice() {
+        ScoreTarget scoreTarget = createScoreTarget("마포구");
+
+        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airKoreaClient.getCurrentAirQualities("서울"))
+                .thenReturn(List.of(createObservation("중구")));
+        when(averageAirQualityClient.getHourlyAverage("서울", BASE_TIME)).thenThrow(timeout());
+
+        assertThrows(AirKoreaApiException.class,
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+        verify(averageAirQualityClient, times(2)).getHourlyAverage("서울", BASE_TIME);
+        verify(airQualityFetchLogRepository, never()).save(any());
+
+        // 쿨다운이 걸렸으므로 다음 요청은 메인 API도 부르지 않는다.
+        assertThrows(AirKoreaApiException.class,
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+        verify(airKoreaClient, times(1)).getCurrentAirQualities("서울");
+        verify(averageAirQualityClient, times(2)).getHourlyAverage("서울", BASE_TIME);
+    }
+
+    @Test
+    @DisplayName("저장할 때 유니크 충돌이 나면 조회부터 다시 한다")
+    void rereadsWhenSaveCollides() {
+        // 조회와 저장 사이가 벌어져 있어 같은 시도를 동시에 처음 조회하면
+        // 둘 다 빈 결과를 보고 둘 다 저장하러 들어간다.
+        ScoreTarget scoreTarget = createScoreTarget("중구");
+        CurrentAirQualityRecord storedRecord = mock(CurrentAirQualityRecord.class);
+        CurrentAirQualityObservation stored = createObservation("중구");
+
+        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airKoreaClient.getCurrentAirQualities("서울"))
+                .thenReturn(List.of(createObservation("중구")));
+        when(currentAirQualityRecordRepository.save(any(CurrentAirQualityRecord.class)))
+                .thenThrow(new DataIntegrityViolationException("uk_current_air_quality_record"));
+
+        // 첫 조회는 miss, 충돌 뒤 다시 조회하면 먼저 저장한 쪽 기록이 보인다.
+        when(airQualityFetchLogRepository.existsBySidoNameAndBaseTime("서울", BASE_TIME))
+                .thenReturn(false)
+                .thenReturn(true);
+        when(currentAirQualityRecordRepository
+                .findTopBySidoNameAndDistrictNameAndMeasuredAtGreaterThanEqualOrderByMeasuredAtDescCreatedAtDesc(
+                        "서울", "중구", BASE_TIME))
+                .thenReturn(Optional.of(storedRecord));
+        when(storedRecord.toObservation()).thenReturn(stored);
+
+        assertSame(stored, currentAirQualityService.getCurrentAirQuality(scoreTarget));
+
+        verify(airKoreaClient, times(1)).getCurrentAirQualities("서울");
+    }
+
+    @Test
+    @DisplayName("다시 조회해도 충돌하면 예외를 그대로 올린다")
+    void propagatesWhenSecondAttemptAlsoCollides() {
+        // 한 번만 다시 시도한다. 계속 충돌하면 동시성이 아니라 다른 문제다.
+        ScoreTarget scoreTarget = createScoreTarget("중구");
+
+        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airKoreaClient.getCurrentAirQualities("서울"))
+                .thenReturn(List.of(createObservation("중구")));
+        when(currentAirQualityRecordRepository.save(any(CurrentAirQualityRecord.class)))
+                .thenThrow(new DataIntegrityViolationException("uk_current_air_quality_record"));
+
+        assertThrows(DataIntegrityViolationException.class,
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+
+        verify(airKoreaClient, times(2)).getCurrentAirQualities("서울");
+        verify(airQualityFetchLogRepository, never()).save(any());
+    }
+
+    private GuestRegion guestRegion(String sidoName) {
+        return new GuestRegion(
+                1L, "표시명", null, null, null, null, null,
+                sidoName, "중구", null,
+                null, null, null,
+                null, null, null, null,
+                60, 127
+        );
     }
 
     /**

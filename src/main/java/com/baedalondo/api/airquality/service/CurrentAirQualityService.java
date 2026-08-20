@@ -11,6 +11,8 @@ import com.baedalondo.api.airquality.exception.AirKoreaApiException;
 import com.baedalondo.api.airquality.repository.CurrentAirQualityRecordRepository;
 import com.baedalondo.api.airquality.util.KoreanAddressParser;
 import com.baedalondo.api.common.ExternalCallGuard;
+import com.baedalondo.api.guest.domain.GuestRegion;
+import com.baedalondo.api.guest.service.GuestRegionService;
 import com.baedalondo.api.score.dto.ScoreTarget;
 import com.baedalondo.api.store.repository.StoreRepository;
 import org.slf4j.Logger;
@@ -34,6 +36,7 @@ public class CurrentAirQualityService {
     private final AirQualityFetchLogRepository airQualityFetchLogRepository;
     private final KoreanAddressParser koreanAddressParser;
     private final StoreRepository storeRepository;
+    private final GuestRegionService guestRegionService;
     private final ExternalCallGuard externalCallGuard;
 
     public CurrentAirQualityService(AirKoreaCurrentAirQualityClient airKoreaCurrentAirQualityClient,
@@ -43,6 +46,7 @@ public class CurrentAirQualityService {
                                     AirQualityFetchLogRepository airQualityFetchLogRepository,
                                     KoreanAddressParser koreanAddressParser,
                                     StoreRepository storeRepository,
+                                    GuestRegionService guestRegionService,
                                     ExternalCallGuard externalCallGuard) {
         this.airKoreaCurrentAirQualityClient = airKoreaCurrentAirQualityClient;
         this.airKoreaAverageAirQualityClient = airKoreaAverageAirQualityClient;
@@ -51,6 +55,7 @@ public class CurrentAirQualityService {
         this.airQualityFetchLogRepository = airQualityFetchLogRepository;
         this.koreanAddressParser = koreanAddressParser;
         this.storeRepository = storeRepository;
+        this.guestRegionService = guestRegionService;
         this.externalCallGuard = externalCallGuard;
     }
 
@@ -67,6 +72,28 @@ public class CurrentAirQualityService {
         LocalDateTime expectedBaseTime = airQualityCalculator.getSafeAirQualityBaseTime();
         String sidoName = koreanAddressParser.extractSidoName(scoreTarget.getSidoName());
         String sigunguName = scoreTarget.getSigunguName();
+
+        try {
+            return loadOrFetch(sidoName, sigunguName, expectedBaseTime);
+        } catch (DataIntegrityViolationException e) {
+            // 같은 측정값을 다른 요청이 먼저 저장했다. 조회부터 다시 하면 그 결과를 읽어 쓴다.
+            log.debug("같은 기준시각을 다른 요청이 먼저 저장했습니다. 다시 조회합니다. sidoName={}", sidoName);
+
+            return loadOrFetch(sidoName, sigunguName, expectedBaseTime);
+        }
+    }
+
+    /**
+     조회해서 없으면 받아온다.
+
+     조회와 저장 사이가 벌어져 있어 같은 시도를 동시에 처음 조회하면 둘 다 빈 결과를 보고
+     둘 다 저장하러 들어간다. 서버를 새로 띄운 직후, 기준 시각이 넘어가는 순간,
+     스케줄러와 사용자 요청이 겹치는 순간에 실제로 일어난다.
+     충돌은 호출부에서 잡아 조회부터 다시 한다.
+     */
+    private CurrentAirQualityObservation loadOrFetch(String sidoName,
+                                                     String sigunguName,
+                                                     LocalDateTime expectedBaseTime) {
 
         // 재사용 판단 기준은 측정 시각이 아니라 "이 기준시각 데이터를 이미 받아왔는가"다.
         // 측정 시각으로 판단하면 받아왔지만 그 자치구 측정소가 응답에 없던 경우를
@@ -108,15 +135,19 @@ public class CurrentAirQualityService {
     }
 
     /**
-     등록된 매장이 속한 시도의 대기질을 미리 채운다. 스케줄러가 매시 호출한다.
+     대시보드가 조회할 수 있는 시도의 대기질을 미리 채운다. 스케줄러가 매시 호출한다.
 
      현재 배달온도는 서울 지역만 서비스하기 때문에 서울 지역만 조회한다.
+     게스트 지역과 등록 매장을 합쳐도 시도는 사실상 서울 하나다.
+
+     게스트 지역을 빼면 매장이 하나도 없을 때 아무것도 채우지 않는다.
+     게스트 대시보드는 매장 없이도 열리므로 그 경우 첫 방문자가 외부 호출을 그대로 맞는다.
 
      시도 하나가 실패해도 나머지는 계속 채운다.
      */
-    public int preloadStoreSidoNames() {
+    public int preloadDashboardSidoNames() {
         LocalDateTime expectedBaseTime = airQualityCalculator.getSafeAirQualityBaseTime();
-        Set<String> sidoNames = findTargetSidoNames();
+        Set<String> sidoNames = findDashboardSidoNames();
         int loaded = 0;
 
         for (String sidoName : sidoNames) {
@@ -150,24 +181,39 @@ public class CurrentAirQualityService {
     }
 
     /**
-     매장에 저장된 시도명은 "서울"과 "서울특별시"가 섞여 있을 수 있어 정규화 후 다시 중복을 제거한다.
+     게스트 지역과 등록 매장의 시도를 합친다.
+
+     저장된 시도명은 "서울"과 "서울특별시"가 섞여 있을 수 있어 정규화 후 다시 중복을 제거한다.
      */
-    private Set<String> findTargetSidoNames() {
+    private Set<String> findDashboardSidoNames() {
         Set<String> sidoNames = new LinkedHashSet<>();
 
-        for (String rawSidoName : storeRepository.findDistinctSidoNames()) {
-            String sidoName = koreanAddressParser.extractSidoName(rawSidoName);
+        for (GuestRegion region : guestRegionService.getRegions()) {
+            addNormalizedSidoName(sidoNames, region.getSidoName());
+        }
 
-            if (sidoName != null && !sidoName.isBlank()) {
-                sidoNames.add(sidoName);
-            }
+        for (String rawSidoName : storeRepository.findDistinctSidoNames()) {
+            addNormalizedSidoName(sidoNames, rawSidoName);
         }
 
         return sidoNames;
     }
 
+    private void addNormalizedSidoName(Set<String> sidoNames, String rawSidoName) {
+        if (rawSidoName == null) {
+            return;
+        }
+
+        String sidoName = koreanAddressParser.extractSidoName(rawSidoName);
+
+        if (sidoName != null && !sidoName.isBlank()) {
+            sidoNames.add(sidoName);
+        }
+    }
+
     /**
      * 이미 조회한 기준시각이면 저장된 측정소 데이터를 쓴다.
+     * 그 기준시각에 측정된 것만 쓴다. 이전 시각 값은 없는 것으로 보고 시도 평균으로 넘긴다.
      * 해당 자치구 측정소 데이터가 없으면 시도 평균으로 떨어지는 규칙은 그대로 유지한다.
      *
      * 여기로 오는 경로는 "이번 기준시각을 받아왔다"는 한 가지뿐이다.
@@ -178,10 +224,12 @@ public class CurrentAirQualityService {
                                                               String sigunguName,
                                                               LocalDateTime expectedBaseTime) {
         Optional<CurrentAirQualityRecord> savedAirQuality =
-                currentAirQualityRecordRepository.findTopBySidoNameAndDistrictNameOrderByMeasuredAtDescCreatedAtDesc(
-                        sidoName,
-                        sigunguName
-                );
+                currentAirQualityRecordRepository
+                        .findTopBySidoNameAndDistrictNameAndMeasuredAtGreaterThanEqualOrderByMeasuredAtDescCreatedAtDesc(
+                                sidoName,
+                                sigunguName,
+                                expectedBaseTime
+                        );
 
         if (savedAirQuality.isPresent()) {
             return savedAirQuality.get().toObservation();
@@ -283,8 +331,11 @@ public class CurrentAirQualityService {
                             sidoName,
                             districtName
                     );
-                    return airKoreaAverageAirQualityClient
-                            .getHourlyAverage(sidoName, baseTimeData);
+                    // 방금 받아온 배치에서 떨어지는 경우라 쿨다운은 아니지만,
+                    // 평균도 같은 API라 재시도와 실패 기록은 똑같이 적용해야 한다.
+                    return externalCallGuard.call(
+                            cooldownKey(sidoName, baseTimeData),
+                            () -> airKoreaAverageAirQualityClient.getHourlyAverage(sidoName, baseTimeData));
                 });
     }
 

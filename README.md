@@ -1,213 +1,416 @@
 # 배달온도 BaedalOndo
 
-배달온도는 매장 위치, 현재 날씨, 미세먼지, 시간대, 요일/공휴일 정보를 조합해 현재 배달 수요 가능성을 0-100점으로 보여주는 Spring Boot 기반 MVP 서비스입니다.
+서울 지역 매장의 현재 배달 수요 환경을 0~100점으로 보여주는 Spring Boot 프로젝트입니다.
 
-현재 버전은 서울 지역 소규모 매장 운영자가 "지금 배달 수요가 높아질 가능성이 있는지"를 빠르게 판단할 수 있도록 가중치 기반 점수와 대시보드 화면을 제공합니다.
+매장 주소로 서울시 상권을 찾고, 상권·업종별 시간대/요일 패턴에 현재 날씨와 대기질을 더해 점수를 계산합니다.
+
+실제 배달 주문량을 직접 예측하는 모델은 아닙니다. 서울시 상권분석서비스의 추정매출과 공공데이터를 이용해, 지금이 평소보다 주문이 들어오기 좋은 조건인지 빠르게 볼 수 있도록 만든 지표입니다.
+
+---
+
+## 핵심 구현
+
+이 프로젝트에서 단순 CRUD보다 더 많이 고민했던 부분들입니다.
+
+| 주제 | 구현 |
+| --- | --- |
+| **상권·업종별 수요 패턴** | 서울시 추정매출(2023~2025)을 오프라인 전처리해 `DayWeight`, `TimeWeight` 생성. 상권 데이터가 없을 때는 서울 전체 업종 평균으로 fallback |
+| **외부 API 장애 대응** | AirKorea 응답 시간을 직접 측정한 뒤 timeout 연장 대신 **즉시 재시도 1회 + 60초 실패 쿨다운** 적용. 서버 기동 시 공휴일·대기질·예보도 미리 적재 |
+| **운영 DB와 같은 테스트 환경** | H2에서는 MySQL용 Flyway migration이 검증되지 않는 문제가 있어 Testcontainers MySQL로 교체. 테스트에서도 V1부터 migration 후 `ddl-auto: validate` 수행 |
+| **주소에서 상권까지 연결** | 도로명주소 좌표 → WGS84 → JTS 기반 서울시 상권 GeoJSON 판별 → `commercialAreaCode` 저장. 같은 주소에서 기상청 격자 `nx`, `ny`도 계산 |
+
+아래에서 각 부분의 계산 방식과 문제 해결 과정을 조금 더 자세히 설명합니다.
+
+---
+
+## 서비스 흐름
+
+```text
+매장 주소
+   │
+   ├─ 도로명주소 좌표 API
+   │      ├─ WGS84 좌표
+   │      └─ 기상청 nx, ny
+   │
+   └─ 서울시 상권 GeoJSON + JTS
+          └─ commercialAreaCode
+
+commercialAreaCode + businessType
+   │
+   ├─ TimeWeight
+   └─ DayWeight
+
+기상청 현재 날씨 ─┐
+AirKorea 대기질 ──┼─> ScoreService ─> DashboardView ─> Thymeleaf
+공휴일 정보 ──────┘
+```
+
+외부 데이터는 요청할 때마다 새로 받지 않습니다. 같은 기준시각의 값이 DB에 있으면 저장된 값을 재사용하고, 없을 때만 외부 API를 호출합니다.
+
+---
 
 ## 주요 기능
 
-- 매장 등록
-  - 도로명주소 검색 팝업 연동
-  - 주소 기반 기상청 격자 좌표 `nx`, `ny` 계산
-  - WGS84 좌표로 서울시 상권을 판별해 `commercialAreaCode` 저장
-  - 업종을 `BusinessType` Enum 9종으로 표준화해 저장
-  - Store 정보를 MySQL DB에 저장
+### 매장 등록
 
-- 상권 x 업종 요일·시간대 가중치
-  - 서울시 상권분석서비스 추정매출(2023-2025) 기반 오프라인 전처리 결과 사용
-  - 상권별 값이 있으면 상권별, 없으면 서울 전체 업종 평균으로 fallback
-  - 자세한 계산 근거는 `data-processing/README.md` 참고
+- 도로명주소 검색 팝업 연동
+- 주소 기반 기상청 격자 좌표 `nx`, `ny` 계산
+- WGS84 좌표와 서울시 상권 GeoJSON을 이용한 `commercialAreaCode` 판별
+- 업종을 `BusinessType` Enum 9종으로 관리
+- 로그인 사용자의 소유 Store만 조회/수정
 
-- 대시보드
-  - 현재 배달온도 점수 표시
-  - 점수 상태와 운영 메시지 표시
-  - 시간대, 요일/공휴일, 현재 날씨, 미세먼지 영향 요인 표시
-  - 각 요인이 최종 점수에 기여한 방향을 화살표로 표시
-  - 로그인 사용자의 매장 목록을 드롭다운으로 표시
-  - Store ID 선택 드롭다운으로 특정 매장 대시보드 확인
-  - 등록 매장이 없는 경우 게스트 지역 기반 대시보드 표시
+### 대시보드
 
-- 현재 날씨 연동
-  - 기상청 초단기실황 API 호출
-  - `PTY`, `RN1`, `T1H`, `REH`, `WSD` 파싱
-  - `nx`, `ny`, `baseDate`, `baseTime` 기준 DB 재사용
-  - API 실패 시 날씨 보정 점수 제외
+- 현재 배달온도 점수와 상태 표시
+- 시간대, 요일/공휴일, 날씨, 대기질이 점수에 준 영향 표시
+- 등록 매장 드롭다운 전환
+- 비로그인 사용자와 등록 매장이 없는 사용자를 위한 게스트 대시보드
 
-- 미세먼지 연동
-  - AirKorea 시도별 실시간 측정정보 API 호출
-  - 주소의 자치구와 일치하는 측정소가 없으면 AirKorea 시도 평균 사용
-  - PM10, PM2.5 기반 공기질 보정 점수 계산
-  - 측정소/측정시각 기준 DB 저장 및 재사용
-  - API 실패 시 공기질 보정 점수 제외
+### 외부 데이터
 
-- 공휴일 처리
-  - 공공데이터포털 특일정보 API 기반 공휴일 여부 조회
-  - 서버 시작 시 현재 연도 공휴일 갱신
-  - 조회 날짜가 DB에 없으면 해당 월 공휴일을 API로 재수집
+- 기상청 초단기실황: `PTY`, `RN1`, `T1H`, `REH`, `WSD`
+- AirKorea: PM10, PM2.5
+- 공공데이터포털 특일정보: 공휴일
+- 외부 API 실패 시 해당 요인만 제외하고 대시보드는 계속 표시
+- 서버 기동 직후 공휴일, 대기질, 예보 사전 적재
 
-- 인증/게스트 모드
-  - Spring Security 기반 로그인/로그아웃
-  - 회원가입 시 약관·개인정보·연령·광고성 이메일 동의 이력 저장
-  - 이용약관 및 개인정보 처리방침 전문 제공
-  - 로그인 사용자 소유 Store만 조회
-  - 비로그인 사용자를 위한 게스트 모드 제공
+### 인증
+
+- Spring Security 기반 로그인/로그아웃
+- 회원가입 및 아이디 중복 검사
+- 가입 시 약관·개인정보·연령·광고성 이메일 동의 시각/문서 버전 저장
+- 사용자 소유 Store만 접근 가능
+
+---
+
+## 점수 계산
+
+배달온도는 50점을 기준으로 각 요인의 기여도를 더한 뒤 0~100 범위로 제한합니다.
+
+```text
+score = 50
+      + 시간대 기여도
+      + 요일/공휴일 기여도
+      + 날씨 기여도
+      + 대기질 기여도
+      + 상호작용 보너스
+```
+
+| 요인 | 반영 방식 | 범위 |
+| --- | --- | ---: |
+| 시간대 | 상권 x 업종 x `TimeWeight` | -12 ~ +14 |
+| 요일 | 상권 x 업종 x `DayWeight` | -6 ~ +8 |
+| 공휴일 | 고정 가중치 | +8 |
+| 날씨 | 강수량, 강수형태, 기온, 풍속 | 0 ~ +20 |
+| 대기질 | PM10, PM2.5 | 0 ~ +8 |
+| 상호작용 | 피크 시간, 양수 DayWeight, 비, 공휴일 조합 | 0 ~ +10 |
+
+### 시간대 가중치
+
+서울시 상권분석서비스의 6개 시간 구간별 매출건수를 그대로 비교하면 구간 길이가 달라 왜곡이 생깁니다.
+
+그래서 각 구간의 매출건수를 구간 길이로 나눈 뒤, 같은 상권·업종의 24시간 평균 시간당 활동량을 100으로 둔 `TimeIndex`를 만들었습니다.
+
+```text
+commercialAreaCode + businessType + 시간대
+    -> Local TimeWeight
+
+없으면 businessType + 시간대
+    -> City TimeWeight
+
+업종이 없는 게스트
+    -> 공통 시간표
+```
+
+사용하는 시간 구간은 다음과 같습니다.
+
+```text
+00~06
+06~11
+11~14
+14~17
+17~21
+21~24
+```
+
+등급별 최종 기여도:
+
+```text
+CLOSED     -12
+LOW         -6
+MEDIUM       0
+HIGH        +8
+VERY_HIGH  +14
+```
+
+서울시 원본은 배달 주문 데이터가 아니라 추정매출 데이터입니다. 따라서 `TimeWeight`를 주문량 자체로 해석하지 않고, 해당 상권·업종이 어느 시간대에 활발한지를 나타내는 보조 지표로 사용합니다.
+
+전처리 과정은 [`data-processing/README.md`](data-processing/README.md)에 따로 정리했습니다.
+
+### 요일 가중치
+
+요일 이름에 고정 점수를 주는 대신 상권·업종별 `DayWeight`를 사용합니다.
+
+예를 들어 같은 일요일이라도 오피스 상권 카페와 주거 상권 카페의 값이 다르게 나올 수 있습니다.
+
+```text
+commercialAreaCode + businessType + 요일
+    -> Local DayWeight
+
+없으면 businessType + 요일
+    -> City DayWeight
+
+그래도 없으면
+    -> 0
+```
+
+공휴일 효과는 원본 데이터에서 따로 분리할 수 없어서 공휴일에는 `DayWeight` 대신 +8을 사용합니다.
+
+피크 시간대이고 `DayWeight > 0`인 경우에는 다음 값을 최대 +3까지 추가합니다.
+
+```text
+ceil(DayWeight / 2)
+```
+
+음수인 요일과 공휴일에는 이 보너스를 적용하지 않습니다.
+
+### 점수 구간
+
+| 점수 | 상태 |
+| --- | --- |
+| 0~19 | 마감 · 매우 낮은 수요 구간 |
+| 20~39 | 하 · 수요 둔화 구간 |
+| 40~59 | 중 · 평균 수요 구간 |
+| 60~79 | 상 · 높은 수요 구간 |
+| 80~100 | 상 · 수요 급등 구간 |
+
+상호작용 보너스는 최종 점수에는 포함하지만 대시보드에 별도 항목으로 노출하지 않습니다. 화면에서는 시간대, 요일/공휴일, 날씨, 대기질이 점수에 영향을 준 방향만 보여줍니다.
+
+---
+
+## 기술적으로 고민했던 부분
+
+### 1. 외부 API timeout을 늘리지 않고 재시도와 쿨다운을 넣은 이유
+
+서버를 한동안 내려뒀다가 다시 켜면 첫 대시보드 요청에서 대기질이 빠지는 경우가 있었습니다. 로그에는 timeout이 남았지만 새로고침을 몇 번 하면 다시 정상적으로 나왔습니다.
+
+처음에는 fallback 구조를 의심했지만, 재시도를 넣기 전에 AirKorea 응답 시간을 먼저 확인했습니다.
+
+```bash
+python data-processing/probe_airkorea_latency.py
+```
+
+같은 요청을 72회 보낸 결과:
+
+| 결과 | 응답 시간 |
+| --- | --- |
+| 성공 | 대부분 137~330ms |
+| 실패 | 5,050 / 10,400 / 12,830ms 뒤 HTTP 504 |
+
+성공하는 요청은 이미 4초 안에 들어왔고, 실패하는 요청만 5초 이상 붙잡혀 있었습니다. 이 패턴에서는 read timeout을 10초로 늘려도 새로 성공할 요청은 거의 없고 실패를 더 오래 기다리게 됩니다.
+
+반대로 실패 직후 바로 한 번 더 호출했을 때는 성공하는 경우가 있었습니다.
+
+4초 timeout으로 15회 확인했을 때:
+
+```text
+첫 호출만 사용          40%
+실패 시 1회 재시도 포함 80%
+```
+
+그래서 `ExternalCallGuard`에서 다음 경우에만 바로 한 번 더 호출하도록 했습니다.
+
+```text
+connection timeout
+read timeout
+HTTP 502
+HTTP 503
+HTTP 504
+```
+
+여기에 재시도만 추가하면 장애가 길어질 때 호출량이 두 배가 됩니다. 실패한 응답은 DB에 저장하지 않기 때문에 사용자가 새로고침할 때마다 다시 외부 호출 분기로 들어가기 때문입니다.
+
+그래서 두 번 모두 실패한 대상은 60초 동안 다시 호출하지 않도록 쿨다운을 함께 넣었습니다.
+
+장애 상태에서 확인한 결과:
+
+```text
+1) 첫 요청       4,626ms   두 번 시도 후 실패, 대기질 없이 표시
+2) 바로 다음         75ms   외부 호출 생략, 같은 결과
+3) 또 다음           68ms   외부 호출 생략, 같은 결과
+4) 60초 뒤       4,073ms   쿨다운 해제 후 다시 호출
+```
+
+쿨다운은 결과를 바꾸는 기능이 아니라, 같은 실패를 매 요청마다 다시 기다리지 않게 하는 장치입니다.
+
+서버가 다시 올라온 직후 캐시가 비어 있는 구간도 따로 처리했습니다. `ApplicationReadyEvent`에서 기존 preload 로직을 한 번 실행해 공휴일, 대기질, 예보를 먼저 채웁니다. preload가 실패해도 서버 기동 자체는 막지 않습니다.
+
+확인 당시 기동 직후 공휴일 61행과 예보 96행이 적재됐고, 게스트 대시보드는 첫 요청 약 984ms, 이후 요청은 60ms대로 내려갔습니다.
+
+---
+
+### 2. H2 테스트를 Testcontainers MySQL로 바꾼 이유
+
+처음에는 테스트 DB로 H2를 사용했습니다.
+
+문제는 운영 스키마가 MySQL 기준이라는 점이었습니다. 초기 migration에는 다음과 같은 MySQL 문법이 들어갑니다.
+
+```text
+ENUM
+ENGINE=InnoDB
+BIT(1)
+```
+
+H2에서는 V1을 그대로 실행할 수 없어 테스트에서 Flyway를 끄고 Hibernate `create-drop`으로 스키마를 만들었습니다.
+
+테스트는 통과했지만, 정작 실제 배포에서 실행되는 Flyway migration은 CI에서 한 번도 실행되지 않는 상태였습니다.
+
+그래서 테스트 DB도 MySQL로 맞췄습니다.
+
+```text
+Testcontainers MySQL
+        │
+        v
+Flyway V1 -> 최신 migration
+        │
+        v
+Hibernate ddl-auto: validate
+        │
+        v
+Spring context load
+```
+
+`BaedalOndoApiApplicationTests`에서 이 경로를 확인합니다.
+
+migration에 일부러 문법 오류를 넣으면 컨텍스트 로드 단계에서 테스트가 실패하는 것도 확인했습니다. 지금은 엔티티 테스트뿐 아니라 실제 migration 파일도 배포 전에 한 번 실행됩니다.
+
+Testcontainers 컨테이너는 `MySqlTestSupport`에서 static으로 관리해 테스트 JVM 전체에서 공유합니다.
+
+---
+
+### 3. 주소 검색 팝업 때문에 일부 화면만 CSRF 예외로 둔 이유
+
+도로명주소 팝업은 외부 도메인인 `business.juso.go.kr`에서 선택 결과를 애플리케이션 화면으로 POST합니다.
+
+이 요청에는 우리 애플리케이션의 CSRF 토큰을 넣을 수 없기 때문에 결과를 받는 두 경로는 CSRF 예외입니다.
+
+```text
+/store/register
+/store/*/edit
+```
+
+두 경로는 화면을 다시 렌더링할 뿐 Store 데이터를 직접 변경하지 않습니다.
+
+실제 등록과 수정을 처리하는 `/api/stores`는 CSRF 보호를 유지하고, 화면에서 `<meta name="_csrf">` 값을 읽어 요청 헤더에 담습니다.
+
+---
+
+### 4. 유니크 충돌을 락 대신 재조회로 처리한 이유
+
+날씨와 대기질은 모두 같은 순서로 동작합니다.
+
+```text
+① 저장된 값이 있는지 조회
+② 없으면 외부 API 호출
+③ 받아온 값을 저장
+```
+
+①과 ③ 사이에 간격이 있어서, 같은 격자나 시도를 동시에 처음 조회하면 두 요청이 모두 ①에서 빈 결과를 보고 ③까지 들어갑니다. 먼저 저장한 쪽은 성공하고 나중 쪽은 유니크 제약에 걸립니다.
+
+```text
+uk_forecast_weather_record     (nx, ny, base_date, base_time, forecast_at)
+uk_current_air_quality_record  (sido_name, district_name, station_name, measured_at)
+```
+
+캐시가 비어 있는 순간에만 발생하기 때문에 평소에는 드러나지 않습니다. 다만 그 순간이 언제인지는 정해져 있습니다. 서버를 새로 띄운 직후, 발표 시각이나 기준 시각이 넘어가는 시점, 그리고 preload 스케줄러와 사용자 요청이 겹치는 시점입니다.
+
+락을 잡거나 `INSERT ... ON DUPLICATE KEY UPDATE`로 바꾸는 방법도 있지만, 여기서는 두 요청이 같은 발표분을 저장하려는 것이라 어느 쪽이 저장해도 결과가 같습니다. 충돌했다는 것 자체가 다른 요청이 이미 저장했다는 뜻이므로, 조회부터 다시 하면 이번에는 그 값이 보입니다.
+
+```java
+try {
+    return loadOrFetchOnce(nx, ny);
+} catch (DataIntegrityViolationException e) {
+    return loadOrFetchOnce(nx, ny);
+}
+```
+
+다시 조회할 때는 외부 API를 호출하지 않습니다. 첫 분기에서 먼저 저장된 값이 보이고 거기서 끝나기 때문입니다.
+
+재시도는 한 번만 합니다. 두 번째에도 충돌한다면 동시성이 아니라 다른 원인이므로 예외를 그대로 올립니다.
+
+---
 
 ## 기술 스택
 
-- Java 17
-- Spring Boot 4.0.6
-- Spring Web MVC
-- Spring Data JPA
-- Thymeleaf
-- Spring Security
-- MySQL 8
-- Flyway
-- Testcontainers (테스트에서 실제 MySQL 기동)
-- Gradle
-- Docker, Docker Compose
-- GitHub Actions
-- Lombok
-- PROJ4J
-- JTS Topology Suite
-- JUnit 5
-- Mockito
-- Python 3 (오프라인 데이터 전처리, 표준 라이브러리만 사용)
+| 구분 | 사용 기술 |
+| --- | --- |
+| Language | Java 17, Python 3 |
+| Framework | Spring Boot 4.0.6, Spring Web MVC, Spring Security |
+| View | Thymeleaf |
+| Persistence | Spring Data JPA, MySQL 8, Flyway |
+| Spatial | PROJ4J, JTS Topology Suite |
+| Test | JUnit 5, Mockito, Testcontainers |
+| Build / Infra | Gradle, Docker, Docker Compose, GitHub Actions |
+| ETC | Lombok |
+
+Python은 서울시 추정매출 데이터를 `DayWeight`, `TimeWeight`로 전처리하는 오프라인 작업에만 사용합니다.
+
+---
 
 ## 프로젝트 구조
 
 ```text
 src/main/java/com/baedalondo/api
-├── airquality      # AirKorea API, 미세먼지 기록, 공기질 점수 계산
-├── auth            # 로그인 화면, 현재 사용자 조회, UserDetailsService
-├── commercialarea  # 서울시 상권 GeoJSON 로딩, 좌표 기반 상권 판별
-├── config          # Spring Security, 인터셉터, 비밀번호 인코더 설정
+├── airquality      # AirKorea API, 대기질 기록/점수
+├── auth            # 로그인, 현재 사용자, UserDetailsService
+├── commercialarea  # GeoJSON 로딩, 좌표 기반 상권 판별
+├── config          # Security, RestClient 등 공통 설정
 ├── dashboard       # 대시보드 화면, DashboardView 조립
-├── guest           # 고정 게스트 지역 CSV 로딩 및 조회
-├── holiday         # 공휴일 API, 공휴일 DB 저장/조회
-├── location        # 주소 좌표 변환, 기상청 격자 변환
-├── legal           # 이용약관, 개인정보 처리방침 화면과 문서 버전
-├── score           # 최종 점수 조립, DayWeight/TimeWeight 조회
-├── store           # 매장 등록, Store 엔티티, BusinessType
-├── user            # UserAccount 엔티티, 사용자 조회
-└── weather         # 기상청 현재 날씨 API, 날씨 기록, 날씨 점수 계산
+├── guest           # 게스트 지역 로딩/조회
+├── holiday         # 공휴일 API, 저장/조회
+├── location        # 주소 좌표, 기상청 격자 변환
+├── legal           # 약관, 개인정보 처리방침
+├── score           # 최종 점수, DayWeight/TimeWeight
+├── store           # Store, 매장 등록/수정
+├── user            # UserAccount
+└── weather         # 기상청 API, 날씨 기록/점수
 
-data-processing/    # 서울시 추정매출 CSV -> DayWeight/TimeWeight 전처리 (Python)
+data-processing/
+└── ...             # 추정매출 -> DayWeight/TimeWeight 전처리
 ```
 
-## 실행 방법
+---
 
-### 1. 저장소 이동
+## 실행
 
-```bash
-cd backend/baedal-ondo-api
-```
+### 필요한 환경
 
-### 2. API 키 설정
+- Java 17
+- MySQL 8 또는 Docker
+- 외부 API 키
 
-외부 API 키는 **환경변수로만 주입**합니다. 설정 파일에 두면 빌드 산출물(jar)과 컨테이너 이미지에 그대로 포장되어 배포됩니다.
+API 키와 DB 비밀번호는 설정 파일에 저장하지 않고 환경변수로 받습니다.
 
-| 환경변수 | 용도 | 필수 여부 |
+| 환경변수 | 용도 | 필수 |
 | --- | --- | --- |
-| `KMA_AUTH_KEY` | 기상청 초단기실황 | **필수** |
-| `DATAPORTAL_AUTH_KEY` | 공공데이터포털 (에어코리아, 공휴일) | **필수** |
-| `JUSO_COORDINATE_AUTH_KEY` | 도로명주소 좌표제공 | **필수** |
-| `DATAPORTAL_HOLIDAY_AUTH_KEY` | 공휴일 전용 키 | 선택, 미설정 시 `DATAPORTAL_AUTH_KEY` 사용 |
-| `JUSO_POPUP_AUTH_KEY` | 도로명주소 팝업 | 선택, 기본값 `TESTJUSOGOKR` |
+| `KMA_AUTH_KEY` | 기상청 초단기실황 | O |
+| `DATAPORTAL_AUTH_KEY` | AirKorea, 공휴일 | O |
+| `JUSO_COORDINATE_AUTH_KEY` | 도로명주소 좌표제공 | O |
+| `DATAPORTAL_HOLIDAY_AUTH_KEY` | 공휴일 전용 키 | 선택 |
+| `JUSO_POPUP_AUTH_KEY` | 도로명주소 팝업 | 선택 |
 
-필수 키 3개가 없으면 애플리케이션이 시작되지 않습니다.
+`DATAPORTAL_HOLIDAY_AUTH_KEY`가 없으면 `DATAPORTAL_AUTH_KEY`를 사용합니다.  
+`JUSO_POPUP_AUTH_KEY`의 기본값은 `TESTJUSOGOKR`입니다.
 
-Windows에서는 사용자 환경변수로 등록합니다. 등록 후 터미널과 IDE를 재시작해야 반영됩니다.
+### Docker Compose
 
-```bash
-setx KMA_AUTH_KEY "발급받은_키"
-```
+프로젝트 루트에 `.env`를 만듭니다.
 
-컨테이너로 실행할 때는 이미지에 넣지 말고 실행 시점에 주입합니다.
-
-```bash
-docker run -e KMA_AUTH_KEY=... -e DATAPORTAL_AUTH_KEY=... baedal-ondo-api
-```
-
-> 테스트는 이 설정이 필요 없습니다. `src/test/resources/application.yaml`이 더미 키를 사용합니다.
-
-### 3. 데이터베이스 설정
-
-MySQL 8에 스키마와 계정을 생성합니다.
-
-```sql
-CREATE DATABASE baedalondo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'baedalondo_app'@'localhost' IDENTIFIED BY '비밀번호';
-GRANT ALL PRIVILEGES ON baedalondo.* TO 'baedalondo_app'@'localhost';
-FLUSH PRIVILEGES;
-```
-
-애플리케이션을 처음 실행하면 Flyway가 `src/main/resources/db/migration`의 마이그레이션을 순서대로 적용합니다. 현재 초기 스키마는 `V1__create_initial_schema.sql`에 정의되어 있으며, Hibernate는 `ddl-auto: validate`로 엔티티와 스키마의 일치 여부만 검사합니다.
-
-접속 정보는 환경변수로 주입합니다.
-
-| 환경변수 | 기본값 | 필수 여부 |
-| --- | --- | --- |
-| `DB_URL` | `jdbc:mysql://localhost:3306/baedalondo` | 선택 |
-| `DB_USERNAME` | `baedalondo_app` | 선택 |
-| `DB_PASSWORD` | 없음 | **필수** |
-
-Windows에서는 사용자 환경변수로 등록합니다. 등록 후 터미널과 IDE를 재시작해야 반영됩니다.
-
-```bash
-setx DB_PASSWORD "비밀번호"
-```
-
-#### SQL 로그 보기
-
-기본 설정에는 SQL 로깅이 없습니다. `application.yaml`은 프로필을 지정하지 않았을 때의 값이라 곧 운영 설정이고, 여기에 켜 두면 서버에도 그대로 적용됩니다.
-
-로컬에서 쿼리를 보려면 `local` 프로필로 실행합니다.
-
-```bash
-SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
-```
-
-Docker Compose로 띄운다면 `.env`에 넣습니다.
-
-```
-SPRING_PROFILES_ACTIVE=local
-```
-
-`application-local.yaml`은 실행된 SQL과 함께 물음표 자리에 들어간 실제 파라미터까지 출력합니다. 비밀값이 없으므로 저장소에 포함되어 있습니다.
-
-**서버에서는 이 값을 채우지 않습니다.** compose의 기본값이 빈 문자열이라 지정하지 않으면 운영 설정으로 뜹니다.
-
-법적 고지에 표시되는 운영 정보는 아래 환경변수로 실행 환경마다 덮어쓸 수 있습니다.
-
-| 환경변수 | 기본값 | 용도 |
-| --- | --- | --- |
-| `SERVICE_OPERATOR_NAME` | `배달온도 운영자` | 약관·개인정보 처리방침 운영자명 |
-| `SERVICE_CONTACT_EMAIL` | `baedalondo@gmail.com` | 서비스 및 개인정보 문의 이메일 |
-
-### 4. 애플리케이션 실행
-
-```bash
-./gradlew bootRun
-```
-
-Windows 환경에서는 다음 명령을 사용할 수 있습니다.
-
-```bash
-./gradlew.bat bootRun
-```
-
-이 방식은 위 2~3단계에서 설정한 환경변수와 별도로 설치한 MySQL을 사용합니다.
-
-### 5. 컨테이너로 실행
-
-MySQL까지 함께 띄우므로 MySQL을 따로 설치하지 않아도 됩니다.
-
-프로젝트 루트에 `.env` 파일을 만들고 값을 채웁니다. 이 파일은 `.gitignore`에 등록되어 있어 저장소에 올라가지 않습니다.
-
-```
+```text
 DB_USERNAME=baedalondo_app
 DB_PASSWORD=앱_계정_비밀번호
 DB_ROOT_PASSWORD=컨테이너_root_비밀번호
+
 KMA_AUTH_KEY=기상청_API_KEY
 DATAPORTAL_AUTH_KEY=공공데이터포털_API_KEY
 DATAPORTAL_HOLIDAY_AUTH_KEY=공휴일_API_KEY
@@ -215,62 +418,136 @@ JUSO_COORDINATE_AUTH_KEY=도로명주소_좌표제공_API_KEY
 JUSO_POPUP_AUTH_KEY=도로명주소_팝업_API_KEY
 ```
 
-이미지는 빌드된 jar를 담기만 하므로 먼저 jar를 만들어야 합니다.
+`.env`는 `.gitignore`에 포함되어 있습니다.
 
 ```bash
 ./gradlew build
 docker compose up -d --build
 ```
 
-| 명령 | 설명 |
-| --- | --- |
-| `docker compose logs -f app` | 애플리케이션 로그 확인 |
-| `docker compose ps` | 컨테이너 상태 확인 |
-| `docker compose down` | 컨테이너 정지 및 삭제. 데이터는 볼륨에 남습니다 |
-| `docker compose down -v` | **볼륨까지 삭제. DB 데이터가 사라집니다** |
-
-MySQL 계정은 볼륨이 비어 있는 최초 실행에만 생성됩니다. 이후 `.env`의 비밀번호를 바꿔도 이미 만들어진 계정에는 반영되지 않으므로, 첫 실행 전에 값을 확정해야 합니다.
-
-DB 컨테이너는 호스트로 포트를 열지 않습니다. 직접 조회하려면 아래처럼 접속합니다.
+Windows:
 
 ```bash
-docker compose exec db mysql -u root -p baedalondo
+./gradlew.bat build
+docker compose up -d --build
 ```
 
-### 6. 테스트 실행
+로그/상태 확인:
+
+```bash
+docker compose ps
+docker compose logs -f app
+```
+
+종료:
+
+```bash
+docker compose down
+```
+
+볼륨까지 삭제:
+
+```bash
+docker compose down -v
+```
+
+> `docker compose down -v`는 MySQL 데이터도 삭제합니다.
+
+<details>
+<summary><strong>로컬 MySQL로 실행</strong></summary>
+
+MySQL 8에 DB와 계정을 만듭니다.
+
+```sql
+CREATE DATABASE baedalondo
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+CREATE USER 'baedalondo_app'@'localhost'
+    IDENTIFIED BY '비밀번호';
+
+GRANT ALL PRIVILEGES
+    ON baedalondo.*
+    TO 'baedalondo_app'@'localhost';
+
+FLUSH PRIVILEGES;
+```
+
+DB 설정:
+
+| 환경변수 | 기본값 |
+| --- | --- |
+| `DB_URL` | `jdbc:mysql://localhost:3306/baedalondo` |
+| `DB_USERNAME` | `baedalondo_app` |
+| `DB_PASSWORD` | 없음 |
+
+실행:
+
+```bash
+./gradlew bootRun
+```
+
+Windows:
+
+```bash
+./gradlew.bat bootRun
+```
+
+SQL과 바인딩 값을 확인할 때는 `local` 프로필을 사용합니다.
+
+```bash
+SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
+```
+
+운영 환경에서는 `local` 프로필을 사용하지 않습니다.
+
+</details>
+
+---
+
+## 테스트
 
 ```bash
 ./gradlew test
 ```
 
-Windows 환경에서는 다음 명령을 사용할 수 있습니다.
+Windows:
 
 ```bash
 ./gradlew.bat test
 ```
 
-**테스트는 위 1~3단계 설정 없이 실행할 수 있습니다.** `src/test/resources/application.yaml`이 더미 API 키를 사용하고, DB는 Testcontainers가 MySQL 컨테이너를 띄워 주므로 `DB_PASSWORD`나 API 키가 없어도 저장소를 clone한 그대로 통과합니다. 다만 **Docker는 실행 중이어야 합니다.**
+테스트에는 실제 API 키나 `DB_PASSWORD`가 필요하지 않습니다.
+
+`src/test/resources/application.yaml`의 더미 API 키를 사용하고, DB는 Testcontainers가 MySQL 8 컨테이너를 띄웁니다.
+
+**Docker는 실행 중이어야 합니다.**
+
+테스트에서도 운영과 마찬가지로 Flyway migration을 적용하고 Hibernate는 `ddl-auto: validate`로 스키마를 검사합니다.
+
+---
 
 ## 주요 URL
 
-| URL | 설명 | 로그인 |
+| URL | 용도 | 로그인 |
 | --- | --- | --- |
-| `/` | `/dashboard/main`으로 리다이렉트 | 필요 |
-| `/dashboard/main` | 로그인 사용자 기준 대시보드 메인 화면 | 필요 |
-| `/dashboard/main/{storeId}` | 선택한 Store ID를 세션에 저장한 뒤 `/dashboard/main`으로 리다이렉트 | 필요 |
-| `/store/register` | 매장 등록 화면 | 필요 |
-| `/store/{storeId}/edit` | 매장 정보 수정 화면 | 필요 |
+| `/dashboard/main` | 로그인 사용자 대시보드 | 필요 |
+| `/dashboard/main/{storeId}` | 매장 선택 | 필요 |
+| `/store/register` | 매장 등록 | 필요 |
+| `/store/{storeId}/edit` | 매장 수정 | 필요 |
 | `/api/stores` | 매장 등록 API | 필요 |
-| `/api/stores/{storeId}` | 매장 정보 수정 API (PUT) | 필요 |
+| `/api/stores/{storeId}` | 매장 수정 API | 필요 |
 | `/guest` | 게스트 모드 진입 | 불필요 |
-| `/dashboard/guest` | 게스트 지역 기반 대시보드 화면 | 불필요 |
-| `/login` | 로그인 화면 | 불필요 |
-| `/signup` | 회원가입 화면 | 불필요 |
-| `/terms` | 이용약관 전문 | 불필요 |
-| `/privacy` | 개인정보 처리방침 전문 | 불필요 |
-| `/actuator/health` | 기동 상태 확인용 헬스체크 | 불필요 |
+| `/dashboard/guest` | 게스트 대시보드 | 불필요 |
+| `/login` | 로그인 | 불필요 |
+| `/signup` | 회원가입 | 불필요 |
+| `/terms` | 이용약관 | 불필요 |
+| `/privacy` | 개인정보 처리방침 | 불필요 |
+| `/actuator/health` | 헬스체크 | 불필요 |
 
-로그인이 필요한 URL에 비로그인 상태로 접근하면 `/login`으로 리다이렉트됩니다.
+`/dashboard/main/{storeId}`는 Store ID를 세션에 저장한 뒤 `/dashboard/main`으로 리다이렉트합니다.
+
+---
 
 ## 매장 등록 API
 
@@ -278,8 +555,6 @@ Windows 환경에서는 다음 명령을 사용할 수 있습니다.
 POST /api/stores
 Content-Type: application/json
 ```
-
-요청 예시:
 
 ```json
 {
@@ -312,339 +587,163 @@ Content-Type: application/json
 1
 ```
 
-`businessType`은 아래 9개 값만 허용합니다. 그 외 문자열은 요청 단계에서 거부됩니다.
-
-`KOREAN_FOOD` `CHINESE_FOOD` `JAPANESE_FOOD` `WESTERN_FOOD` `CHICKEN` `FAST_FOOD` `BUNSIK` `CAFE_BEVERAGE` `BAKERY`
-
-## 점수 계산 개요
-
-최종 배달온도 점수는 평균 수요를 의미하는 50점을 기준으로 두고, 시간대/요일/날씨/대기질/상호작용 요인을 가중치 기반으로 반영한 뒤 0-100 범위로 제한합니다.
+허용하는 `businessType`:
 
 ```text
-score = 50
-      + 시간대 기여도
-      + 요일/공휴일 기여도
-      + 현재 날씨 기여도
-      + 대기질 기여도
-      + 상호작용 보너스
+KOREAN_FOOD
+CHINESE_FOOD
+JAPANESE_FOOD
+WESTERN_FOOD
+CHICKEN
+FAST_FOOD
+BUNSIK
+CAFE_BEVERAGE
+BAKERY
 ```
 
-현재 적용 중인 기여도 범위:
+---
 
-| 요인 | 반영 방식 | 범위 |
-| --- | --- | --- |
-| 시간대 | 상권 x 업종 x 시간대 TimeWeight | -12 ~ +14 |
-| 요일 | 상권 x 업종 x 요일 DayWeight (공휴일은 고정 +8) | -6 ~ +8 |
-| 현재 날씨 | 강수량, 강수형태, 기온, 풍속 원점수를 정규화 | 0 ~ +20 |
-| 대기질 | PM10, PM2.5 원점수를 정규화 | 0 ~ +8 |
-| 상호작용 | 피크 시간+강한 요일, 비+피크 시간, 공휴일 조합 보너스 | 0 ~ +10 |
+## 운영 메모
 
-### 시간대 기여도
+### 외부 API timeout
 
-시간대는 서울시 원본의 6개 시간 구간별 매출건수를 구간 길이로 나눈 뒤,
-같은 상권·업종의 24시간 평균 시간당 활동량을 100으로 둔 `TimeIndex`로 정규화합니다.
+`RestClientConfig`에서 공통으로 다음 값을 사용합니다.
 
 ```text
-commercialAreaCode + businessType + 시간대  ->  Local TimeWeight
-없으면  businessType + 시간대             ->  City TimeWeight
-업종이 없는 게스트                         ->  기존 공통 시간표
+connect timeout: 2s
+read timeout:    4s
 ```
 
-시간 구간은 `00~06`, `06~11`, `11~14`, `14~17`, `17~21`, `21~24`입니다.
-원본이 배달 전용 데이터가 아니므로 정확한 주문량 예측값이 아니라 업종별 시간대 상업활동을
-배달 잠재 수요의 보조 지표로 사용합니다.
+재시도 대상은 connect/read timeout과 HTTP 502, 503, 504입니다.
 
-### 요일 기여도
+두 번 모두 실패한 대상은 60초 동안 외부 호출을 생략합니다. 쿨다운 중에 시간 조건 없는 오래된 측정값을 현재 값처럼 대신 반환하지는 않습니다.
 
-요일 점수는 요일 이름이 아니라 **그 상권 그 업종의 실제 요일별 수요 패턴**으로 결정합니다. 같은 일요일이라도 오피스 상권 카페는 -6, 주거지 카페는 +6이 될 수 있습니다.
-
-```text
-commercialAreaCode + businessType + 요일  ->  Local DayWeight
-없으면  businessType + 요일             ->  City DayWeight
-그래도 없으면                            ->  0
-```
-
-공휴일에는 전처리 데이터가 공휴일 효과를 분리하지 못하므로 DayWeight 대신 고정 +8을 사용합니다.
-
-상호작용 보너스도 요일 이름을 조건으로 쓰지 않습니다. 피크 시간대에 DayWeight가 양수일 때만 `ceil(DayWeight / 2)`를 최대 +3까지 더합니다. 수요가 약한 요일을 상호작용이 뒤집지 않도록 음수에는 적용하지 않으며, 공휴일에도 적용하지 않습니다.
-
-날씨와 대기질은 기존 계산기에서 만든 원점수를 그대로 사용하되, 최종 점수에서는 영향 범위를 제한해 특정 요인이 과도하게 점수를 끌어올리지 않도록 합니다.
-
-시간대 기여도는 `CLOSED -12`, `LOW -6`, `MEDIUM 0`, `HIGH +8`,
-`VERY_HIGH +14`를 적용합니다. TimeWeight가 배달 전용 주문량이 아닌 상업활동 보조지표라는
-점을 고려해 영향 폭을 제한했으며, 시간대 등급만으로 최종 결과를 강제하지 않도록
-시간대별 최종 점수 상한은 적용하지 않습니다.
-
-상호작용 보너스는 최종 점수에는 반영하지만, 사용자 화면에는 별도 세부 항목으로 노출하지 않습니다. 화면에서는 시간대, 요일/공휴일, 날씨, 대기질이 점수에 영향을 준 방향만 간단히 표시합니다.
-
-점수 구간:
-
-| 점수 | 화면에 표시되는 상태 |
-| --- | --- |
-| 0-19 | 마감 · 매우 낮은 수요 구간 |
-| 20-39 | 하 · 수요 둔화 구간 |
-| 40-59 | 중 · 평균 수요 구간 |
-| 60-79 | 상 · 높은 수요 구간 |
-| 80-100 | 상 · 수요 급등 구간 |
-
-외부 API 실패는 전체 대시보드를 중단시키지 않고 해당 요소만 제외하는 방식으로 처리합니다.
-
-## 현재 개발 상태
-
-구현 완료:
-
-- Store 등록 및 DB 저장
-- Store ID 기반 대시보드 확인
-- 로그인 사용자 기반 Store 조회
-- 대시보드 내 Store 선택 드롭다운
-- Spring Security 기반 로그인/로그아웃
-- 회원가입 및 아이디 중복 검사
-- 가입 시 동의 문서 버전과 동의 시각 저장
-- 이용약관 및 개인정보 처리방침 전문 화면
-- Store 정보 수정
-- 서울 25개 자치구청 CSV 기반 게스트 모드 대시보드
-- 기상청 현재 날씨 API 연동
-- 날씨 DB 캐시/재사용
-- AirKorea 미세먼지 API 연동
-- 미세먼지 DB 저장/재사용
-- 공휴일 API 연동
-- 가중치 기반 배달온도 점수 계산
-- 점수 영향 방향 표시
-- 배달온도 계산기 테스트
-- 대시보드 UI
-- GeoJSON + JTS 기반 서울시 상권 판별 및 저장
-- businessType의 BusinessType Enum 표준화
-- 서울시 추정매출 기반 상권 x 업종 x 요일 DayWeight 전처리
-- DayWeight 런타임 조회 계층 및 Local -> City -> 0 fallback
-- 요일 heuristic을 데이터 기반 DayWeight로 대체
-- 서울시 추정매출 기반 상권 x 업종 x 시간대 TimeWeight 전처리
-- TimeWeight 런타임 조회 계층 및 Local -> City -> 기존 시간표 fallback
-- 업종 공통 시간표를 데이터 기반 TimeWeight로 대체
-
-추가 보강 후보:
-
-- CurrentWeatherService, KmaTimeCalculator 등 서비스 계층 테스트 보강
-
-현재 제품 방향에서 제외/보류:
-
-- 별도 Store 목록 페이지
-  - 현재는 대시보드 드롭다운으로 매장 선택 흐름을 제공한다.
-- ScoreHistory 저장 및 과거 유사 상황 비교
-  - 현재 제품은 사장님이 빠르게 판단할 수 있는 현재 점수와 핵심 요인 제공에 집중한다.
-  - 과거 데이터 상세 제공은 사용자에게 과도한 정보가 될 수 있어 MVP 범위에서 제외한다.
-- 정기 수집 스케줄러
-  - 현재는 대시보드 요청 시 DB 재사용 후, 없으면 외부 API를 호출해 저장한다.
-  - 외부 API 최초 호출 지연이 문제가 될 때 성능 개선 작업으로 검토한다.
-
-## 개발 참고사항
-
-- 현재 DB는 MySQL 8을 사용하며 접속 정보는 환경변수로 주입합니다.
-- 스키마 변경은 `src/main/resources/db/migration`에 새 Flyway 버전 파일을 추가해 관리합니다. 이미 적용된 마이그레이션 파일은 수정하지 않습니다.
-- Hibernate는 `ddl-auto: validate`로 스키마를 검증하며 직접 생성하거나 변경하지 않습니다.
-- 테스트는 `src/test/resources/application.yaml`을 사용합니다. 테스트 클래스패스가 우선하므로 이 파일이 운영 `application.yaml`을 대체하며, 더미 API 키로 외부 API 호출 없이 실행됩니다. 실제 API 키 환경변수가 설정되어 있어도 테스트는 더미 값을 사용합니다.
-- DB는 Testcontainers가 MySQL 8 컨테이너를 띄웁니다. `MySqlTestSupport`를 상속한 테스트가 이 컨테이너를 씁니다. 컨테이너는 `static`으로 한 번만 뜨고 테스트 JVM 전체가 공유합니다. `@TestConfiguration` 빈으로 두면 `@SpringBootTest`와 `@DataJpaTest`가 서로 다른 컨텍스트라 컨테이너가 여러 개 뜹니다.
-
-- **테스트가 운영과 같은 방식으로 스키마를 만듭니다.** Flyway가 V1부터 순서대로 실행되고, `ddl-auto: validate`가 그 스키마와 엔티티 매핑이 맞는지 검사합니다. 이전에는 H2에서 V1을 실행할 수 없어(`ENUM`, `ENGINE=InnoDB`, `BIT(1)`) Flyway를 끄고 엔티티 기준 `create-drop`으로 만들었고, 그 결과 **마이그레이션이 CI에서 한 번도 실행되지 않았습니다.**
-
-- `BaedalOndoApiApplicationTests`가 이 검증을 맡습니다. 컨텍스트가 뜨면 마이그레이션 전체가 성공했고 엔티티 매핑도 일치한다는 뜻입니다. 마이그레이션에 문법 오류를 넣어 실패하는 것까지 확인했습니다.
-
-- CD로 자동 배포하면 마이그레이션이 도는 것을 사람이 보지 않습니다. MySQL은 DDL에 트랜잭션이 없어 중간에 실패하면 앞선 구문이 적용된 채 남고, 앱은 뜨지 않으며 `flyway repair`가 필요합니다. CI가 이를 배포 전에 막는 유일한 관문입니다.
-- `/dashboard/main/{storeId}`는 URL을 유지하지 않고 선택 Store ID를 세션에 저장한 뒤 `/dashboard/main`으로 리다이렉트합니다.
-- `/dashboard/main`은 로그인 사용자의 Store를 조회하는 정식 진입점입니다.
-- 게스트 지역은 `src/main/resources/guest-regions.csv`에 고정된 서울 25개 자치구청 정보를 사용하며 DB에 저장하지 않습니다.
-- 등록된 Store가 없는 로그인 사용자도 같은 게스트 지역 CSV에서 무작위 지역을 골라 대시보드를 대체 표시합니다.
-- 개인정보 처리방침은 개인정보보호위원회의 `2026 개인정보 처리방침 작성지침` 구조를 참고하며, 문의 메일은 Gmail을 사용하므로 처리위탁·국외 이전 가능성을 함께 공개합니다.
-- 외부 API 호출은 `RestClientConfig`에서 연결 2초, 응답 4초 타임아웃을 공통 적용합니다. 상대 API가 느려질 때 요청 스레드가 묶이지 않도록 하기 위한 설정이며, 타임아웃으로 실패하면 해당 보정 점수만 제외하고 대시보드는 계속 표시됩니다.
-- 오류 화면은 `templates/error/404.html`, `templates/error/500.html`, 그 외 상태 코드를 받는 `templates/error.html`로 구성되어 있습니다.
-- 컨테이너 이미지는 JRE 위에 실행 jar만 올리는 단일 스테이지로 만듭니다. 빌드는 Gradle 캐시를 쓰는 CI에 맡기고 `Dockerfile`은 결과물만 담습니다. `bootJar`의 파일명을 `app.jar`로 고정해 버전을 올려도 `Dockerfile`을 수정하지 않으며, 실행 불가능한 `-plain.jar`은 생성하지 않습니다.
-- `.dockerignore`는 모두 제외한 뒤 실행 jar만 포함합니다. 제외 목록 방식과 달리 새로 생긴 파일이 이미지로 새어 들어가지 않습니다.
-- compose에서 애플리케이션은 `db` 서비스 이름으로 DB에 접속합니다. 컨테이너 안의 `localhost`는 컨테이너 자신을 가리키므로 사용할 수 없습니다.
-- DB 컨테이너에 헬스체크를 두고 애플리케이션이 `service_healthy` 조건을 기다립니다. 컨테이너가 시작된 것과 접속을 받을 준비가 된 것은 다르며, 이 조건이 없으면 Flyway가 먼저 접속을 시도해 실패합니다.
-
-## 운영
-
-### 헬스체크
+### Health check
 
 ```bash
 curl http://localhost:8080/actuator/health
-# {"groups":["liveness","readiness"],"status":"UP"}
 ```
 
-`management.endpoints.web.exposure.include`를 `health`로 제한해 다른 actuator 엔드포인트는 열지 않으며, `show-details: never`로 DB 접속 상태 같은 내부 정보도 노출하지 않습니다. Nginx나 로드밸런서의 상태 확인 대상으로 사용합니다.
+외부에 노출하는 actuator endpoint는 `health`만 사용하고, `show-details: never`로 내부 상세정보는 응답에 포함하지 않습니다.
 
-### DB 백업과 복구
+### DB 접속
 
-DB는 compose 컨테이너 안에 있고 호스트로 포트를 열지 않습니다. 그래서 호스트에서 `127.0.0.1:3306`으로 붙는 방식은 동작하지 않습니다. 두 스크립트 모두 컨테이너 안에서 `mysqldump`/`mysql`을 실행하고 결과만 주고받습니다.
+DB 컨테이너의 3306 포트는 호스트에 공개하지 않습니다.
 
 ```bash
-./scripts/backup-db.sh                                  # 백업
-./scripts/restore-db.sh <백업파일.sql.gz>                # 복구
+docker compose exec db mysql -u root -p baedalondo
 ```
 
-**비밀번호를 인자로 넘기지 않습니다.** `db` 컨테이너가 이미 `MYSQL_USER`와 `MYSQL_PASSWORD`를 갖고 있으므로 컨테이너 안에서 그대로 씁니다. 호스트의 `ps` 목록이나 셸 히스토리에 비밀번호가 남지 않습니다.
+### 백업 / 복구
 
-| 환경변수 | 기본값 | 설명 |
-| --- | --- | --- |
-| `BACKUP_DIR` | `/var/backups/baedalondo` | 백업 파일 저장 위치 |
-| `RETENTION_DAYS` | `14` | 보관 기간, 지난 파일은 삭제 |
-| `DB_SERVICE` | `db` | compose 서비스 이름 |
-| `FORCE` | 없음 | 복구 시 `1`이면 확인 없이 진행 |
+```bash
+./scripts/backup-db.sh
+./scripts/restore-db.sh <백업파일.sql.gz>
+```
 
-`--single-transaction`으로 InnoDB를 잠그지 않고 일관된 시점을 덤프합니다. `--no-tablespaces`가 필요한데, MySQL 8의 `mysqldump`는 기본으로 테이블스페이스를 덤프하려 하면서 `PROCESS` 권한을 요구하고 앱 계정에는 그 권한이 없기 때문입니다.
+스크립트는 컨테이너 내부의 `MYSQL_USER`, `MYSQL_PASSWORD`를 사용하므로 DB 비밀번호를 명령행 인자로 넘기지 않습니다.
 
-**성공 판정은 파일 크기가 아니라 `-- Dump completed` 표식으로 합니다.** `mysqldump`는 일부 오류에서 경고만 내고 종료 코드 0으로 끝나기 때문에, 크기만 보면 중간에 잘린 덤프를 성공으로 오인합니다.
+| 환경변수 | 기본값 |
+| --- | --- |
+| `BACKUP_DIR` | `/var/backups/baedalondo` |
+| `RETENTION_DAYS` | `14` |
+| `DB_SERVICE` | `db` |
+| `FORCE` | 없음 |
 
-덤프에는 `flyway_schema_history`가 함께 담깁니다. 그래서 복구 후 앱은 마이그레이션을 다시 실행하지 않고 `validate`만 수행합니다.
+덤프에는 `--single-transaction`, `--no-tablespaces`를 사용합니다.
 
-크론 등록 예시입니다.
+백업 성공 여부는 파일 크기뿐 아니라 `-- Dump completed` 표식도 확인합니다. `flyway_schema_history`도 같이 백업되므로 복구 뒤 적용된 migration을 다시 실행하지 않고 `validate`합니다.
+
+크론 예시:
 
 ```bash
 0 4 * * * /home/ubuntu/baedal-ondo-api/scripts/backup-db.sh >> /var/log/baedalondo-backup.log 2>&1
 ```
 
-개인정보 처리방침에 공개한 보관 기간과 `RETENTION_DAYS`를 일치시켜야 합니다.
+현재 백업은 서버 로컬 디스크에 남습니다. 서버 디스크 자체가 유실되는 경우를 대비한 외부 저장소 2차 복사는 배포 단계에서 추가할 예정입니다.
 
-#### 복구 절차 검증
+<details>
+<summary><strong>복구 절차 테스트</strong></summary>
 
-백업은 복구해 봐야 백업입니다. 아래 순서로 실제 데이터를 건드리지 않고 확인할 수 있습니다. `COMPOSE_PROJECT_NAME`을 바꾸면 별도 볼륨이 생겨 기존 데이터와 격리됩니다.
+별도 compose project를 사용하면 실제 서비스 볼륨과 분리해서 복구를 확인할 수 있습니다.
 
 ```bash
 export COMPOSE_PROJECT_NAME=baedalondo-restoretest
+
 docker compose up -d db app
 BACKUP_DIR=./build/backup-test ./scripts/backup-db.sh
-docker compose down -v                                   # 볼륨까지 삭제
+
+docker compose down -v
 docker compose up -d db
+
 FORCE=1 ./scripts/restore-db.sh ./build/backup-test/<파일>.sql.gz
-docker compose up -d app                                 # validate 후 기동되면 성공
+docker compose up -d app
+
 docker compose down -v
 ```
 
-⚠️ **서버 디스크가 통째로 사라지면 여기 있는 백업도 함께 사라집니다.** 외부 저장소로의 2차 복사는 배포 단계에서 추가합니다.
+</details>
 
-### AWS 개인정보 처리 설정
+---
 
-`/privacy`는 대한민국 계정의 계약 주체인 Amazon Web Services Korea LLC와 서울 리전(`ap-northeast-2`) 사용을 기준으로 작성되어 있습니다.
+## 기타 트러블슈팅
 
-- 애플리케이션, 데이터베이스, 로그와 백업은 서울 리전에 생성합니다.
-- 다른 리전으로 복제하거나 국외에서 처리되는 AWS 서비스를 추가하면 배포 전에 개인정보 처리방침을 개정합니다.
-- 실제 백업 보존 기간을 확정하고, 회원 탈퇴 및 위탁 종료 시 삭제 절차와 일치시킵니다.
-- AWS 계정 국가나 계약 주체가 대한민국이 아니라면 실제 계약 주체를 확인해 개인정보 처리방침을 수정합니다.
+<details>
+<summary><strong>환경변수 누락이 MySQL 비밀번호 오류로 보이는 경우</strong></summary>
 
-## 트러블슈팅
-
-### 대기질이 간헐적으로 표시되지 않는 경우
-
-**증상**
-
-서버를 며칠 내려뒀다 다시 켜면 대시보드에 대기질이 나오지 않고 로그에 타임아웃이 찍힙니다. 그런데 새로고침을 몇 번 하면 다시 나옵니다.
-
-**가설**
-
-새로고침으로 복구된다는 점에서 요청 자체보다 폴백 구조를 의심했습니다. 지금은 한 번 실패하면 곧바로 저장된 값으로 떨어지는데, 그 앞에 재시도를 한 번 두면 될 것 같았습니다.
-
-다만 근거 없이 호출을 늘리면 실패가 이어질 때 호출량만 두 배가 됩니다. 고치기 전에 실제 응답 시간부터 확인하기로 하고, Claude Code에 에어코리아로 같은 요청을 반복해 보내 응답 시간을 정리하도록 지시했습니다. 한 번 보고 끝낼 수치가 아니라서 그 과정을 스크립트로 남겼습니다.
-
-```bash
-python data-processing/probe_airkorea_latency.py
-```
-
-**측정 결과**
-
-같은 요청 72회.
-
-| | 응답 시간 |
-|---|---|
-| 성공 | 대부분 137~330ms |
-| 실패 | 5,050 / 10,400 / 12,830ms 뒤 HTTP 504 |
-
-**원인**
-
-실패가 5초 아래로 내려오지 않고, 성공은 이미 4초 안에 들어옵니다. 느려지다 실패하는 것이 아니라 게이트웨이가 정상이면 즉시 응답하고 아니면 자기 타임아웃까지 붙잡고 있다가 504를 던집니다. `RestClientConfig`의 read timeout이 4초라 504를 받기 전에 우리가 먼저 끊었고, 그래서 화면에는 타임아웃으로 보였습니다.
-
-여기서 두 가지가 나왔습니다.
-
-- **타임아웃을 늘리는 것은 해결이 아닙니다.** 늘려서 새로 건지는 요청이 없고, 4초짜리 실패가 10초짜리 실패로 바뀔 뿐입니다
-- **재시도는 맞는 방향입니다.** 지연이 아니라 상태가 갈리는 실패라 곧바로 다시 호출하면 상당수가 성공합니다. 4초 컷으로 15회 재현했을 때 성공률이 40%에서 80%로 올라갔습니다
-
-**해결**
-
-- 재시도 1회 (`ExternalCallGuard`). 위 이유로 백오프를 두지 않습니다
-- 두 번 모두 실패하면 60초 쿨다운. 재시도만 넣으면 실패가 이어지는 동안 호출량이 두 배가 됩니다
-- 기동 시 사전 적재 (`ExternalDataPreloader`). 캐시가 비어 있는 구간이 이 증상의 무대였습니다
-- 쿨다운 중에도 저장된 측정값으로 돌리지 않습니다. 그 조회에는 시간 조건이 없어 몇 시간 전 값이 현재 값처럼 나갑니다. 호출이 실패했을 때와 같은 답이어야 합니다
-
-에어코리아를 닿지 않는 주소로 돌려 확인한 결과입니다.
+터미널에서 다음 오류가 나지만 IDE에서는 정상 실행되는 경우가 있었습니다.
 
 ```text
-1) 첫 요청       4,626ms   두 번 시도 후 실패, 대기질 없이 표시
-2) 바로 다음         75ms   외부 호출을 건너뛰고 같은 결과
-3) 또 다음           68ms   같음
-4) 60초 뒤       4,073ms   쿨다운 해제, 다시 호출
+java.sql.SQLException:
+Access denied for user 'baedalondo_app'@'localhost'
+(using password: YES)
 ```
 
-네 요청의 결과는 모두 같습니다. 쿨다운이 바꾸는 것은 결과가 아니라 기다리는 시간입니다.
+원인은 IDE 실행 구성에만 `DB_PASSWORD`가 있고 터미널 환경에는 값이 없던 것이었습니다.
 
-쿨다운이 없으면 2번과 3번도 4.6초를 기다린 뒤 같은 답을 합니다. 실패는 조회 기록에 남기지 않으므로 캐시가 히트하지 않고, 매 요청이 외부 호출 분기로 다시 들어가기 때문입니다. 새로고침 세 번이면 외부 호출 여섯 번에 14초가 됩니다.
-
-### 환경변수 미설정이 비밀번호 오류로 나타나는 경우
-
-**증상**
-
-터미널에서 `./gradlew test`를 실행하면 다음 오류로 컨텍스트 로드가 실패합니다. IDE에서 앱을 실행할 때는 정상 동작합니다.
-
-```text
-java.sql.SQLException: Access denied for user 'baedalondo_app'@'localhost' (using password: YES)
+```yaml
+password: "${DB_PASSWORD}"
 ```
 
-**원인**
+플레이스홀더가 해결되지 않은 상태에서 `${DB_PASSWORD}` 문자열 자체가 MySQL에 전달돼 인증 오류로 보였습니다.
 
-`DB_PASSWORD` 환경변수가 없어서 발생하지만, 오류 메시지는 비밀번호가 틀린 것처럼 보입니다. `application.yaml`의 `password: "${DB_PASSWORD}"`에는 기본값이 없는데, Spring Boot는 `@ConfigurationProperties` 바인딩 과정에서 해결하지 못한 플레이스홀더를 예외로 던지지 않고 문자열 그대로 남깁니다. 그 결과 `${DB_PASSWORD}`라는 문자열이 비밀번호로 전송되어 MySQL이 인증을 거부합니다.
+사용자 환경변수로 등록한 뒤 터미널과 IDE를 다시 시작해 해결했습니다.
 
-IDE 실행 구성에만 환경변수를 등록한 경우 IDE에서만 성공하고 터미널에서는 실패하므로 원인을 찾기 어렵습니다.
+</details>
 
-**해결**
+<details>
+<summary><strong>404 대신 로그인 화면이 표시되는 경우</strong></summary>
 
-시스템 사용자 환경변수로 등록한 뒤 터미널과 IDE를 재시작합니다. IDE 실행 구성에 중복 등록하면 비밀번호 변경 시 한쪽만 고치게 되므로 한 곳에서만 관리합니다.
+비로그인 상태에서 없는 URL에 접근했을 때 404 화면 대신 로그인 화면으로 이동했습니다.
 
-### 점수 구간 색상이 항상 회색으로 표시되는 경우
+오류가 발생하면 `/error`로 `ERROR` dispatch가 발생하는데, 이 요청도 Spring Security 인가 대상에 포함됩니다.
 
-**증상**
+`SecurityConfig`의 `permitAll`에 `/error`를 추가해 해결했습니다.
 
-점수와 상관없이 대시보드 온도 패널이 모두 마감 상태 색상으로 표시됩니다. 테스트는 전부 통과합니다.
+</details>
 
-**원인**
+---
 
-템플릿이 화면에 표시할 상태 문구를 파싱해 CSS 클래스를 결정하고 있었습니다.
+## 현재 범위
 
-```html
-<!-- 수정 전 -->
-th:classappend="${#strings.startsWith(dashboard.status, '상') ? ' status-high' : ...}"
-```
+현재 구현되어 있는 범위:
 
-상태 문구를 `상 · 높은 수요 구간`에서 `높음 · 높은 수요 구간`으로 바꾸자 어떤 조건에도 걸리지 않아 모든 점수가 기본값인 마감 상태로 떨어졌습니다. 표시용 문자열에 로직이 결합되어 있었기 때문에 컴파일 오류도 테스트 실패도 발생하지 않았습니다.
+- 매장 등록/수정과 사용자 소유권 검증
+- 로그인/로그아웃, 회원가입
+- 게스트 대시보드
+- 주소 기반 기상청 격자/상권 판별
+- 서울시 추정매출 기반 `DayWeight`, `TimeWeight`
+- 기상청/AirKorea/공휴일 API 연동
+- 외부 데이터 DB 재사용, 기동 preload, 재시도/쿨다운
+- 가중치 기반 점수 계산과 영향 방향 표시
+- Flyway migration
+- Testcontainers MySQL 테스트
+- Docker Compose
+- GitHub Actions
+- DB 백업/복구
 
-**해결**
+추가로 보강할 부분:
 
-표시 문구와 분리된 `ScoreStatusLevel` enum을 두고 구간 경계를 이 enum이 단일 기준으로 관리하도록 했습니다. 템플릿은 문구 대신 `dashboard.statusLevel.cssClass`를 사용합니다. 사용자에게 보여줄 문구는 언제든 바뀔 수 있으므로 화면 로직의 판단 근거로 삼지 않습니다.
+- `CurrentWeatherService`, `KmaTimeCalculator` 등 서비스 계층 테스트
 
-### 주소 검색 팝업과 CSRF 설정
-
-`SecurityConfig`의 CSRF 예외 목록에 있는 `/store/register`, `/store/*/edit`는 삭제하면 주소 검색 기능이 동작하지 않습니다.
-
-도로명주소 팝업은 외부 도메인인 `business.juso.go.kr`에서 선택 결과를 애플리케이션 화면으로 POST 전송합니다. 이 요청에는 CSRF 토큰이 포함될 수 없으므로 예외 처리가 필요합니다. 두 경로는 화면을 렌더링하기만 하고 데이터를 변경하지 않습니다.
-
-실제로 데이터를 변경하는 `/api/stores`는 CSRF 보호를 유지하며, 화면에서 `<meta name="_csrf">` 값을 읽어 요청 헤더에 담아 전송합니다.
-
-### 오류 페이지 대신 로그인 화면이 표시되는 경우
-
-**증상**
-
-없는 주소로 접근했을 때 404 화면이 아니라 로그인 화면으로 리다이렉트됩니다.
-
-**원인**
-
-Spring Security는 오류 처리를 위한 `ERROR` 디스패치 요청도 인가 대상에 포함합니다. 오류가 발생하면 컨테이너가 `/error`로 다시 요청을 보내는데, 이 경로가 `permitAll` 목록에 없으면 비로그인 사용자에게는 인증이 필요한 요청으로 판정되어 로그인 화면으로 넘어갑니다.
-
-**해결**
-
-`SecurityConfig`의 `permitAll` 목록에 `/error`를 포함합니다. 이 경로를 지우면 오류 화면이 다시 로그인 리다이렉트로 바뀝니다.
+현재 MVP에서는 별도 Store 목록 페이지와 `ScoreHistory` 기반 과거 비교 기능을 보류했습니다. 매장 전환은 대시보드 드롭다운으로 처리하고, 현재 버전은 과거 분석보다 **현재 점수와 그 점수가 나온 이유**를 보여주는 데 집중합니다.

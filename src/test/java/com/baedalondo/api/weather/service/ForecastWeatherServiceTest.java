@@ -7,10 +7,12 @@ import com.baedalondo.api.score.dto.ScoreTarget;
 import com.baedalondo.api.store.repository.StoreRepository;
 import com.baedalondo.api.weather.client.KmaForecastWeatherClient;
 import com.baedalondo.api.weather.domain.ForecastWeatherObservation;
+import com.baedalondo.api.weather.domain.ForecastWeatherRecord;
 import com.baedalondo.api.weather.exception.KmaWeatherApiException;
 import com.baedalondo.api.weather.repository.ForecastWeatherRecordRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.client.ResourceAccessException;
 
 import java.net.SocketTimeoutException;
@@ -23,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -155,6 +158,55 @@ class ForecastWeatherServiceTest {
 
         assertEquals(1, forecastWeatherService.getForecastWeather(scoreTarget(60, 127)).size());
         assertEquals(3, calls.get());
+    }
+
+    @Test
+    @DisplayName("저장할 때 유니크 충돌이 나면 조회부터 다시 하고 API를 다시 부르지 않는다")
+    void rereadsWhenSaveCollides() {
+        // 조회와 저장 사이가 벌어져 있어 같은 격자를 동시에 처음 조회하면
+        // 둘 다 빈 결과를 보고 둘 다 저장하러 들어간다.
+        // 충돌은 다른 요청이 같은 발표분을 이미 저장했다는 뜻이라 다시 읽으면 된다.
+        ForecastWeatherRecord storedRecord = mock(ForecastWeatherRecord.class);
+        ForecastWeatherObservation stored = observation();
+
+        when(kmaTimeCalculator.getSafeForecastBaseDateTime()).thenReturn(BASE_DATE_TIME);
+        when(kmaForecastWeatherClient.getForecastWeather(60, 127, "20260820", "1430"))
+                .thenReturn(List.of(observation()));
+        when(forecastWeatherRecordRepository.saveAll(anyList()))
+                .thenThrow(new DataIntegrityViolationException("uk_forecast_weather_record"));
+
+        when(forecastWeatherRecordRepository
+                .findByNxAndNyAndBaseDateAndBaseTimeOrderByForecastAtAsc(60, 127, "20260820", "1430"))
+                .thenReturn(List.of())
+                .thenReturn(List.of(storedRecord));
+        when(storedRecord.toObservation()).thenReturn(stored);
+
+        List<ForecastWeatherObservation> result =
+                forecastWeatherService.getForecastWeather(scoreTarget(60, 127));
+
+        assertEquals(List.of(stored), result);
+        verify(kmaForecastWeatherClient, times(1))
+                .getForecastWeather(60, 127, "20260820", "1430");
+    }
+
+    @Test
+    @DisplayName("다시 조회해도 충돌하면 예외를 그대로 올린다")
+    void propagatesWhenSecondAttemptAlsoCollides() {
+        // 한 번만 다시 시도한다. 계속 충돌하면 동시성이 아니라 다른 문제다.
+        when(kmaTimeCalculator.getSafeForecastBaseDateTime()).thenReturn(BASE_DATE_TIME);
+        when(kmaForecastWeatherClient.getForecastWeather(60, 127, "20260820", "1430"))
+                .thenReturn(List.of(observation()));
+        when(forecastWeatherRecordRepository
+                .findByNxAndNyAndBaseDateAndBaseTimeOrderByForecastAtAsc(60, 127, "20260820", "1430"))
+                .thenReturn(List.of());
+        when(forecastWeatherRecordRepository.saveAll(anyList()))
+                .thenThrow(new DataIntegrityViolationException("uk_forecast_weather_record"));
+
+        assertThrows(DataIntegrityViolationException.class,
+                () -> forecastWeatherService.getForecastWeather(scoreTarget(60, 127)));
+
+        verify(kmaForecastWeatherClient, times(2))
+                .getForecastWeather(60, 127, "20260820", "1430");
     }
 
     private KmaWeatherApiException timeout() {

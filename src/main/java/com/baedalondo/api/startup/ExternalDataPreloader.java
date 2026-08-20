@@ -63,7 +63,7 @@ public class ExternalDataPreloader {
 
         preload("공휴일", () -> holidayService.refreshHolidaysForMonthAndNextMonth(
                 today.getYear(), today.getMonthValue()));
-        preload("대기질", currentAirQualityService::preloadStoreSidoNames);
+        preload("대기질", currentAirQualityService::preloadDashboardSidoNames);
         preload("예보", forecastWeatherService::preloadDashboardGrids);
     }
 
