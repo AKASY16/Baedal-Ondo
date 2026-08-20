@@ -1,5 +1,6 @@
 package com.baedalondo.api.holiday.service;
 
+import com.baedalondo.api.common.ExternalCallGuard;
 import com.baedalondo.api.holiday.client.HolidayClient;
 import com.baedalondo.api.holiday.entity.Holiday;
 import com.baedalondo.api.holiday.repository.HolidayRepository;
@@ -10,8 +11,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.client.ResourceAccessException;
 
+import java.net.SocketTimeoutException;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,14 +44,16 @@ class HolidayServiceTest {
     @Mock
     private HolidayRepository holidayRepository;
 
-    @Mock
-    private TransactionTemplate transactionTemplate;
-
     @Captor
     private ArgumentCaptor<Iterable<Holiday>> savedCaptor;
 
+    private Instant now = Instant.parse("2026-08-20T06:00:00Z");
+
+    private final ExternalCallGuard externalCallGuard =
+            new ExternalCallGuard(Duration.ofSeconds(60), () -> now);
+
     private HolidayService holidayService() {
-        return new HolidayService(holidayClient, holidayRepository, transactionTemplate, false);
+        return new HolidayService(holidayClient, holidayRepository, externalCallGuard);
     }
 
     @Test
@@ -137,6 +144,84 @@ class HolidayServiceTest {
         assertTrue(holidayService().isHoliday(date));
 
         verify(holidayClient, never()).fetchHolidays(anyInt(), anyInt());
+    }
+
+    @Test
+    @DisplayName("타임아웃이면 한 번 더 부른다")
+    void retriesOnceOnTimeout() {
+        when(holidayClient.fetchHolidays(2026, 8))
+                .thenThrow(timeout())
+                .thenReturn(List.of());
+        when(holidayClient.fetchHolidays(2026, 9)).thenReturn(List.of());
+
+        holidayService().refreshHolidaysForMonthAndNextMonth(2026, 8);
+
+        verify(holidayClient, times(2)).fetchHolidays(2026, 8);
+        assertEquals(61, captureSaved().size());
+    }
+
+    @Test
+    @DisplayName("두 달 중 하나가 두 번 다 실패하면 기존 데이터를 지우지 않는다")
+    void keepsExistingDataWhenOneMonthFailsTwice() {
+        when(holidayClient.fetchHolidays(2026, 8)).thenReturn(List.of());
+        when(holidayClient.fetchHolidays(2026, 9)).thenThrow(timeout());
+
+        HolidayService holidayService = holidayService();
+
+        assertThrows(RuntimeException.class,
+                () -> holidayService.refreshHolidaysForMonthAndNextMonth(2026, 8));
+
+        verify(holidayClient, times(2)).fetchHolidays(2026, 9);
+        verify(holidayRepository, never()).deleteByDateBetween(any(), any());
+        verify(holidayRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("쿨다운 중에는 외부 API를 부르지 않고, 그 달을 비공휴일로 덮지도 않는다")
+    void doesNotOverwriteMonthDuringCooldown() {
+        // 여기서 빈 목록을 돌려주면 그 달 전체가 비공휴일로 저장되어,
+        // 외부 API가 잠깐 흔들린 것이 "공휴일이 없는 달"로 굳는다.
+        when(holidayClient.fetchHolidays(2026, 8)).thenThrow(timeout());
+
+        HolidayService holidayService = holidayService();
+
+        assertThrows(RuntimeException.class,
+                () -> holidayService.refreshHolidaysForMonthAndNextMonth(2026, 8));
+        verify(holidayClient, times(2)).fetchHolidays(2026, 8);
+
+        assertThrows(IllegalStateException.class,
+                () -> holidayService.refreshHolidaysForMonthAndNextMonth(2026, 8));
+
+        verify(holidayClient, times(2)).fetchHolidays(2026, 8);
+        verify(holidayRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("60초가 지나면 다시 호출한다")
+    void callsApiAgainAfterCooldownExpires() {
+        when(holidayClient.fetchHolidays(2026, 8))
+                .thenThrow(timeout())
+                .thenThrow(timeout())
+                .thenReturn(List.of());
+        when(holidayClient.fetchHolidays(2026, 9)).thenReturn(List.of());
+
+        HolidayService holidayService = holidayService();
+
+        assertThrows(RuntimeException.class,
+                () -> holidayService.refreshHolidaysForMonthAndNextMonth(2026, 8));
+
+        now = now.plusSeconds(60);
+
+        holidayService.refreshHolidaysForMonthAndNextMonth(2026, 8);
+
+        verify(holidayClient, times(3)).fetchHolidays(2026, 8);
+        assertEquals(61, captureSaved().size());
+    }
+
+    private IllegalStateException timeout() {
+        return new IllegalStateException(
+                "공휴일 API 호출 또는 응답 처리 중 오류가 발생했습니다.",
+                new ResourceAccessException("I/O error", new SocketTimeoutException("Read timed out")));
     }
 
     private Map<LocalDate, Holiday> captureSaved() {

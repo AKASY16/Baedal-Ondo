@@ -10,18 +10,25 @@ import com.baedalondo.api.airquality.exception.AirKoreaApiException;
 import com.baedalondo.api.airquality.repository.AirQualityFetchLogRepository;
 import com.baedalondo.api.airquality.repository.CurrentAirQualityRecordRepository;
 import com.baedalondo.api.airquality.util.KoreanAddressParser;
+import com.baedalondo.api.common.ExternalCallGuard;
 import com.baedalondo.api.score.dto.ScoreTarget;
 import com.baedalondo.api.store.repository.StoreRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.client.ResourceAccessException;
 
+import java.net.SocketTimeoutException;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.times;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -46,6 +53,13 @@ class CurrentAirQualityServiceTest {
             mock(AirQualityFetchLogRepository.class);
     private final StoreRepository storeRepository =
             mock(StoreRepository.class);
+
+    // 쿨다운이 풀리는 순간을 실제로 기다리지 않고 확인하려고 시계를 직접 쥔다.
+    private Instant now = Instant.parse("2026-08-16T13:00:00Z");
+
+    private final ExternalCallGuard externalCallGuard =
+            new ExternalCallGuard(Duration.ofSeconds(60), () -> now);
+
     private final CurrentAirQualityService currentAirQualityService =
             new CurrentAirQualityService(
                     airKoreaClient,
@@ -54,7 +68,8 @@ class CurrentAirQualityServiceTest {
                     currentAirQualityRecordRepository,
                     airQualityFetchLogRepository,
                     new KoreanAddressParser(),
-                    storeRepository
+                    storeRepository,
+                    externalCallGuard
             );
 
     @Test
@@ -217,6 +232,154 @@ class CurrentAirQualityServiceTest {
 
         assertSame(seoulAverage, result);
         verify(airKoreaClient, never()).getCurrentAirQualities(anyString());
+    }
+
+    @Test
+    @DisplayName("타임아웃이면 한 번 더 부르고, 두 번째가 성공하면 그대로 진행한다")
+    void retriesOnceWhenAirKoreaTimesOut() {
+        ScoreTarget scoreTarget = createScoreTarget("중구");
+        CurrentAirQualityObservation observation = createObservation("중구");
+
+        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airKoreaClient.getCurrentAirQualities("서울"))
+                .thenThrow(timeout())
+                .thenReturn(List.of(observation));
+
+        CurrentAirQualityObservation result =
+                currentAirQualityService.getCurrentAirQuality(scoreTarget);
+
+        assertSame(observation, result);
+        verify(airKoreaClient, times(2)).getCurrentAirQualities("서울");
+        verify(airQualityFetchLogRepository).save(any(AirQualityFetchLog.class));
+    }
+
+    @Test
+    @DisplayName("resultCode 오류는 재시도하지 않는다")
+    void doesNotRetryWhenAirKoreaReturnsResultCodeError() {
+        // 상대가 정상적으로 응답한 실패다. 다시 불러도 같은 답이 오고 일일 호출 한도만 태운다.
+        ScoreTarget scoreTarget = createScoreTarget("중구");
+
+        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airKoreaClient.getCurrentAirQualities("서울"))
+                .thenThrow(new AirKoreaApiException("에어코리아 API 에러, resultCode=99"));
+
+        assertThrows(AirKoreaApiException.class,
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+
+        verify(airKoreaClient, times(1)).getCurrentAirQualities("서울");
+    }
+
+    @Test
+    @DisplayName("두 번 다 실패하면 다음 요청은 API를 부르지 않고 저장된 데이터를 쓴다")
+    void usesStoredDataWithoutCallingApiDuringCooldown() {
+        // 실패하는 동안 조회 기록이 남지 않아 요청마다 API를 다시 부른다.
+        // 재시도까지 얹으면 새로고침 한 번이 호출 두 번이 되므로 쿨다운으로 끊는다.
+        ScoreTarget scoreTarget = createScoreTarget("중구");
+        CurrentAirQualityRecord storedRecord = mock(CurrentAirQualityRecord.class);
+        CurrentAirQualityObservation stored = createObservation("중구");
+
+        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airKoreaClient.getCurrentAirQualities("서울")).thenThrow(timeout());
+
+        assertThrows(AirKoreaApiException.class,
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+        verify(airKoreaClient, times(2)).getCurrentAirQualities("서울");
+
+        when(currentAirQualityRecordRepository
+                .findTopBySidoNameAndDistrictNameOrderByMeasuredAtDescCreatedAtDesc("서울", "중구"))
+                .thenReturn(Optional.of(storedRecord));
+        when(storedRecord.toObservation()).thenReturn(stored);
+
+        CurrentAirQualityObservation result =
+                currentAirQualityService.getCurrentAirQuality(scoreTarget);
+
+        assertSame(stored, result);
+        verify(airKoreaClient, times(2)).getCurrentAirQualities("서울");
+    }
+
+    @Test
+    @DisplayName("쿨다운 중에는 시도 평균도 부르지 않는다")
+    void doesNotCallAverageApiDuringCooldown() {
+        // 평균도 같은 게이트웨이를 쓴다. 여기서 기다리면 외부 호출을 건너뛴 의미가 없다.
+        ScoreTarget scoreTarget = createScoreTarget("마포구");
+
+        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airKoreaClient.getCurrentAirQualities("서울")).thenThrow(timeout());
+
+        assertThrows(AirKoreaApiException.class,
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+
+        assertThrows(AirKoreaApiException.class,
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+
+        verify(averageAirQualityClient, never()).getHourlyAverage(anyString(), any());
+    }
+
+    @Test
+    @DisplayName("실패는 조회 기록에 남기지 않는다")
+    void neverRecordsFetchLogOnFailure() {
+        // 실패를 성공 기록에 남기면 다음 요청이 이미 받아왔다고 판단해
+        // 빈 데이터를 정상으로 취급한다.
+        ScoreTarget scoreTarget = createScoreTarget("중구");
+
+        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airKoreaClient.getCurrentAirQualities("서울")).thenThrow(timeout());
+
+        assertThrows(AirKoreaApiException.class,
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+
+        verify(airQualityFetchLogRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("60초가 지나면 다시 호출한다")
+    void callsApiAgainAfterCooldownExpires() {
+        ScoreTarget scoreTarget = createScoreTarget("중구");
+        CurrentAirQualityObservation observation = createObservation("중구");
+        AtomicInteger calls = new AtomicInteger();
+
+        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airKoreaClient.getCurrentAirQualities("서울")).thenAnswer(invocation -> {
+            if (calls.incrementAndGet() <= 2) {
+                throw timeout();
+            }
+            return List.of(observation);
+        });
+
+        assertThrows(AirKoreaApiException.class,
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+        assertEquals(2, calls.get());
+
+        now = now.plusSeconds(60);
+
+        CurrentAirQualityObservation result =
+                currentAirQualityService.getCurrentAirQuality(scoreTarget);
+
+        assertSame(observation, result);
+        assertEquals(3, calls.get());
+    }
+
+    @Test
+    @DisplayName("사전 적재는 쿨다운 중인 시도를 건너뛴다")
+    void preloadSkipsSidoInCooldown() {
+        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(storeRepository.findDistinctSidoNames()).thenReturn(List.of("서울특별시"));
+        when(airKoreaClient.getCurrentAirQualities("서울")).thenThrow(timeout());
+
+        assertEquals(0, currentAirQualityService.preloadStoreSidoNames());
+        verify(airKoreaClient, times(2)).getCurrentAirQualities("서울");
+
+        assertEquals(0, currentAirQualityService.preloadStoreSidoNames());
+        verify(airKoreaClient, times(2)).getCurrentAirQualities("서울");
+    }
+
+    /**
+     클라이언트가 하는 것처럼 감싼다. 판정이 원인 사슬을 보므로 안쪽 타입이 중요하다.
+     */
+    private AirKoreaApiException timeout() {
+        return new AirKoreaApiException(
+                "에어코리아 API 호출 또는 응답 처리 중 오류가 발생했습니다.",
+                new ResourceAccessException("I/O error", new SocketTimeoutException("Read timed out")));
     }
 
     private ScoreTarget createScoreTarget(String sigunguName) {

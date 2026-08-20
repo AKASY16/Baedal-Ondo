@@ -50,10 +50,10 @@ jusogokr:
     coordinate-auth-key: test-juso-coordinate-key
     popup-auth-key: TESTJUSOGOKR
 
-# 컨텍스트가 뜰 때 공휴일 API를 호출하지 않는다.
-kasi:
-  api:
-    startup-refresh-enabled: false
+# 컨텍스트가 뜰 때 외부 API를 호출하지 않는다.
+baedalondo:
+  startup-preload:
+    enabled: false
 
 service:
   legal:

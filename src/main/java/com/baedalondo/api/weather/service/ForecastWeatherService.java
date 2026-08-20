@@ -1,11 +1,13 @@
 package com.baedalondo.api.weather.service;
 
+import com.baedalondo.api.common.ExternalCallGuard;
 import com.baedalondo.api.score.calculator.KmaTimeCalculator;
 import com.baedalondo.api.score.dto.ScoreTarget;
 import com.baedalondo.api.weather.client.KmaForecastWeatherClient;
 import com.baedalondo.api.weather.domain.ForecastWeatherObservation;
 import com.baedalondo.api.weather.domain.ForecastWeatherRecord;
 import com.baedalondo.api.weather.domain.WeatherGrid;
+import com.baedalondo.api.weather.exception.KmaWeatherApiException;
 import com.baedalondo.api.weather.repository.ForecastWeatherRecordRepository;
 import com.baedalondo.api.guest.domain.GuestRegion;
 import com.baedalondo.api.guest.service.GuestRegionService;
@@ -32,19 +34,22 @@ public class ForecastWeatherService {
     private final ForecastWeatherRecordRepository forecastWeatherRecordRepository;
     private final StoreRepository storeRepository;
     private final GuestRegionService guestRegionService;
+    private final ExternalCallGuard externalCallGuard;
 
     public ForecastWeatherService(
             KmaForecastWeatherClient kmaForecastWeatherClient,
             KmaTimeCalculator kmaTimeCalculator,
             ForecastWeatherRecordRepository forecastWeatherRecordRepository,
             StoreRepository storeRepository,
-            GuestRegionService guestRegionService
+            GuestRegionService guestRegionService,
+            ExternalCallGuard externalCallGuard
     ) {
         this.kmaForecastWeatherClient = kmaForecastWeatherClient;
         this.kmaTimeCalculator = kmaTimeCalculator;
         this.forecastWeatherRecordRepository = forecastWeatherRecordRepository;
         this.storeRepository = storeRepository;
         this.guestRegionService = guestRegionService;
+        this.externalCallGuard = externalCallGuard;
     }
 
     public List<ForecastWeatherObservation> getForecastWeather(ScoreTarget scoreTarget) {
@@ -115,12 +120,23 @@ public class ForecastWeatherService {
                     .toList();
         }
 
-        List<ForecastWeatherObservation> forecastWeather = kmaForecastWeatherClient.getForecastWeather(
-                nx,
-                ny,
-                baseDate,
-                baseTime
-        );
+        String cooldownKey = cooldownKey(nx, ny, baseDate, baseTime);
+
+        // 이 격자가 방금 두 번 연속 실패했다면 다시 기다리지 않는다.
+        // ScoreService가 이 예외를 받아 날씨 보정만 빼고 화면은 그대로 그린다.
+        if (externalCallGuard.isCoolingDown(cooldownKey)) {
+            throw new KmaWeatherApiException(
+                    "예보 조회가 연속 실패해 잠시 호출을 멈춘 상태입니다. nx=" + nx + ", ny=" + ny);
+        }
+
+        List<ForecastWeatherObservation> forecastWeather = externalCallGuard.call(
+                cooldownKey,
+                () -> kmaForecastWeatherClient.getForecastWeather(
+                        nx,
+                        ny,
+                        baseDate,
+                        baseTime
+                ));
 
         // 예보 1건이 레코드 1행이다. 한 번의 호출에서 받은 여러 시각을 모두 저장한다.
         List<ForecastWeatherRecord> records = forecastWeather.stream()
@@ -132,6 +148,14 @@ public class ForecastWeatherService {
         return forecastWeather.stream()
                 .sorted(Comparator.comparing(ForecastWeatherObservation::getForecastAt))
                 .toList();
+    }
+
+    /**
+     한 번의 호출이 격자 하나의 해당 발표분을 통째로 가져오므로 넷이 곧 조회 단위다.
+     발표 시각이 바뀌면 키도 바뀌어 이전 발표분의 실패가 다음 발표분을 막지 않는다.
+     */
+    private String cooldownKey(int nx, int ny, String baseDate, String baseTime) {
+        return "kma-forecast:" + nx + ":" + ny + ":" + baseDate + ":" + baseTime;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ForecastWeatherService.class);

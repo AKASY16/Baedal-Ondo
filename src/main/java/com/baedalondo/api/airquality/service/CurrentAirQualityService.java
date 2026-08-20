@@ -7,8 +7,10 @@ import com.baedalondo.api.airquality.domain.AirQualityFetchLog;
 import com.baedalondo.api.airquality.domain.CurrentAirQualityObservation;
 import com.baedalondo.api.airquality.domain.CurrentAirQualityRecord;
 import com.baedalondo.api.airquality.repository.AirQualityFetchLogRepository;
+import com.baedalondo.api.airquality.exception.AirKoreaApiException;
 import com.baedalondo.api.airquality.repository.CurrentAirQualityRecordRepository;
 import com.baedalondo.api.airquality.util.KoreanAddressParser;
+import com.baedalondo.api.common.ExternalCallGuard;
 import com.baedalondo.api.score.dto.ScoreTarget;
 import com.baedalondo.api.store.repository.StoreRepository;
 import org.slf4j.Logger;
@@ -32,6 +34,7 @@ public class CurrentAirQualityService {
     private final AirQualityFetchLogRepository airQualityFetchLogRepository;
     private final KoreanAddressParser koreanAddressParser;
     private final StoreRepository storeRepository;
+    private final ExternalCallGuard externalCallGuard;
 
     public CurrentAirQualityService(AirKoreaCurrentAirQualityClient airKoreaCurrentAirQualityClient,
                                     AirKoreaAverageAirQualityClient airKoreaAverageAirQualityClient,
@@ -39,7 +42,8 @@ public class CurrentAirQualityService {
                                     CurrentAirQualityRecordRepository currentAirQualityRecordRepository,
                                     AirQualityFetchLogRepository airQualityFetchLogRepository,
                                     KoreanAddressParser koreanAddressParser,
-                                    StoreRepository storeRepository) {
+                                    StoreRepository storeRepository,
+                                    ExternalCallGuard externalCallGuard) {
         this.airKoreaCurrentAirQualityClient = airKoreaCurrentAirQualityClient;
         this.airKoreaAverageAirQualityClient = airKoreaAverageAirQualityClient;
         this.airQualityCalculator = airQualityCalculator;
@@ -47,6 +51,7 @@ public class CurrentAirQualityService {
         this.airQualityFetchLogRepository = airQualityFetchLogRepository;
         this.koreanAddressParser = koreanAddressParser;
         this.storeRepository = storeRepository;
+        this.externalCallGuard = externalCallGuard;
     }
 
     public CurrentAirQualityObservation getCurrentAirQuality(ScoreTarget scoreTarget) {
@@ -70,8 +75,16 @@ public class CurrentAirQualityService {
             return findStoredAirQuality(sidoName, sigunguName, expectedBaseTime);
         }
 
-        List<CurrentAirQualityObservation> airQualities =
-                airKoreaCurrentAirQualityClient.getCurrentAirQualities(sidoName);
+        String cooldownKey = cooldownKey(sidoName, expectedBaseTime);
+
+        // 이 시도가 방금 두 번 연속 실패했다면 기다리지 않고 기존 폴백으로 간다.
+        if (externalCallGuard.isCoolingDown(cooldownKey)) {
+            return findStoredAirQuality(sidoName, sigunguName, expectedBaseTime);
+        }
+
+        List<CurrentAirQualityObservation> airQualities = externalCallGuard.call(
+                cooldownKey,
+                () -> airKoreaCurrentAirQualityClient.getCurrentAirQualities(sidoName));
 
         saveAllAirQualityRecords(airQualities);
 
@@ -93,10 +106,7 @@ public class CurrentAirQualityService {
     /**
      등록된 매장이 속한 시도의 대기질을 미리 채운다. 스케줄러가 매시 호출한다.
 
-     전국 17개 시도를 모두 도는 방법도 있지만 그렇게 하지 않는다.
-     에어코리아 개발계정은 일 500건인데 17개 시도를 매시 조회하면 하루 408건이 되어,
-     사용자 요청과 시도 평균 fallback에 쓸 여유가 거의 남지 않는다.
-     매장이 없는 시도의 데이터는 조회해도 아무도 보지 않는다.
+     현재 배달온도는 서울 지역만 서비스하기 때문에 서울 지역만 조회한다.
 
      시도 하나가 실패해도 나머지는 계속 채운다.
      */
@@ -111,9 +121,17 @@ public class CurrentAirQualityService {
                 continue;
             }
 
+            String cooldownKey = cooldownKey(sidoName, expectedBaseTime);
+
+            if (externalCallGuard.isCoolingDown(cooldownKey)) {
+                log.info("대기질 사전 적재를 건너뜁니다. 직전 조회가 연속 실패했습니다. sidoName={}", sidoName);
+                continue;
+            }
+
             try {
-                List<CurrentAirQualityObservation> airQualities =
-                        airKoreaCurrentAirQualityClient.getCurrentAirQualities(sidoName);
+                List<CurrentAirQualityObservation> airQualities = externalCallGuard.call(
+                        cooldownKey,
+                        () -> airKoreaCurrentAirQualityClient.getCurrentAirQualities(sidoName));
 
                 saveAllAirQualityRecords(airQualities);
                 recordFetched(sidoName, expectedBaseTime);
@@ -161,11 +179,30 @@ public class CurrentAirQualityService {
             return savedAirQuality.get().toObservation();
         }
 
+        String cooldownKey = cooldownKey(sidoName, expectedBaseTime);
+
+        // 시도 평균도 같은 게이트웨이를 쓰므로 쿨다운 중이면 부르지 않는다.
+        // 여기서 기다리면 외부 호출을 건너뛴 의미가 없어진다.
+        if (externalCallGuard.isCoolingDown(cooldownKey)) {
+            throw new AirKoreaApiException(
+                    "대기질 조회가 연속 실패해 잠시 호출을 멈춘 상태입니다. sidoName=" + sidoName);
+        }
+
         log.warn("저장된 자치구 측정소 데이터가 없어 시도 평균을 사용합니다. sidoName={}, districtName={}",
                 sidoName,
                 sigunguName);
 
-        return airKoreaAverageAirQualityClient.getHourlyAverage(sidoName, expectedBaseTime);
+        return externalCallGuard.call(
+                cooldownKey,
+                () -> airKoreaAverageAirQualityClient.getHourlyAverage(sidoName, expectedBaseTime));
+    }
+
+    /**
+     한 번의 호출이 그 시도의 해당 기준시각 데이터를 통째로 가져오므로 둘이 곧 조회 단위다.
+     기준시각이 바뀌면 키도 바뀌어 이전 시각의 실패가 다음 시각을 막지 않는다.
+     */
+    private String cooldownKey(String sidoName, LocalDateTime baseTime) {
+        return "airkorea:" + sidoName + ":" + baseTime;
     }
 
     private void recordFetched(String sidoName, LocalDateTime expectedBaseTime) {

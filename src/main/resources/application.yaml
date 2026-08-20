@@ -35,6 +35,12 @@ management:
     health:
       show-details: never
 
+# 서버가 뜨면 공휴일, 대기질, 예보를 한 번 채운다.
+# 스케줄러 첫 실행까지 캐시가 비어 있는 구간을 없앤다. 실패해도 기동은 계속한다.
+baedalondo:
+  startup-preload:
+    enabled: "${STARTUP_PRELOAD_ENABLED:true}"
+
 service:
   legal:
     operator-name: "${SERVICE_OPERATOR_NAME:배달온도 운영자}"

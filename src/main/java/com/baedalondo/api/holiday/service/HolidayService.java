@@ -1,17 +1,11 @@
 package com.baedalondo.api.holiday.service;
 
-import com.baedalondo.api.common.ServiceTime;
+import com.baedalondo.api.common.ExternalCallGuard;
 import com.baedalondo.api.holiday.client.HolidayClient;
 import com.baedalondo.api.holiday.entity.Holiday;
 import com.baedalondo.api.holiday.repository.HolidayRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
@@ -23,17 +17,14 @@ public class HolidayService {
 
     private final HolidayClient holidayClient;
     private final HolidayRepository holidayRepository;
-    private final TransactionTemplate transactionTemplate;
-    private final boolean startupRefreshEnabled;
+    private final ExternalCallGuard externalCallGuard;
 
     public HolidayService(HolidayClient holidayClient,
                           HolidayRepository holidayRepository,
-                          TransactionTemplate transactionTemplate,
-                          @Value("${kasi.api.startup-refresh-enabled:true}") boolean startupRefreshEnabled) {
+                          ExternalCallGuard externalCallGuard) {
         this.holidayClient = holidayClient;
         this.holidayRepository = holidayRepository;
-        this.transactionTemplate = transactionTemplate;
-        this.startupRefreshEnabled = startupRefreshEnabled;
+        this.externalCallGuard = externalCallGuard;
     }
 
     @Transactional
@@ -55,9 +46,8 @@ public class HolidayService {
             nextYear++;
         }
 
-        List<Holiday> holidays = holidayClient.fetchHolidays(year, month);
-        List<Holiday> holidaysNextMonth =
-                holidayClient.fetchHolidays(nextYear, nextMonth);
+        List<Holiday> holidays = fetchHolidays(year, month);
+        List<Holiday> holidaysNextMonth = fetchHolidays(nextYear, nextMonth);
 
         LocalDate startDate = LocalDate.of(year, month, 1);
         LocalDate startDateNextMonth = LocalDate.of(nextYear, nextMonth, 1);
@@ -102,34 +92,26 @@ public class HolidayService {
         holidayRepository.saveAll(holidaysByDate.values());
     }
 
-
-
     /**
-     서버가 뜨면 이번 달과 다음 달을 채운다. 스케줄러가 매일 6시에 도는 것과 같은 범위다.
+     달 하나가 한 번의 호출로 채워지므로 연·월이 곧 조회 단위다.
 
-     연 단위로 채우던 것을 바꿨다. 연 단위 갱신은 그 해 전체를 지우고 실제 공휴일만 저장해서
-     비공휴일 행을 전부 날려 버렸고, 그러면 재시작 직후 첫 요청이 다시 외부 API를 호출했다.
-     트랜잭션을 연 채로 API를 12번 부르는 문제도 함께 사라진다.
+     쿨다운 중이면 예외를 던진다. 여기서 빈 목록을 돌려주면 그 달 전체가 비공휴일로 저장되어,
+     외부 API가 잠깐 흔들린 것이 "공휴일이 없는 달"로 굳어 버린다.
+     예외를 던지면 트랜잭션이 롤백되어 기존 데이터가 그대로 남는다.
      */
-    @EventListener(ApplicationReadyEvent.class)
-    public void refreshHolidaysOnStartup() {
-        if (!startupRefreshEnabled) {
-            log.info("서버 시작 시 공휴일 갱신을 건너뜁니다.");
-            return;
+    private List<Holiday> fetchHolidays(int year, int month) {
+        String cooldownKey = cooldownKey(year, month);
+
+        if (externalCallGuard.isCoolingDown(cooldownKey)) {
+            throw new IllegalStateException(
+                    "공휴일 조회가 연속 실패해 잠시 호출을 멈춘 상태입니다. year=" + year + ", month=" + month);
         }
 
-        // 서버 시간대와 무관하게 한국 기준 날짜를 써야 한다.
-        // UTC 서버에서는 자정 직후에 아직 전날로 계산되어 월이 어긋난다.
-        LocalDate today = ServiceTime.today();
-        int year = today.getYear();
-        int month = today.getMonthValue();
+        return externalCallGuard.call(cooldownKey, () -> holidayClient.fetchHolidays(year, month));
+    }
 
-        try {
-            transactionTemplate.executeWithoutResult(
-                    status -> refreshHolidaysForMonthAndNextMonth(year, month));
-        } catch (RuntimeException e) {
-            log.warn("서버 시작 시 공휴일 갱신에 실패했습니다. year={}, month={}", year, month, e);
-        }
+    private String cooldownKey(int year, int month) {
+        return "holiday:" + year + ":" + month;
     }
 
     private boolean refreshMonthAndCheck(LocalDate date) {
@@ -143,6 +125,4 @@ public class HolidayService {
                 .map(Boolean.TRUE::equals)
                 .orElse(false);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(HolidayService.class);
 }
