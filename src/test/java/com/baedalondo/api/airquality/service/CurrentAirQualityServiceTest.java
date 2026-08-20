@@ -270,13 +270,16 @@ class CurrentAirQualityServiceTest {
     }
 
     @Test
-    @DisplayName("두 번 다 실패하면 다음 요청은 API를 부르지 않고 저장된 데이터를 쓴다")
-    void usesStoredDataWithoutCallingApiDuringCooldown() {
+    @DisplayName("쿨다운 중에는 API를 부르지 않고, 저장된 값으로 돌리지도 않는다")
+    void failsFastDuringCooldownWithoutUsingStoredData() {
         // 실패하는 동안 조회 기록이 남지 않아 요청마다 API를 다시 부른다.
         // 재시도까지 얹으면 새로고침 한 번이 호출 두 번이 되므로 쿨다운으로 끊는다.
+        //
+        // 다만 저장된 값으로 돌리지는 않는다. 그 조회에는 시간 조건이 없어
+        // 몇 시간 전 측정값이 현재 값처럼 나간다. 못 받았으면 못 받았다고 하는 편이 맞고,
+        // 호출이 실패했을 때와 같은 답이어야 한다.
         ScoreTarget scoreTarget = createScoreTarget("중구");
         CurrentAirQualityRecord storedRecord = mock(CurrentAirQualityRecord.class);
-        CurrentAirQualityObservation stored = createObservation("중구");
 
         when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
         when(airKoreaClient.getCurrentAirQualities("서울")).thenThrow(timeout());
@@ -285,16 +288,16 @@ class CurrentAirQualityServiceTest {
                 () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
         verify(airKoreaClient, times(2)).getCurrentAirQualities("서울");
 
+        // 저장된 값이 있어도 쓰지 않는다.
         when(currentAirQualityRecordRepository
                 .findTopBySidoNameAndDistrictNameOrderByMeasuredAtDescCreatedAtDesc("서울", "중구"))
                 .thenReturn(Optional.of(storedRecord));
-        when(storedRecord.toObservation()).thenReturn(stored);
 
-        CurrentAirQualityObservation result =
-                currentAirQualityService.getCurrentAirQuality(scoreTarget);
+        assertThrows(AirKoreaApiException.class,
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
 
-        assertSame(stored, result);
         verify(airKoreaClient, times(2)).getCurrentAirQualities("서울");
+        verify(storedRecord, never()).toObservation();
     }
 
     @Test

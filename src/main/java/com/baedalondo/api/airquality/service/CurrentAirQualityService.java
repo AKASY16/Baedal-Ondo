@@ -77,9 +77,13 @@ public class CurrentAirQualityService {
 
         String cooldownKey = cooldownKey(sidoName, expectedBaseTime);
 
-        // 이 시도가 방금 두 번 연속 실패했다면 기다리지 않고 기존 폴백으로 간다.
+        // 이 시도가 방금 두 번 연속 실패했다. 저장된 값으로 돌리지 않고 호출 실패와 같게 끝낸다.
+        // 저장된 값 조회에는 시간 조건이 없어서 몇 시간 전 측정값이 현재 값처럼 화면에 나간다.
+        // ScoreService가 이 예외를 받아 대기질 점수를 빼고 "확인하지 못했어요"로 표시한다.
+        // 쿨다운이 버는 것은 결과가 아니라 시간이다. 4초를 기다린 뒤 같은 답을 하지 않는다.
         if (externalCallGuard.isCoolingDown(cooldownKey)) {
-            return findStoredAirQuality(sidoName, sigunguName, expectedBaseTime);
+            throw new AirKoreaApiException(
+                    "대기질 조회가 연속 실패해 잠시 호출을 멈춘 상태입니다. sidoName=" + sidoName);
         }
 
         List<CurrentAirQualityObservation> airQualities = externalCallGuard.call(
@@ -165,6 +169,10 @@ public class CurrentAirQualityService {
     /**
      * 이미 조회한 기준시각이면 저장된 측정소 데이터를 쓴다.
      * 해당 자치구 측정소 데이터가 없으면 시도 평균으로 떨어지는 규칙은 그대로 유지한다.
+     *
+     * 여기로 오는 경로는 "이번 기준시각을 받아왔다"는 한 가지뿐이다.
+     * 못 받은 경우를 이 메서드로 보내면 안 된다. 조회에 시간 조건이 없어
+     * 옛 측정값이 현재 값처럼 나가고, 호출 실패와 다른 답을 하게 된다.
      */
     private CurrentAirQualityObservation findStoredAirQuality(String sidoName,
                                                               String sigunguName,
