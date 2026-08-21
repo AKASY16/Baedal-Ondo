@@ -33,6 +33,11 @@ services:
       retries: 20
       start_period: 30s
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   app:
     build: .
@@ -57,11 +62,16 @@ services:
       JUSO_COORDINATE_AUTH_KEY: ${JUSO_COORDINATE_AUTH_KEY}
       JUSO_POPUP_AUTH_KEY: ${JUSO_POPUP_AUTH_KEY}
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     depends_on:
       db:
         condition: service_healthy
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   mysql-data:
