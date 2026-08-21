@@ -99,9 +99,9 @@ jobs:
           print("workflow_ref:", claims.get("workflow_ref"))
           PY
 
-      - name: AWS STS OIDC 직접 검증
+      - name: 신규 OIDC 역할 수임 테스트
         env:
-          ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          ROLE_ARN: arn:aws:iam::621093248464:role/BaedalOndoOidcProbeRole
         run: |
           set -euo pipefail
 
@@ -118,62 +118,3 @@ jobs:
             --duration-seconds 900 \
             --query 'AssumedRoleUser.Arn' \
             --output text
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ap-northeast-2
-
-      - name: Deploy to EC2 through SSM
-        env:
-          INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
-          IMAGE: ghcr.io/akasy16/baedal-ondo
-          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha }}
-
-        run: |
-          set -euo pipefail
-
-          PARAMS=$(jq -cn \
-            --arg sha "$DEPLOY_SHA" \
-            --arg image "$IMAGE" \
-            '{
-              commands: [
-                "sudo -u ssm-user -H git -C /opt/baedalondo fetch origin master",
-                ("sudo -u ssm-user -H git -C /opt/baedalondo reset --hard " + $sha),
-                ("docker pull " + $image + ":" + $sha),
-                ("docker tag " + $image + ":" + $sha + " " + $image + ":latest"),
-                "cd /opt/baedalondo && docker compose --env-file .env -f docker-compose.prod.yml up -d --no-deps --pull never --force-recreate app",
-                "for i in $(seq 1 30); do if curl -fsS http://127.0.0.1:8080/actuator/health >/dev/null; then exit 0; fi; sleep 2; done; cd /opt/baedalondo && docker compose --env-file .env -f docker-compose.prod.yml logs --tail=100 app; exit 1"
-              ]
-            }')
-
-          COMMAND_ID=$(aws ssm send-command \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name "AWS-RunShellScript" \
-            --comment "Deploy Baedal Ondo $DEPLOY_SHA" \
-            --parameters "$PARAMS" \
-            --query 'Command.CommandId' \
-            --output text)
-
-          echo "SSM command: $COMMAND_ID"
-
-          if ! aws ssm wait command-executed \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$INSTANCE_ID"; then
-
-            echo "Deployment failed. SSM output:"
-
-            aws ssm get-command-invocation \
-              --command-id "$COMMAND_ID" \
-              --instance-id "$INSTANCE_ID" \
-              --output json || true
-
-            exit 1
-          fi
-
-          aws ssm get-command-invocation \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$INSTANCE_ID" \
-            --query '{Status:Status,Output:StandardOutputContent,Error:StandardErrorContent}' \
-            --output json
