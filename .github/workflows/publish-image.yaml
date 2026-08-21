@@ -1,0 +1,59 @@
+name: Publish Docker Image
+
+on:
+  workflow_run:
+    workflows:
+      - "Github CI Workflow"
+    types:
+      - completed
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'master'
+
+    runs-on: ubuntu-latest
+
+    env:
+      IMAGE: ghcr.io/akasy16/baedal-ondo
+
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Build application jar
+        run: ./gradlew bootJar
+
+      - name: Login to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | docker login ghcr.io \
+                -u "${{ github.actor }}" \
+                --password-stdin
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t "$IMAGE:latest" \
+            -t "$IMAGE:${{ github.event.workflow_run.head_sha }}" \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push "$IMAGE:latest"
+          docker push "$IMAGE:${{ github.event.workflow_run.head_sha }}"
