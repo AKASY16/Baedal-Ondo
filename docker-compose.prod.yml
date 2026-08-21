@@ -1,0 +1,77 @@
+name: baedalondo
+
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      TZ: Asia/Seoul
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: baedalondo
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "127.0.0.1",
+          "-u",
+          "root",
+          "-p${DB_ROOT_PASSWORD}"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+    restart: unless-stopped
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  app:
+    image: ghcr.io/akasy16/baedal-ondo:latest
+    pull_policy: always
+
+    environment:
+      TZ: Asia/Seoul
+      DB_URL: jdbc:mysql://db:3306/baedalondo
+      SPRING_PROFILES_ACTIVE: "${SPRING_PROFILES_ACTIVE:-}"
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      KMA_AUTH_KEY: ${KMA_AUTH_KEY}
+      DATAPORTAL_AUTH_KEY: ${DATAPORTAL_AUTH_KEY}
+      DATAPORTAL_HOLIDAY_AUTH_KEY: ${DATAPORTAL_HOLIDAY_AUTH_KEY}
+      JUSO_COORDINATE_AUTH_KEY: ${JUSO_COORDINATE_AUTH_KEY}
+      JUSO_POPUP_AUTH_KEY: ${JUSO_POPUP_AUTH_KEY}
+
+    ports:
+      - "127.0.0.1:8080:8080"
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  mysql-data:
