@@ -10,6 +10,8 @@ import org.springframework.stereotype.Component;
 
 import java.time.DayOfWeek;
 import java.time.LocalTime;
+import java.util.List;
+import java.util.Objects;
 
 @Component
 public class ScoreMessageFactory {
@@ -141,7 +143,7 @@ public class ScoreMessageFactory {
             case HIGH -> "높음 · 높은 수요 구간";
             case MEDIUM -> "보통 · 평균 수요 구간";
             case LOW -> "낮음 · 수요 둔화 구간";
-            case CLOSED -> "마감 · 매우 낮은 수요 구간";
+            case CLOSED -> "매우 낮음 · 한산한 수요 구간";
         };
     }
 
@@ -149,12 +151,81 @@ public class ScoreMessageFactory {
     // 경계를 여기 따로 두면 한쪽만 바뀌었을 때 "높음"인데 보수적으로 준비하라는 문구가 나온다.
     public String createMessage(int score) {
         return switch (ScoreStatusLevel.from(score)) {
-            case VERY_HIGH -> "오늘은 배달 수요가 높을 가능성이 큽니다. 연장 영업과 재료 추가 준비를 고려하세요.";
-            case HIGH -> "평소보다 주문이 늘 수 있습니다. 피크 시간대 준비를 조금 더 여유 있게 가져가세요.";
-            case MEDIUM -> "평균적인 수요가 예상됩니다. 평상시의 영업 흐름을 유지하세요.";
-            case LOW -> "현재 수요가 낮은 편입니다. 생산과 인력 운영을 보수적으로 가져가세요.";
-            case CLOSED -> "기대 수요가 매우 낮습니다. 운영 비용을 고려해 보수적으로 준비하세요.";
+            case VERY_HIGH -> "현재 배달 수요가 매우 높은 편입니다.";
+            case HIGH -> "현재 배달 수요가 높은 편입니다.";
+            case MEDIUM -> "현재 배달 수요가 평소 수준입니다.";
+            case LOW -> "현재 배달 수요가 낮은 편입니다.";
+            case CLOSED -> "현재 배달 수요가 매우 낮은 편입니다.";
         };
+    }
+
+    /** 현재 상태 설명 뒤에 가까운 1~3시간 전망을 붙인다. */
+    public String createMessage(int currentScore, List<Integer> futureScores) {
+        String currentMessage = createMessage(currentScore);
+        String forecastMessage = createForecastMessage(currentScore, futureScores);
+
+        if (forecastMessage.isEmpty()) {
+            return currentMessage;
+        }
+
+        return currentMessage + " " + forecastMessage;
+    }
+
+    public String createForecastMessage(int currentScore, List<Integer> futureScores) {
+        if (futureScores == null || futureScores.isEmpty()) {
+            return "";
+        }
+
+        List<Integer> scores = futureScores.stream()
+                .filter(Objects::nonNull)
+                .limit(3)
+                .toList();
+
+        if (scores.isEmpty()) {
+            return "";
+        }
+
+        int rise = scores.stream().mapToInt(Integer::intValue).max().orElse(currentScore)
+                - currentScore;
+        int fall = scores.stream().mapToInt(Integer::intValue).min().orElse(currentScore)
+                - currentScore;
+
+        boolean hasRise = rise >= 8;
+        boolean hasFall = fall <= -8;
+
+        if (hasRise && (!hasFall || rise >= Math.abs(fall))) {
+            return createRisingForecastMessage(rise);
+        }
+
+        if (hasFall) {
+            return createFallingForecastMessage(fall);
+        }
+
+        return "앞으로 1~3시간은 지금과 비슷한 흐름이 이어질 전망입니다.";
+    }
+
+    private String createRisingForecastMessage(int delta) {
+        if (delta >= 25) {
+            return "앞으로 1~3시간 안에 배달온도가 크게 오를 전망입니다. 피크에 대비해 미리 준비해 두세요.";
+        }
+
+        if (delta >= 15) {
+            return "앞으로 1~3시간 안에 배달온도가 눈에 띄게 오를 전망입니다. 주문 증가에 대비해 준비해 두세요.";
+        }
+
+        return "앞으로 1~3시간 동안 배달온도가 다소 오를 전망입니다.";
+    }
+
+    private String createFallingForecastMessage(int delta) {
+        if (delta <= -24) {
+            return "앞으로 1~3시간 안에 배달온도가 크게 낮아질 전망입니다. 이후 추가 준비는 신중하게 가져가세요.";
+        }
+
+        if (delta <= -15) {
+            return "앞으로 1~3시간 안에 배달온도가 눈에 띄게 낮아질 전망입니다. 추가 준비는 신중하게 가져가세요.";
+        }
+
+        return "앞으로 1~3시간 동안 배달온도가 다소 낮아질 전망입니다.";
     }
 
     public String createAirQualityDetail(CurrentAirQualityObservation airQuality) {

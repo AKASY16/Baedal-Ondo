@@ -27,8 +27,8 @@ public class KmaTimeCalculator {
      * 45분 이후에는 더 최신 발표분이 나오지만 쓰지 않는다. 그쪽으로 넘어가면 현재 시각이
      * 예보 범위에서 빠져 매시 마지막 15분 동안 현재 점수를 낼 수 없다.
      */
-    public LocalDateTime getSafeForecastBaseDateTime() {
-        return ServiceTime.now()
+    public LocalDateTime getSafeForecastBaseDateTime(LocalDateTime referenceTime) {
+        return referenceTime
                 .truncatedTo(ChronoUnit.HOURS)
                 .minusHours(1)
                 .withMinute(30);

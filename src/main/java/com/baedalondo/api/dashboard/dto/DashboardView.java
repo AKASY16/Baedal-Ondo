@@ -1,6 +1,5 @@
 package com.baedalondo.api.dashboard.dto;
 
-import com.baedalondo.api.common.ServiceTime;
 import com.baedalondo.api.score.ScoreResult;
 import com.baedalondo.api.score.status.ScoreStatusLevel;
 import com.baedalondo.api.store.domain.Store;
@@ -9,6 +8,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public class DashboardView {
     private final Store store;
@@ -59,13 +59,26 @@ public class DashboardView {
     public static DashboardView from(
             Store store,
             ScoreResult scoreResult,
-            Map<LocalDateTime, ScoreResult> forecastScores
+            Map<LocalDateTime, ScoreResult> forecastScores,
+            LocalDateTime referenceTime
     ) {
+        return from(store, scoreResult, forecastScores, scoreResult.getMessage(), referenceTime);
+    }
+
+    public static DashboardView from(
+            Store store,
+            ScoreResult scoreResult,
+            Map<LocalDateTime, ScoreResult> forecastScores,
+            String message,
+            LocalDateTime referenceTime
+    ) {
+        Objects.requireNonNull(referenceTime, "referenceTime is required.");
+
         return new DashboardView(
                 store,
                 scoreResult.getScore(),
                 scoreResult.getStatus(),
-                scoreResult.getMessage(),
+                message,
                 scoreResult.getTimeFactor(),
                 scoreResult.getTimeDescription(),
                 scoreResult.getDayFactor(),
@@ -75,7 +88,10 @@ public class DashboardView {
                 scoreResult.getAirQualityFactor(),
                 scoreResult.getAirQualityDescription(),
                 scoreResult.getAirQualityDetail(),
-                toForecastViews(forecastScores, scoreResult.getScore())
+                toForecastViews(
+                        forecastScores,
+                        scoreResult.getScore(),
+                        referenceTime.toLocalDate())
         );
     }
 
@@ -89,16 +105,16 @@ public class DashboardView {
      시각 라벨과 현재 점수 대비 증감을 여기서 만들어 템플릿이 계산하지 않게 한다.
      */
     private static List<ForecastScoreView> toForecastViews(
-            Map<LocalDateTime, ScoreResult> forecastScores, int currentScore) {
+            Map<LocalDateTime, ScoreResult> forecastScores,
+            int currentScore,
+            LocalDate referenceDate) {
         if (forecastScores == null || forecastScores.isEmpty()) {
             return List.of();
         }
 
-        LocalDate today = ServiceTime.today();
-
         return forecastScores.entrySet().stream()
                 .map(entry -> new ForecastScoreView(
-                        createHourLabel(entry.getKey(), today),
+                        createHourLabel(entry.getKey(), referenceDate),
                         entry.getValue().getScore(),
                         entry.getValue().getStatusLevel(),
                         entry.getValue().getScore() - currentScore

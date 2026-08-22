@@ -1,6 +1,7 @@
 package com.baedalondo.api.weather.service;
 
 import com.baedalondo.api.common.ExternalCallGuard;
+import com.baedalondo.api.common.ServiceTime;
 import com.baedalondo.api.score.calculator.KmaTimeCalculator;
 import com.baedalondo.api.score.dto.ScoreTarget;
 import com.baedalondo.api.weather.client.KmaForecastWeatherClient;
@@ -53,7 +54,8 @@ public class ForecastWeatherService {
         this.externalCallGuard = externalCallGuard;
     }
 
-    public List<ForecastWeatherObservation> getForecastWeather(ScoreTarget scoreTarget) {
+    public List<ForecastWeatherObservation> getForecastWeather(ScoreTarget scoreTarget,
+                                                               LocalDateTime referenceTime) {
         if (scoreTarget == null) {
             throw new IllegalArgumentException("가게 정보가 없습니다.");
         }
@@ -62,7 +64,7 @@ public class ForecastWeatherService {
             throw new IllegalStateException("가게의 기상청 격자 좌표가 없습니다.");
         }
 
-        return loadOrFetch(scoreTarget.getNx(), scoreTarget.getNy());
+        return loadOrFetch(scoreTarget.getNx(), scoreTarget.getNy(), referenceTime);
     }
 
     /**
@@ -75,12 +77,13 @@ public class ForecastWeatherService {
      기존 경로로 직접 조회하므로 화면이 멈추지는 않는다.
      */
     public int preloadDashboardGrids() {
+        LocalDateTime referenceTime = ServiceTime.now();
         Set<WeatherGrid> grids = findDashboardGrids();
         int loaded = 0;
 
         for (WeatherGrid grid : grids) {
             try {
-                loadOrFetch(grid.nx(), grid.ny());
+                loadOrFetch(grid.nx(), grid.ny(), referenceTime);
                 loaded++;
             } catch (RuntimeException e) {
                 log.warn("예보 사전 적재 실패. nx={}, ny={}", grid.nx(), grid.ny(), e);
@@ -115,19 +118,25 @@ public class ForecastWeatherService {
      충돌했다는 것은 다른 요청이 같은 발표분을 이미 저장했다는 뜻이다.
      조회부터 다시 하면 그 결과를 읽어 쓰게 되므로 외부 API를 다시 부르지 않는다.
      */
-    private List<ForecastWeatherObservation> loadOrFetch(int nx, int ny) {
+    private List<ForecastWeatherObservation> loadOrFetch(int nx,
+                                                         int ny,
+                                                         LocalDateTime referenceTime) {
+        LocalDateTime baseDateTime =
+                kmaTimeCalculator.getSafeForecastBaseDateTime(referenceTime);
+
         try {
-            return loadOrFetchOnce(nx, ny);
+            return loadOrFetchOnce(nx, ny, baseDateTime);
         } catch (DataIntegrityViolationException e) {
             log.debug("같은 발표분을 다른 요청이 먼저 저장했습니다. 다시 조회합니다. nx={}, ny={}", nx, ny);
 
-            return loadOrFetchOnce(nx, ny);
+            return loadOrFetchOnce(nx, ny, baseDateTime);
         }
     }
 
-    private List<ForecastWeatherObservation> loadOrFetchOnce(int nx, int ny) {
+    private List<ForecastWeatherObservation> loadOrFetchOnce(int nx,
+                                                             int ny,
+                                                             LocalDateTime baseDateTime) {
         // 초단기예보는 실황과 발표 주기가 달라 예보 전용 기준 시각을 쓴다.
-        LocalDateTime baseDateTime = kmaTimeCalculator.getSafeForecastBaseDateTime();
         String baseDate = baseDateTime.format(BASE_DATE_FORMATTER);
         String baseTime = baseDateTime.format(BASE_TIME_FORMATTER);
 

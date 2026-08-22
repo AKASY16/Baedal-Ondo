@@ -1,10 +1,12 @@
 package com.baedalondo.api.dashboard.service;
 
+import com.baedalondo.api.common.ServiceTime;
 import com.baedalondo.api.dashboard.dto.DashboardView;
 import com.baedalondo.api.guest.domain.GuestRegion;
 import com.baedalondo.api.guest.service.GuestRegionService;
 import com.baedalondo.api.score.ScoreResult;
 import com.baedalondo.api.score.dto.ScoreTarget;
+import com.baedalondo.api.score.factory.ScoreMessageFactory;
 import com.baedalondo.api.score.service.ScoreService;
 import com.baedalondo.api.store.domain.Store;
 import com.baedalondo.api.store.service.StoreService;
@@ -20,62 +22,101 @@ public class DashboardService {
     private final StoreService storeService;
     private final ScoreService scoreService;
     private final GuestRegionService guestRegionService;
+    private final ScoreMessageFactory scoreMessageFactory;
 
     public DashboardService(StoreService storeService,
                             ScoreService scoreService,
-                            GuestRegionService guestRegionService) {
+                            GuestRegionService guestRegionService,
+                            ScoreMessageFactory scoreMessageFactory) {
         this.storeService = storeService;
         this.scoreService = scoreService;
         this.guestRegionService = guestRegionService;
+        this.scoreMessageFactory = scoreMessageFactory;
     }
 
     public DashboardView getGuestDashboard(Long guestRegionId) {
+        LocalDateTime referenceTime = ServiceTime.now();
+        return getGuestDashboard(guestRegionId, referenceTime);
+    }
+
+    private DashboardView getGuestDashboard(Long guestRegionId, LocalDateTime referenceTime) {
         // 게스트 지역은 화면 표시를 위해 각 구청 데이터를 임시 Store로 변환하고,
         // 점수 계산에는 ScoreTarget을 사용한다.
         GuestRegion region = guestRegionService.getGuestRegion(guestRegionId);
         Store guestStore = createGuestStore(region);
         ScoreTarget scoreTarget = ScoreTarget.from(region);
 
-        ScoreResult scoreResult = scoreService.calculateCurrentScore(scoreTarget);
+        ScoreResult scoreResult = scoreService.calculateCurrentScore(scoreTarget, referenceTime);
         Map<LocalDateTime, ScoreResult> forecastScores =
-                scoreService.calculateForecastScore(scoreTarget);
+                scoreService.calculateForecastScore(scoreTarget, referenceTime);
 
-        return DashboardView.from(guestStore, scoreResult, forecastScores);
+        return createDashboardView(guestStore, scoreResult, forecastScores, referenceTime);
     }
 
     public DashboardView getRandomGuestDashboard() {
+        LocalDateTime referenceTime = ServiceTime.now();
+        return getRandomGuestDashboard(referenceTime);
+    }
+
+    private DashboardView getRandomGuestDashboard(LocalDateTime referenceTime) {
         GuestRegion region = guestRegionService.getRandomSeoulRegion();
-        return getGuestDashboard(region.getId());
+        return getGuestDashboard(region.getId(), referenceTime);
     }
 
     public DashboardView getDashboard() {
+        LocalDateTime referenceTime = ServiceTime.now();
         List<Store> storeList = storeService.getCurrentLoginUserStores();
 
         if (storeList.isEmpty()) {
-            return getGuestFallbackDashboard();
+            return getGuestFallbackDashboard(referenceTime);
         }
 
         Store store = storeList.get(0);
         ScoreTarget scoreTarget = ScoreTarget.from(store);
-        ScoreResult scoreResult = scoreService.calculateCurrentScore(scoreTarget);
+        ScoreResult scoreResult = scoreService.calculateCurrentScore(scoreTarget, referenceTime);
         Map<LocalDateTime, ScoreResult> forecastScores =
-                scoreService.calculateForecastScore(scoreTarget);
+                scoreService.calculateForecastScore(scoreTarget, referenceTime);
 
-        return DashboardView.from(store, scoreResult, forecastScores);
+        return createDashboardView(store, scoreResult, forecastScores, referenceTime);
     }
 
     public DashboardView getDashboardById(Long storeId) {
+        LocalDateTime referenceTime = ServiceTime.now();
         Store store = storeService.getCurrentUserStoreById(storeId);
         ScoreTarget scoreTarget = ScoreTarget.from(store);
-        ScoreResult scoreResult = scoreService.calculateCurrentScore(scoreTarget);
+        ScoreResult scoreResult = scoreService.calculateCurrentScore(scoreTarget, referenceTime);
         Map<LocalDateTime, ScoreResult> forecastScores =
-                scoreService.calculateForecastScore(scoreTarget);
+                scoreService.calculateForecastScore(scoreTarget, referenceTime);
 
-        return DashboardView.from(store, scoreResult, forecastScores);
+        return createDashboardView(store, scoreResult, forecastScores, referenceTime);
     }
 
     public List<Store> getCurrentUserStores() {
         return storeService.getCurrentLoginUserStores();
+    }
+
+    private DashboardView createDashboardView(Store store,
+                                              ScoreResult scoreResult,
+                                              Map<LocalDateTime, ScoreResult> forecastScores,
+                                              LocalDateTime referenceTime) {
+        List<Integer> nearestFutureScores = nearestFutureScores(forecastScores);
+        String message = scoreMessageFactory.createMessage(
+                scoreResult.getScore(), nearestFutureScores);
+
+        return DashboardView.from(store, scoreResult, forecastScores, message, referenceTime);
+    }
+
+    private List<Integer> nearestFutureScores(Map<LocalDateTime, ScoreResult> forecastScores) {
+        if (forecastScores == null || forecastScores.isEmpty()) {
+            return List.of();
+        }
+
+        return forecastScores.entrySet().stream()
+                .filter(entry -> entry.getKey() != null && entry.getValue() != null)
+                .sorted(Map.Entry.comparingByKey())
+                .limit(3)
+                .map(entry -> entry.getValue().getScore())
+                .toList();
     }
 
     private Store createGuestStore(GuestRegion region) {
@@ -168,7 +209,7 @@ public class DashboardService {
         return value == null || value.isBlank();
     }
 
-    private DashboardView getGuestFallbackDashboard() {
-        return getRandomGuestDashboard();
+    private DashboardView getGuestFallbackDashboard(LocalDateTime referenceTime) {
+        return getRandomGuestDashboard(referenceTime);
     }
 }

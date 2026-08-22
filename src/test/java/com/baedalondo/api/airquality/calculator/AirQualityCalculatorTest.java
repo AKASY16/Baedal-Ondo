@@ -37,6 +37,20 @@ class AirQualityCalculatorTest {
         assertEquals(5, calculator.getWeight(observation(151, 76)));
     }
 
+    @Test
+    void calculatesBaseTimeFromReferenceTimeAroundTwentyMinuteBoundary() {
+        assertEquals(
+                LocalDateTime.of(2026, 8, 22, 13, 0),
+                calculator.getSafeAirQualityBaseTime(
+                        LocalDateTime.of(2026, 8, 22, 14, 19, 59))
+        );
+        assertEquals(
+                LocalDateTime.of(2026, 8, 22, 14, 0),
+                calculator.getSafeAirQualityBaseTime(
+                        LocalDateTime.of(2026, 8, 22, 14, 20))
+        );
+    }
+
     private CurrentAirQualityObservation observation(Integer pm10Value, Integer pm25Value) {
         return new CurrentAirQualityObservation(
                 "서울",

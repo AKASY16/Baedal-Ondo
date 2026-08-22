@@ -55,6 +55,10 @@ public class AirQualityCalculator {
         return 0; // 좋음/보통
     }
     public LocalDateTime getSafeAirQualityBaseTime() {
+        return getSafeAirQualityBaseTime(ServiceTime.now());
+    }
+
+    public LocalDateTime getSafeAirQualityBaseTime(LocalDateTime referenceTime) {
 
         // 에어코리아 실시간 측정정보는 정각 측정값이 매시 15분 내외로 반영
         // 갱신 지연을 고려해 20분 전까지는 이전 정각 데이터를 기준으로 사용
@@ -64,10 +68,9 @@ public class AirQualityCalculator {
         // 20:00 ~ 20:19 → 19:00 반환
         // 20:20 ~ 20:59 → 20:00 반환
 
-        LocalDateTime now = ServiceTime.now();
-        LocalDateTime currentHour = now.truncatedTo(ChronoUnit.HOURS);
+        LocalDateTime currentHour = referenceTime.truncatedTo(ChronoUnit.HOURS);
 
-        if (now.getMinute() < 20) {
+        if (referenceTime.getMinute() < 20) {
             return currentHour.minusHours(1);
         }
 

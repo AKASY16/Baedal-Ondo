@@ -1,6 +1,5 @@
 package com.baedalondo.api.score.service;
 
-import com.baedalondo.api.common.ServiceTime;
 import com.baedalondo.api.airquality.calculator.AirQualityCalculator;
 import com.baedalondo.api.airquality.domain.CurrentAirQualityObservation;
 import com.baedalondo.api.airquality.exception.AirKoreaApiException;
@@ -28,6 +27,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
@@ -51,6 +51,8 @@ import static org.mockito.Mockito.when;
 class ScoreServiceTest {
 
     private static final String COMMERCIAL_AREA_CODE = "3120029";
+    private static final LocalDateTime REFERENCE_TIME =
+            LocalDateTime.of(2026, 8, 22, 13, 30);
 
     @Mock
     private TimeWeightCalculator timeWeightCalculator;
@@ -99,17 +101,17 @@ class ScoreServiceTest {
                 .thenReturn(createNoImpactTime());
         when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
                 .thenReturn(DayDemandLevel.WEEKDAY); // 0점
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
+        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(List.of(createCurrentHourForecast()));
         when(forecastWeatherWeightCalculator.calculate(any(ForecastWeatherObservation.class)))
                 .thenReturn(new WeatherScoreResult(0, List.of(), "날씨 영향 없음"));
-        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class)))
+        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(airQuality);
         when(airQualityCalculator.getWeight(any(CurrentAirQualityObservation.class)))
                 .thenReturn(5);
 
         // when
-        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
+        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget, REFERENCE_TIME);
 
         // then
         assertEquals(58, result.getScore());
@@ -125,16 +127,16 @@ class ScoreServiceTest {
                 .thenReturn(TimeDemandLevel.LOW); // -6점
         when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
                 .thenReturn(DayDemandLevel.WEEKDAY); // 0점
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
+        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(List.of(createCurrentHourForecast()));
         when(forecastWeatherWeightCalculator.calculate(any(ForecastWeatherObservation.class)))
                 .thenReturn(new WeatherScoreResult(0, List.of(), "날씨 영향 없음"));
-        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class)))
+        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(airQuality);
         when(airQualityCalculator.getWeight(any(CurrentAirQualityObservation.class)))
                 .thenReturn(0);
 
-        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
+        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget, REFERENCE_TIME);
 
         assertEquals(44, result.getScore());
     }
@@ -151,16 +153,16 @@ class ScoreServiceTest {
                 .thenReturn(TimeDemandLevel.VERY_HIGH);
         when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
                 .thenReturn(DayDemandLevel.WEEKDAY);
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
+        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(List.of(createCurrentHourForecast()));
         when(forecastWeatherWeightCalculator.calculate(any(ForecastWeatherObservation.class)))
                 .thenReturn(new WeatherScoreResult(0, List.of(), "날씨 영향 없음"));
-        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class)))
+        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(airQuality);
         when(airQualityCalculator.getWeight(any(CurrentAirQualityObservation.class)))
                 .thenReturn(0);
 
-        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
+        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget, REFERENCE_TIME);
 
         assertEquals(64, result.getScore());
         verify(timeWeightProvider).findDemandLevel(
@@ -182,16 +184,16 @@ class ScoreServiceTest {
         // 주말 고정 +8이 아니라 상권 값 +6이 적용되어야 한다
         when(dayWeightProvider.findWeight(any(), any(), any()))
                 .thenReturn(6);
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
+        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(List.of(createCurrentHourForecast()));
         when(forecastWeatherWeightCalculator.calculate(any(ForecastWeatherObservation.class)))
                 .thenReturn(new WeatherScoreResult(0, List.of(), "날씨 영향 없음"));
-        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class)))
+        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(airQuality);
         when(airQualityCalculator.getWeight(any(CurrentAirQualityObservation.class)))
                 .thenReturn(0);
 
-        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
+        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget, REFERENCE_TIME);
 
         assertEquals(56, result.getScore());
     }
@@ -209,16 +211,16 @@ class ScoreServiceTest {
                 .thenReturn(DayDemandLevel.WEEKEND);
         when(dayWeightProvider.findWeight(any(), any(), any()))
                 .thenReturn(-6);
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
+        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(List.of(createCurrentHourForecast()));
         when(forecastWeatherWeightCalculator.calculate(any(ForecastWeatherObservation.class)))
                 .thenReturn(new WeatherScoreResult(0, List.of(), "날씨 영향 없음"));
-        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class)))
+        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(airQuality);
         when(airQualityCalculator.getWeight(any(CurrentAirQualityObservation.class)))
                 .thenReturn(0);
 
-        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
+        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget, REFERENCE_TIME);
 
         assertEquals(44, result.getScore());
     }
@@ -229,12 +231,12 @@ class ScoreServiceTest {
         ScoreTarget scoreTarget = createScoreTarget();
         stubCalmDependencies(DayDemandLevel.WEEKDAY);
 
-        scoreService.calculateCurrentScore(scoreTarget);
+        scoreService.calculateCurrentScore(scoreTarget, REFERENCE_TIME);
 
         verify(dayWeightProvider).findWeight(
                 COMMERCIAL_AREA_CODE,
                 BusinessType.CHICKEN,
-                ServiceTime.today().getDayOfWeek());
+                REFERENCE_TIME.getDayOfWeek());
     }
 
     @Test
@@ -243,9 +245,9 @@ class ScoreServiceTest {
         ScoreTarget guestTarget = createGuestScoreTarget();
         stubCalmDependencies(DayDemandLevel.WEEKEND);
 
-        ScoreResult result = scoreService.calculateCurrentScore(guestTarget);
+        ScoreResult result = scoreService.calculateCurrentScore(guestTarget, REFERENCE_TIME);
 
-        verify(dayWeightProvider).findWeight(null, null, ServiceTime.today().getDayOfWeek());
+        verify(dayWeightProvider).findWeight(null, null, REFERENCE_TIME.getDayOfWeek());
         // 게스트는 주말이어도 기존 +8을 받지 않는다.
         assertEquals(50, result.getScore());
     }
@@ -263,16 +265,16 @@ class ScoreServiceTest {
         // 공휴일에는 상권 DayWeight를 더하지 않으므로 이 값은 무시되어야 한다.
         when(dayWeightProvider.findWeight(any(), any(), any()))
                 .thenReturn(6);
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
+        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(List.of(createCurrentHourForecast()));
         when(forecastWeatherWeightCalculator.calculate(any(ForecastWeatherObservation.class)))
                 .thenReturn(new WeatherScoreResult(0, List.of(), "날씨 영향 없음"));
-        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class)))
+        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(airQuality);
         when(airQualityCalculator.getWeight(any(CurrentAirQualityObservation.class)))
                 .thenReturn(0);
 
-        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
+        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget, REFERENCE_TIME);
 
         assertEquals(58, result.getScore());
     }
@@ -287,16 +289,16 @@ class ScoreServiceTest {
                 .thenReturn(createNoImpactTime()); // 0점
         when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
                 .thenReturn(DayDemandLevel.WEEKDAY); // 0점
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
+        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(List.of(createCurrentHourForecast()));
         when(forecastWeatherWeightCalculator.calculate(any(ForecastWeatherObservation.class)))
                 .thenReturn(new WeatherScoreResult(4, List.of("풍속"), "풍속")); // +4점
-        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class)))
+        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(airQuality);
         when(airQualityCalculator.getWeight(any(CurrentAirQualityObservation.class)))
                 .thenReturn(0);
 
-        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
+        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget, REFERENCE_TIME);
 
         assertEquals(55, result.getScore());
     }
@@ -313,16 +315,16 @@ class ScoreServiceTest {
                 .thenReturn(DayDemandLevel.WEEKEND);
         when(dayWeightProvider.findWeight(any(), any(), any()))
                 .thenReturn(6);
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
+        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(List.of(createCurrentHourForecast()));
         when(forecastWeatherWeightCalculator.calculate(any(ForecastWeatherObservation.class)))
                 .thenReturn(new WeatherScoreResult(100, List.of("100점 초과 테스트"), "100점 초과 테스트")); // +100점
-        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class)))
+        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(airQuality);
         when(airQualityCalculator.getWeight(any(CurrentAirQualityObservation.class)))
                 .thenReturn(7);
 
-        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
+        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget, REFERENCE_TIME);
 
         assertEquals(100, result.getScore());
     }
@@ -337,14 +339,14 @@ class ScoreServiceTest {
                 .thenReturn(createNoImpactTime()); // 0점
         when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
                 .thenReturn(DayDemandLevel.WEEKDAY); // 0점
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
+        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenThrow(new KmaWeatherApiException("날씨 API 테스트 예외"));
-        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class)))
+        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(airQuality);
         when(airQualityCalculator.getWeight(any(CurrentAirQualityObservation.class)))
                 .thenReturn(0);
 
-        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
+        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget, REFERENCE_TIME);
 
         assertEquals(50, result.getScore());
     }
@@ -358,14 +360,14 @@ class ScoreServiceTest {
                 .thenReturn(createNoImpactTime()); // 0점
         when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
                 .thenReturn(DayDemandLevel.WEEKDAY); // 0점
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
+        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(List.of(createCurrentHourForecast()));
         when(forecastWeatherWeightCalculator.calculate(any(ForecastWeatherObservation.class)))
                 .thenReturn(new WeatherScoreResult(0, List.of(), "날씨 영향 없음"));
-        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class)))
+        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenThrow(new AirKoreaApiException("공기질 API 테스트 예외"));
 
-        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
+        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget, REFERENCE_TIME);
 
         assertEquals(50, result.getScore());
     }
@@ -381,16 +383,16 @@ class ScoreServiceTest {
                 .thenReturn(createNoImpactTime()); // 0점
         when(dayWeightCalculator.calculate(any(LocalDate.class), eq(false)))
                 .thenReturn(DayDemandLevel.WEEKDAY); // 0점
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
+        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(List.of(createCurrentHourForecast()));
         when(forecastWeatherWeightCalculator.calculate(any(ForecastWeatherObservation.class)))
                 .thenReturn(new WeatherScoreResult(0, List.of(), "날씨 영향 없음"));
-        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class)))
+        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(airQuality);
         when(airQualityCalculator.getWeight(any(CurrentAirQualityObservation.class)))
                 .thenReturn(0);
 
-        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
+        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget, REFERENCE_TIME);
 
         assertEquals(50, result.getScore());
     }
@@ -403,11 +405,11 @@ class ScoreServiceTest {
                 .thenReturn(createNoImpactTime());
         when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
                 .thenReturn(dayDemandLevel);
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
+        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(List.of(createCurrentHourForecast()));
         when(forecastWeatherWeightCalculator.calculate(any(ForecastWeatherObservation.class)))
                 .thenReturn(new WeatherScoreResult(0, List.of(), "날씨 영향 없음"));
-        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class)))
+        when(currentAirQualityService.getCurrentAirQuality(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(createAirQuality());
         when(airQualityCalculator.getWeight(any(CurrentAirQualityObservation.class)))
                 .thenReturn(0);
@@ -417,17 +419,17 @@ class ScoreServiceTest {
     @DisplayName("현재 시각 예보가 없으면 날씨 보정 없이 계산한다")
     void skipsWeatherWhenCurrentHourForecastMissing() {
         ScoreTarget scoreTarget = createScoreTarget();
-        LocalDateTime base = ServiceTime.now().truncatedTo(ChronoUnit.HOURS);
+        LocalDateTime base = REFERENCE_TIME.truncatedTo(ChronoUnit.HOURS);
 
         when(holidayService.isHoliday(any(LocalDate.class))).thenReturn(false);
         when(timeWeightCalculator.calculate(any(LocalTime.class)))
                 .thenReturn(createNoImpactTime());
         when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
                 .thenReturn(DayDemandLevel.WEEKDAY);
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
+        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(List.of(createForecast(base.plusHours(2))));
 
-        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget);
+        ScoreResult result = scoreService.calculateCurrentScore(scoreTarget, REFERENCE_TIME);
 
         assertEquals(50, result.getScore());
     }
@@ -436,9 +438,9 @@ class ScoreServiceTest {
     @DisplayName("이미 지난 예보는 계산에서 제외한다")
     void excludesPastForecasts() {
         ScoreTarget scoreTarget = createScoreTarget();
-        LocalDateTime base = ServiceTime.now().truncatedTo(ChronoUnit.HOURS);
+        LocalDateTime base = REFERENCE_TIME.truncatedTo(ChronoUnit.HOURS);
 
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
+        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(List.of(
                         createForecast(base.minusHours(2)),
                         createForecast(base.minusHours(1)),
@@ -451,7 +453,7 @@ class ScoreServiceTest {
         when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
                 .thenReturn(DayDemandLevel.WEEKDAY);
 
-        Map<LocalDateTime, ScoreResult> result = scoreService.calculateForecastScore(scoreTarget);
+        Map<LocalDateTime, ScoreResult> result = scoreService.calculateForecastScore(scoreTarget, REFERENCE_TIME);
 
         assertEquals(2, result.size());
         assertTrue(result.containsKey(base.plusHours(2)));
@@ -459,17 +461,33 @@ class ScoreServiceTest {
     }
 
     @Test
+    @DisplayName("정각 직전에는 현재 시각 다음 시간부터 미래 5칸을 유지한다")
+    void keepsSixSlotsImmediatelyBeforeHourBoundary() {
+        assertCurrentAndFutureSlots(
+                LocalDateTime.of(2026, 8, 22, 13, 59, 59, 900_000_000),
+                LocalDateTime.of(2026, 8, 22, 13, 0));
+    }
+
+    @Test
+    @DisplayName("정각 직후에도 현재 시각 다음 시간부터 미래 5칸을 유지한다")
+    void keepsSixSlotsImmediatelyAfterHourBoundary() {
+        assertCurrentAndFutureSlots(
+                LocalDateTime.of(2026, 8, 22, 14, 0, 0, 100_000_000),
+                LocalDateTime.of(2026, 8, 22, 14, 0));
+    }
+
+    @Test
     @DisplayName("현재 시각 다음부터 5시간까지만 계산한다")
     void limitsToSixHours() {
         ScoreTarget scoreTarget = createScoreTarget();
-        LocalDateTime base = ServiceTime.now().truncatedTo(ChronoUnit.HOURS);
+        LocalDateTime base = REFERENCE_TIME.truncatedTo(ChronoUnit.HOURS);
 
         List<ForecastWeatherObservation> forecasts = new ArrayList<>();
         for (int hour = 1; hour <= 9; hour++) {
             forecasts.add(createForecast(base.plusHours(hour)));
         }
 
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
+        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(forecasts);
         when(holidayService.isHoliday(any(LocalDate.class))).thenReturn(false);
         when(timeWeightCalculator.calculate(any(LocalTime.class)))
@@ -477,7 +495,7 @@ class ScoreServiceTest {
         when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
                 .thenReturn(DayDemandLevel.WEEKDAY);
 
-        Map<LocalDateTime, ScoreResult> result = scoreService.calculateForecastScore(scoreTarget);
+        Map<LocalDateTime, ScoreResult> result = scoreService.calculateForecastScore(scoreTarget, REFERENCE_TIME);
 
         assertEquals(5, result.size());
     }
@@ -488,14 +506,14 @@ class ScoreServiceTest {
         // 공휴일 조회는 비공휴일마다 외부 API를 호출하는 구조라
         // 예보 6건에 6번 부르면 요청당 왕복이 6배가 된다.
         ScoreTarget scoreTarget = createScoreTarget();
-        LocalDateTime base = ServiceTime.now().truncatedTo(ChronoUnit.HOURS);
+        LocalDateTime base = REFERENCE_TIME.truncatedTo(ChronoUnit.HOURS);
 
         List<ForecastWeatherObservation> forecasts = new ArrayList<>();
         for (int hour = 1; hour <= 6; hour++) {
             forecasts.add(createForecast(base.plusHours(hour)));
         }
 
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
+        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenReturn(forecasts);
         when(holidayService.isHoliday(any(LocalDate.class))).thenReturn(false);
         when(timeWeightCalculator.calculate(any(LocalTime.class)))
@@ -503,7 +521,7 @@ class ScoreServiceTest {
         when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
                 .thenReturn(DayDemandLevel.WEEKDAY);
 
-        Map<LocalDateTime, ScoreResult> result = scoreService.calculateForecastScore(scoreTarget);
+        Map<LocalDateTime, ScoreResult> result = scoreService.calculateForecastScore(scoreTarget, REFERENCE_TIME);
 
         long distinctDates = result.keySet().stream()
                 .map(LocalDateTime::toLocalDate)
@@ -518,16 +536,58 @@ class ScoreServiceTest {
     void returnsEmptyWhenForecastFails() {
         ScoreTarget scoreTarget = createScoreTarget();
 
-        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class)))
+        when(forecastWeatherService.getForecastWeather(any(ScoreTarget.class), any(LocalDateTime.class)))
                 .thenThrow(new KmaWeatherApiException("기상청 API 실패"));
 
-        Map<LocalDateTime, ScoreResult> result = scoreService.calculateForecastScore(scoreTarget);
+        Map<LocalDateTime, ScoreResult> result = scoreService.calculateForecastScore(scoreTarget, REFERENCE_TIME);
 
         assertTrue(result.isEmpty());
     }
 
     private ForecastWeatherObservation createCurrentHourForecast() {
-        return createForecast(ServiceTime.now().truncatedTo(ChronoUnit.HOURS));
+        return createForecast(REFERENCE_TIME.truncatedTo(ChronoUnit.HOURS));
+    }
+
+    private void assertCurrentAndFutureSlots(LocalDateTime referenceTime,
+                                             LocalDateTime expectedCurrentHour) {
+        ScoreTarget scoreTarget = createScoreTarget();
+        List<ForecastWeatherObservation> forecasts = new ArrayList<>();
+        for (int hour = 0; hour <= 6; hour++) {
+            forecasts.add(createForecast(expectedCurrentHour.plusHours(hour)));
+        }
+
+        when(holidayService.isHoliday(any(LocalDate.class))).thenReturn(false);
+        when(timeWeightCalculator.calculate(any(LocalTime.class)))
+                .thenReturn(createNoImpactTime());
+        when(dayWeightCalculator.calculate(any(LocalDate.class), anyBoolean()))
+                .thenReturn(DayDemandLevel.WEEKDAY);
+        when(forecastWeatherService.getForecastWeather(scoreTarget, referenceTime))
+                .thenReturn(forecasts);
+        when(forecastWeatherWeightCalculator.calculate(any(ForecastWeatherObservation.class)))
+                .thenReturn(new WeatherScoreResult(0, List.of(), "날씨 영향 없음"));
+        when(currentAirQualityService.getCurrentAirQuality(scoreTarget, referenceTime))
+                .thenReturn(createAirQuality());
+        when(airQualityCalculator.getWeight(any(CurrentAirQualityObservation.class)))
+                .thenReturn(0);
+
+        scoreService.calculateCurrentScore(scoreTarget, referenceTime);
+        Map<LocalDateTime, ScoreResult> futureScores =
+                scoreService.calculateForecastScore(scoreTarget, referenceTime);
+
+        ArgumentCaptor<ForecastWeatherObservation> currentWeather =
+                ArgumentCaptor.forClass(ForecastWeatherObservation.class);
+        verify(forecastWeatherWeightCalculator).calculate(currentWeather.capture());
+        assertEquals(expectedCurrentHour, currentWeather.getValue().getForecastAt());
+        assertEquals(
+                List.of(
+                        expectedCurrentHour.plusHours(1),
+                        expectedCurrentHour.plusHours(2),
+                        expectedCurrentHour.plusHours(3),
+                        expectedCurrentHour.plusHours(4),
+                        expectedCurrentHour.plusHours(5)
+                ),
+                new ArrayList<>(futureScores.keySet())
+        );
     }
 
     private ForecastWeatherObservation createForecast(LocalDateTime forecastAt) {

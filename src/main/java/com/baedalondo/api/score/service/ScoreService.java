@@ -4,7 +4,6 @@ import com.baedalondo.api.airquality.calculator.AirQualityCalculator;
 import com.baedalondo.api.airquality.domain.CurrentAirQualityObservation;
 import com.baedalondo.api.airquality.exception.AirKoreaApiException;
 import com.baedalondo.api.airquality.service.CurrentAirQualityService;
-import com.baedalondo.api.common.ServiceTime;
 import com.baedalondo.api.holiday.service.HolidayService;
 import com.baedalondo.api.score.dto.ScoreTarget;
 import com.baedalondo.api.score.factory.ScoreMessageFactory;
@@ -94,13 +93,13 @@ public class ScoreService {
      실황은 요청 경로에서 아예 호출하지 않는다. 점수에 쓰이지 않는데 매시 첫 요청이
      기상청 응답을 기다리게 되고, 지난 관측이 필요해지면 ASOS로 소급해 받을 수 있다.
      */
-    public ScoreResult calculateCurrentScore(ScoreTarget scoreTarget) {
+    public ScoreResult calculateCurrentScore(ScoreTarget scoreTarget,
+                                             LocalDateTime referenceTime) {
         Long scoreTargetId = scoreTargetId(scoreTarget);
 
-        // 날짜와 시각을 따로 읽으면 자정 경계에서 서로 다른 날을 가리킬 수 있다.
-        LocalDateTime now = ServiceTime.now();
-        LocalDate currentDate = now.toLocalDate();
-        LocalTime currentTime = now.toLocalTime();
+        LocalDateTime currentHour = referenceTime.truncatedTo(ChronoUnit.HOURS);
+        LocalDate currentDate = referenceTime.toLocalDate();
+        LocalTime currentTime = referenceTime.toLocalTime();
 
         int airQualityScore = 0;
         String airQualityDescription = "대기질 정보를 확인하지 못했어요";
@@ -115,7 +114,7 @@ public class ScoreService {
         WeatherScoreResult weatherScoreResult = NO_WEATHER_SCORE;
 
         try {
-            weather = findForecastAt(scoreTarget, now.truncatedTo(ChronoUnit.HOURS));
+            weather = findForecastAt(scoreTarget, currentHour, referenceTime);
 
             if (weather == null) {
                 log.warn("현재 시각 예보가 없습니다. 날씨 보정 점수를 제외합니다. storeId={}", scoreTargetId);
@@ -128,7 +127,7 @@ public class ScoreService {
 
         try {
             CurrentAirQualityObservation airQuality =
-                    currentAirQualityService.getCurrentAirQuality(scoreTarget);
+                    currentAirQualityService.getCurrentAirQuality(scoreTarget, referenceTime);
             airQualityScore = airQualityCalculator.getWeight(airQuality);
             airQualityDetail = scoreMessageFactory.createAirQualityDetail(airQuality);
             airQualityDescription =
@@ -148,7 +147,7 @@ public class ScoreService {
 
         return createScoreResult(
                 scoreTarget,
-                now,
+                referenceTime,
                 timeDemandLevel,
                 dayDemandLevel,
                 weatherScoreResult,
@@ -158,8 +157,10 @@ public class ScoreService {
         );
     }
 
-    private ForecastWeatherObservation findForecastAt(ScoreTarget scoreTarget, LocalDateTime at) {
-        return forecastWeatherService.getForecastWeather(scoreTarget).stream()
+    private ForecastWeatherObservation findForecastAt(ScoreTarget scoreTarget,
+                                                       LocalDateTime at,
+                                                       LocalDateTime referenceTime) {
+        return forecastWeatherService.getForecastWeather(scoreTarget, referenceTime).stream()
                 .filter(forecast -> at.equals(forecast.getForecastAt()))
                 .findFirst()
                 .orElse(null);
@@ -170,7 +171,8 @@ public class ScoreService {
      현재 시각 점수는 calculateCurrentScore가 따로 내므로 화면은 항상 6칸이 된다.
      예보 조회에 실패하면 빈 Map을 돌려준다.
      */
-    public Map<LocalDateTime, ScoreResult> calculateForecastScore(ScoreTarget scoreTarget) {
+    public Map<LocalDateTime, ScoreResult> calculateForecastScore(ScoreTarget scoreTarget,
+                                                                  LocalDateTime referenceTime) {
         Long scoreTargetId = scoreTargetId(scoreTarget);
 
         List<ForecastWeatherObservation> forecastWeather = List.of();
@@ -178,7 +180,8 @@ public class ScoreService {
 
         try {
             forecastWeather = selectUpcomingForecasts(
-                    forecastWeatherService.getForecastWeather(scoreTarget));
+                    forecastWeatherService.getForecastWeather(scoreTarget, referenceTime),
+                    referenceTime);
             weatherScoreResults = forecastWeatherWeightCalculator.calculateAll(forecastWeather);
         } catch (KmaWeatherApiException e) {
             log.warn("기상청 API 에러. 미래 날씨 정보를 제외합니다. storeId={}", scoreTargetId, e);
@@ -191,7 +194,7 @@ public class ScoreService {
 
         try {
             CurrentAirQualityObservation airQuality =
-                    currentAirQualityService.getCurrentAirQuality(scoreTarget);
+                    currentAirQualityService.getCurrentAirQuality(scoreTarget, referenceTime);
             airQualityScore = airQualityCalculator.getWeight(airQuality);
             airQualityDetail = scoreMessageFactory.createAirQualityDetail(airQuality);
             airQualityDescription =
@@ -252,11 +255,12 @@ public class ScoreService {
      현재 시각 항목은 calculateCurrentScore가 쓰므로 여기서는 제외되고, 남는 것은 언제나 5개다.
      */
     private List<ForecastWeatherObservation> selectUpcomingForecasts(
-            List<ForecastWeatherObservation> forecasts) {
-        LocalDateTime now = ServiceTime.now();
+            List<ForecastWeatherObservation> forecasts,
+            LocalDateTime referenceTime) {
+        LocalDateTime currentHour = referenceTime.truncatedTo(ChronoUnit.HOURS);
 
         return forecasts.stream()
-                .filter(forecast -> forecast.getForecastAt().isAfter(now))
+                .filter(forecast -> forecast.getForecastAt().isAfter(currentHour))
                 .sorted(Comparator.comparing(ForecastWeatherObservation::getForecastAt))
                 .limit(FORECAST_HOURS)
                 .toList();

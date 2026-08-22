@@ -42,6 +42,7 @@ import static org.mockito.Mockito.when;
 class ForecastWeatherServiceTest {
 
     private static final LocalDateTime BASE_DATE_TIME = LocalDateTime.of(2026, 8, 20, 14, 30);
+    private static final LocalDateTime REFERENCE_TIME = LocalDateTime.of(2026, 8, 20, 15, 0);
 
     private final KmaForecastWeatherClient kmaForecastWeatherClient =
             mock(KmaForecastWeatherClient.class);
@@ -73,13 +74,13 @@ class ForecastWeatherServiceTest {
     void retriesOnceOnTimeout() {
         List<ForecastWeatherObservation> forecast = List.of(observation());
 
-        when(kmaTimeCalculator.getSafeForecastBaseDateTime()).thenReturn(BASE_DATE_TIME);
+        when(kmaTimeCalculator.getSafeForecastBaseDateTime(REFERENCE_TIME)).thenReturn(BASE_DATE_TIME);
         when(kmaForecastWeatherClient.getForecastWeather(anyInt(), anyInt(), anyString(), anyString()))
                 .thenThrow(timeout())
                 .thenReturn(forecast);
 
         List<ForecastWeatherObservation> result =
-                forecastWeatherService.getForecastWeather(scoreTarget(60, 127));
+                forecastWeatherService.getForecastWeather(scoreTarget(60, 127), REFERENCE_TIME);
 
         assertEquals(1, result.size());
         verify(kmaForecastWeatherClient, times(2))
@@ -90,12 +91,12 @@ class ForecastWeatherServiceTest {
     @DisplayName("필수 항목 누락은 재시도하지 않는다")
     void doesNotRetryOnMissingCategory() {
         // 응답을 받아서 해석한 결과다. 다시 불러도 같은 응답이 온다.
-        when(kmaTimeCalculator.getSafeForecastBaseDateTime()).thenReturn(BASE_DATE_TIME);
+        when(kmaTimeCalculator.getSafeForecastBaseDateTime(REFERENCE_TIME)).thenReturn(BASE_DATE_TIME);
         when(kmaForecastWeatherClient.getForecastWeather(anyInt(), anyInt(), anyString(), anyString()))
                 .thenThrow(new KmaWeatherApiException("예보에 필수 날씨 항목이 누락되었습니다."));
 
         assertThrows(KmaWeatherApiException.class,
-                () -> forecastWeatherService.getForecastWeather(scoreTarget(60, 127)));
+                () -> forecastWeatherService.getForecastWeather(scoreTarget(60, 127), REFERENCE_TIME));
 
         verify(kmaForecastWeatherClient, times(1))
                 .getForecastWeather(60, 127, "20260820", "1430");
@@ -104,17 +105,17 @@ class ForecastWeatherServiceTest {
     @Test
     @DisplayName("두 번 다 실패하면 다음 요청은 API를 부르지 않는다")
     void skipsApiDuringCooldown() {
-        when(kmaTimeCalculator.getSafeForecastBaseDateTime()).thenReturn(BASE_DATE_TIME);
+        when(kmaTimeCalculator.getSafeForecastBaseDateTime(REFERENCE_TIME)).thenReturn(BASE_DATE_TIME);
         when(kmaForecastWeatherClient.getForecastWeather(anyInt(), anyInt(), anyString(), anyString()))
                 .thenThrow(timeout());
 
         assertThrows(KmaWeatherApiException.class,
-                () -> forecastWeatherService.getForecastWeather(scoreTarget(60, 127)));
+                () -> forecastWeatherService.getForecastWeather(scoreTarget(60, 127), REFERENCE_TIME));
         verify(kmaForecastWeatherClient, times(2))
                 .getForecastWeather(60, 127, "20260820", "1430");
 
         assertThrows(KmaWeatherApiException.class,
-                () -> forecastWeatherService.getForecastWeather(scoreTarget(60, 127)));
+                () -> forecastWeatherService.getForecastWeather(scoreTarget(60, 127), REFERENCE_TIME));
         verify(kmaForecastWeatherClient, times(2))
                 .getForecastWeather(60, 127, "20260820", "1430");
     }
@@ -124,16 +125,16 @@ class ForecastWeatherServiceTest {
     void isolatesCooldownByGrid() {
         List<ForecastWeatherObservation> forecast = List.of(observation());
 
-        when(kmaTimeCalculator.getSafeForecastBaseDateTime()).thenReturn(BASE_DATE_TIME);
+        when(kmaTimeCalculator.getSafeForecastBaseDateTime(REFERENCE_TIME)).thenReturn(BASE_DATE_TIME);
         when(kmaForecastWeatherClient.getForecastWeather(60, 127, "20260820", "1430"))
                 .thenThrow(timeout());
         when(kmaForecastWeatherClient.getForecastWeather(61, 126, "20260820", "1430"))
                 .thenReturn(forecast);
 
         assertThrows(KmaWeatherApiException.class,
-                () -> forecastWeatherService.getForecastWeather(scoreTarget(60, 127)));
+                () -> forecastWeatherService.getForecastWeather(scoreTarget(60, 127), REFERENCE_TIME));
 
-        assertEquals(1, forecastWeatherService.getForecastWeather(scoreTarget(61, 126)).size());
+        assertEquals(1, forecastWeatherService.getForecastWeather(scoreTarget(61, 126), REFERENCE_TIME).size());
     }
 
     @Test
@@ -141,7 +142,7 @@ class ForecastWeatherServiceTest {
     void callsApiAgainAfterCooldownExpires() {
         AtomicInteger calls = new AtomicInteger();
 
-        when(kmaTimeCalculator.getSafeForecastBaseDateTime()).thenReturn(BASE_DATE_TIME);
+        when(kmaTimeCalculator.getSafeForecastBaseDateTime(REFERENCE_TIME)).thenReturn(BASE_DATE_TIME);
         when(kmaForecastWeatherClient.getForecastWeather(anyInt(), anyInt(), anyString(), anyString()))
                 .thenAnswer(invocation -> {
                     if (calls.incrementAndGet() <= 2) {
@@ -151,12 +152,12 @@ class ForecastWeatherServiceTest {
                 });
 
         assertThrows(KmaWeatherApiException.class,
-                () -> forecastWeatherService.getForecastWeather(scoreTarget(60, 127)));
+                () -> forecastWeatherService.getForecastWeather(scoreTarget(60, 127), REFERENCE_TIME));
         assertEquals(2, calls.get());
 
         now = now.plusSeconds(60);
 
-        assertEquals(1, forecastWeatherService.getForecastWeather(scoreTarget(60, 127)).size());
+        assertEquals(1, forecastWeatherService.getForecastWeather(scoreTarget(60, 127), REFERENCE_TIME).size());
         assertEquals(3, calls.get());
     }
 
@@ -169,7 +170,7 @@ class ForecastWeatherServiceTest {
         ForecastWeatherRecord storedRecord = mock(ForecastWeatherRecord.class);
         ForecastWeatherObservation stored = observation();
 
-        when(kmaTimeCalculator.getSafeForecastBaseDateTime()).thenReturn(BASE_DATE_TIME);
+        when(kmaTimeCalculator.getSafeForecastBaseDateTime(REFERENCE_TIME)).thenReturn(BASE_DATE_TIME);
         when(kmaForecastWeatherClient.getForecastWeather(60, 127, "20260820", "1430"))
                 .thenReturn(List.of(observation()));
         when(forecastWeatherRecordRepository.saveAll(anyList()))
@@ -182,9 +183,10 @@ class ForecastWeatherServiceTest {
         when(storedRecord.toObservation()).thenReturn(stored);
 
         List<ForecastWeatherObservation> result =
-                forecastWeatherService.getForecastWeather(scoreTarget(60, 127));
+                forecastWeatherService.getForecastWeather(scoreTarget(60, 127), REFERENCE_TIME);
 
         assertEquals(List.of(stored), result);
+        verify(kmaTimeCalculator, times(1)).getSafeForecastBaseDateTime(REFERENCE_TIME);
         verify(kmaForecastWeatherClient, times(1))
                 .getForecastWeather(60, 127, "20260820", "1430");
     }
@@ -193,7 +195,7 @@ class ForecastWeatherServiceTest {
     @DisplayName("다시 조회해도 충돌하면 예외를 그대로 올린다")
     void propagatesWhenSecondAttemptAlsoCollides() {
         // 한 번만 다시 시도한다. 계속 충돌하면 동시성이 아니라 다른 문제다.
-        when(kmaTimeCalculator.getSafeForecastBaseDateTime()).thenReturn(BASE_DATE_TIME);
+        when(kmaTimeCalculator.getSafeForecastBaseDateTime(REFERENCE_TIME)).thenReturn(BASE_DATE_TIME);
         when(kmaForecastWeatherClient.getForecastWeather(60, 127, "20260820", "1430"))
                 .thenReturn(List.of(observation()));
         when(forecastWeatherRecordRepository
@@ -203,7 +205,7 @@ class ForecastWeatherServiceTest {
                 .thenThrow(new DataIntegrityViolationException("uk_forecast_weather_record"));
 
         assertThrows(DataIntegrityViolationException.class,
-                () -> forecastWeatherService.getForecastWeather(scoreTarget(60, 127)));
+                () -> forecastWeatherService.getForecastWeather(scoreTarget(60, 127), REFERENCE_TIME));
 
         verify(kmaForecastWeatherClient, times(2))
                 .getForecastWeather(60, 127, "20260820", "1430");

@@ -1,11 +1,11 @@
 package com.baedalondo.api.dashboard.dto;
 
-import com.baedalondo.api.common.ServiceTime;
 import com.baedalondo.api.score.ScoreResult;
 import com.baedalondo.api.score.status.ScoreStatusLevel;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -17,11 +17,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DashboardViewTest {
 
     private static final int CURRENT_SCORE = 45;
+    // 시스템의 실제 오늘과 다른 날짜여야 뷰가 시계를 다시 읽는 회귀를 잡을 수 있다.
+    private static final LocalDate REFERENCE_DATE = LocalDate.of(2030, 1, 15);
+    private static final LocalDateTime REFERENCE_TIME = REFERENCE_DATE.atTime(23, 59, 59);
 
     @Test
     @DisplayName("예보 시각을 화면 라벨로 바꾼다")
     void createsHourLabel() {
-        LocalDateTime today = ServiceTime.today().atTime(17, 0);
+        LocalDateTime today = REFERENCE_DATE.atTime(17, 0);
 
         DashboardView view = createView(Map.of(today, createScoreResult(62)));
 
@@ -32,7 +35,7 @@ class DashboardViewTest {
     @DisplayName("자정을 넘긴 예보는 내일로 표시한다")
     void marksNextDayForecast() {
         // 밤에 조회하면 예보 5칸이 자정을 넘어간다. "0시"만 쓰면 오늘로 읽힌다.
-        LocalDateTime tomorrow = ServiceTime.today().plusDays(1).atTime(0, 0);
+        LocalDateTime tomorrow = REFERENCE_DATE.plusDays(1).atTime(0, 0);
 
         DashboardView view = createView(Map.of(tomorrow, createScoreResult(45)));
 
@@ -44,7 +47,7 @@ class DashboardViewTest {
     void keepsForecastOrder() {
         Map<LocalDateTime, ScoreResult> forecastScores = new LinkedHashMap<>();
         for (int hour = 19; hour <= 23; hour++) {
-            forecastScores.put(ServiceTime.today().atTime(hour, 0), createScoreResult(hour));
+            forecastScores.put(REFERENCE_DATE.atTime(hour, 0), createScoreResult(hour));
         }
 
         DashboardView view = createView(forecastScores);
@@ -58,7 +61,7 @@ class DashboardViewTest {
     @Test
     @DisplayName("점수 구간이 예보 칸에도 그대로 적용된다")
     void appliesStatusLevelToForecast() {
-        LocalDateTime at = ServiceTime.today().atTime(19, 0);
+        LocalDateTime at = REFERENCE_DATE.atTime(19, 0);
 
         DashboardView view = createView(Map.of(at, createScoreResult(70)));
         ForecastScoreView forecast = view.getForecastScores().get(0);
@@ -71,9 +74,9 @@ class DashboardViewTest {
     @DisplayName("현재 점수 대비 증감을 함께 낸다")
     void calculatesDeltaFromCurrentScore() {
         Map<LocalDateTime, ScoreResult> forecastScores = new LinkedHashMap<>();
-        forecastScores.put(ServiceTime.today().atTime(17, 0), createScoreResult(58));
-        forecastScores.put(ServiceTime.today().atTime(18, 0), createScoreResult(39));
-        forecastScores.put(ServiceTime.today().atTime(19, 0), createScoreResult(45));
+        forecastScores.put(REFERENCE_DATE.atTime(17, 0), createScoreResult(58));
+        forecastScores.put(REFERENCE_DATE.atTime(18, 0), createScoreResult(39));
+        forecastScores.put(REFERENCE_DATE.atTime(19, 0), createScoreResult(45));
 
         // createView가 현재 점수를 45로 넘긴다.
         List<ForecastScoreView> forecasts = createView(forecastScores).getForecastScores();
@@ -91,7 +94,8 @@ class DashboardViewTest {
     }
 
     private DashboardView createView(Map<LocalDateTime, ScoreResult> forecastScores) {
-        return DashboardView.from(null, createScoreResult(CURRENT_SCORE), forecastScores);
+        return DashboardView.from(
+                null, createScoreResult(CURRENT_SCORE), forecastScores, REFERENCE_TIME);
     }
 
     private ScoreResult createScoreResult(int score) {

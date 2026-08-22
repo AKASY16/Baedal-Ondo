@@ -60,6 +60,20 @@ public class CurrentAirQualityService {
     }
 
     public CurrentAirQualityObservation getCurrentAirQuality(ScoreTarget scoreTarget) {
+        LocalDateTime expectedBaseTime = airQualityCalculator.getSafeAirQualityBaseTime();
+        return getCurrentAirQualityAtBaseTime(scoreTarget, expectedBaseTime);
+    }
+
+    public CurrentAirQualityObservation getCurrentAirQuality(ScoreTarget scoreTarget,
+                                                             LocalDateTime referenceTime) {
+        LocalDateTime expectedBaseTime =
+                airQualityCalculator.getSafeAirQualityBaseTime(referenceTime);
+        return getCurrentAirQualityAtBaseTime(scoreTarget, expectedBaseTime);
+    }
+
+    private CurrentAirQualityObservation getCurrentAirQualityAtBaseTime(
+            ScoreTarget scoreTarget,
+            LocalDateTime expectedBaseTime) {
 
         if (scoreTarget == null) {
             throw new IllegalArgumentException("가게 정보가 없습니다.");
@@ -69,7 +83,6 @@ public class CurrentAirQualityService {
             throw new IllegalArgumentException("가게 주소 정보가 없습니다.");
         }
 
-        LocalDateTime expectedBaseTime = airQualityCalculator.getSafeAirQualityBaseTime();
         String sidoName = koreanAddressParser.extractSidoName(scoreTarget.getSidoName());
         String sigunguName = scoreTarget.getSigunguName();
 
