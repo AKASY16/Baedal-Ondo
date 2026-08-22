@@ -51,6 +51,12 @@ class SignupPageRenderTest extends MySqlTestSupport {
 
         assertTrue(html.trim().endsWith("</html>"), "페이지가 중간에 잘렸다");
         assertTrue(html.contains("name=\"_csrf\""), "CSRF 토큰이 없다");
+        assertTrue(html.contains("id=\"saveLoginId\""), "아이디 저장 체크박스가 없다");
+        assertTrue(html.contains("name=\"remember-me\""), "로그인 유지 체크박스가 없다");
+        assertTrue(html.contains("localStorage.setItem(storageKey, loginIdInput.value)"),
+                "아이디 저장 스크립트가 없다");
+        assertTrue(!html.contains("localStorage.setItem(storageKey, password"),
+                "비밀번호를 localStorage에 저장하면 안 된다");
     }
 
     private String get(String path) {

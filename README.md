@@ -389,13 +389,14 @@ data-processing/
 - MySQL 8 또는 Docker
 - 외부 API 키
 
-API 키와 DB 비밀번호는 설정 파일에 저장하지 않고 환경변수로 받습니다.
+API 키와 DB 비밀번호, 로그인 유지 서명 키는 설정 파일에 저장하지 않고 환경변수로 받습니다.
 
 | 환경변수 | 용도 | 필수 |
 | --- | --- | --- |
 | `KMA_AUTH_KEY` | 기상청 초단기실황 | O |
 | `DATAPORTAL_AUTH_KEY` | AirKorea, 공휴일 | O |
 | `JUSO_COORDINATE_AUTH_KEY` | 도로명주소 좌표제공 | O |
+| `REMEMBER_ME_KEY` | 로그인 유지 토큰 서명 키(32자 이상의 랜덤 문자열) | O |
 | `DATAPORTAL_HOLIDAY_AUTH_KEY` | 공휴일 전용 키 | 선택 |
 | `JUSO_POPUP_AUTH_KEY` | 도로명주소 팝업 | 선택 |
 
@@ -410,6 +411,7 @@ API 키와 DB 비밀번호는 설정 파일에 저장하지 않고 환경변수�
 DB_USERNAME=baedalondo_app
 DB_PASSWORD=앱_계정_비밀번호
 DB_ROOT_PASSWORD=컨테이너_root_비밀번호
+REMEMBER_ME_KEY=openssl_rand_-base64_48_명령으로_생성한_값을_입력하세요
 
 KMA_AUTH_KEY=기상청_API_KEY
 DATAPORTAL_AUTH_KEY=공공데이터포털_API_KEY

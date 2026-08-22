@@ -2,6 +2,7 @@ package com.baedalondo.api.config;
 
 import com.baedalondo.api.auth.service.AccountLoginFailureHandler;
 import com.baedalondo.api.auth.service.AccountLoginSuccessHandler;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -13,7 +14,12 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
                                            AccountLoginSuccessHandler loginSuccessHandler,
-                                           AccountLoginFailureHandler loginFailureHandler) throws Exception {
+                                           AccountLoginFailureHandler loginFailureHandler,
+                                           @Value("${baedalondo.security.remember-me-key}") String rememberMeKey) throws Exception {
+        if (rememberMeKey.length() < 32) {
+            throw new IllegalArgumentException("REMEMBER_ME_KEY는 32자 이상의 랜덤 문자열이어야 합니다.");
+        }
+
         http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
@@ -47,11 +53,16 @@ public class SecurityConfig {
                         .failureHandler(loginFailureHandler)
                         .permitAll()
                 )
+                .rememberMe(rememberMe -> rememberMe
+                        .key(rememberMeKey)
+                        .rememberMeParameter("remember-me")
+                        .tokenValiditySeconds(30 * 24 * 60 * 60)
+                )
                 .logout(logout -> logout
                         .logoutUrl("/logout")
                         .logoutSuccessUrl("/login?logout")
                         .invalidateHttpSession(true)
-                        .deleteCookies("JSESSIONID")
+                        .deleteCookies("JSESSIONID", "remember-me")
                 )
                 .csrf(csrf -> csrf
                         .ignoringRequestMatchers(

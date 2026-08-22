@@ -55,6 +55,9 @@ jusogokr:
 baedalondo:
   startup-preload:
     enabled: false
+  security:
+    # 테스트 컨텍스트용 값이다. 운영 키는 REMEMBER_ME_KEY 환경변수로만 주입한다.
+    remember-me-key: test-only-remember-me-key-not-for-production
 
 service:
   legal:

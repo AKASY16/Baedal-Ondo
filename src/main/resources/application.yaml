@@ -43,6 +43,9 @@ management:
 baedalondo:
   startup-preload:
     enabled: "${STARTUP_PRELOAD_ENABLED:true}"
+  security:
+    # remember-me 토큰 서명 키는 소스나 이미지에 포함하지 않고 환경변수로만 받는다.
+    remember-me-key: "${REMEMBER_ME_KEY}"
 
 service:
   legal:
