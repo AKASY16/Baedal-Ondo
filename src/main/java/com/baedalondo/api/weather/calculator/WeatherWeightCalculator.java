@@ -10,10 +10,10 @@ import java.util.List;
 /**
  * 날씨 점수와 설명 문구를 만든다.
  *
- * 실황과 예보가 같은 기상청 카테고리를 쓰므로 계산 규칙도 같다.
  * 임계값과 문구가 한 곳에만 있도록 이 클래스가 실제 계산을 전담하고,
- * CurrentWeatherWeightCalculator와 ForecastWeatherWeightCalculator는
- * 각자의 관측 타입을 받아 여기로 넘긴다.
+ * ForecastWeatherWeightCalculator는 예보 타입을 받아 여기로 넘긴다.
+ *
+ * 점수 계산은 WeatherMeasurement만 알면 되므로 관측의 출처에 묶이지 않는다.
  */
 @Component
 public class WeatherWeightCalculator {

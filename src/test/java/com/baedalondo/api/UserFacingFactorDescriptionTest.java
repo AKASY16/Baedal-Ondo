@@ -5,26 +5,28 @@ import com.baedalondo.api.airquality.domain.CurrentAirQualityObservation;
 import com.baedalondo.api.score.factory.ScoreMessageFactory;
 import com.baedalondo.api.score.status.DayDemandLevel;
 import com.baedalondo.api.score.status.TimeDemandLevel;
-import com.baedalondo.api.weather.calculator.CurrentWeatherWeightCalculator;
 import com.baedalondo.api.weather.calculator.WeatherWeightCalculator;
-import com.baedalondo.api.weather.domain.CurrentWeatherObservation;
+import com.baedalondo.api.weather.domain.ForecastWeatherObservation;
 import org.junit.jupiter.api.Test;
 
 import java.time.DayOfWeek;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class UserFacingFactorDescriptionTest {
 
-    private final CurrentWeatherWeightCalculator weatherCalculator = new CurrentWeatherWeightCalculator(new WeatherWeightCalculator());
+    private static final LocalDateTime WEATHER_AT = LocalDateTime.of(2026, 8, 16, 20, 0);
+
+    private final WeatherWeightCalculator weatherCalculator = new WeatherWeightCalculator();
     private final ScoreMessageFactory messageFactory = new ScoreMessageFactory();
 
     @Test
     void describesWeatherInEverydayLanguage() {
-        CurrentWeatherObservation calm = new CurrentWeatherObservation(0, 0, 20, 50, 1);
-        CurrentWeatherObservation rainyAndWindy = new CurrentWeatherObservation(0, 3, 20, 50, 9);
-        CurrentWeatherObservation snowyAndCold = new CurrentWeatherObservation(3, 0, 0, 50, 1);
+        ForecastWeatherObservation calm = new ForecastWeatherObservation(WEATHER_AT, 0, 0, 20, 50, 1);
+        ForecastWeatherObservation rainyAndWindy = new ForecastWeatherObservation(WEATHER_AT, 0, 3, 20, 50, 9);
+        ForecastWeatherObservation snowyAndCold = new ForecastWeatherObservation(WEATHER_AT, 3, 0, 0, 50, 1);
 
         assertEquals("외출에 큰 불편이 없는 날씨", weatherCalculator.calculate(calm).getDescription());
         assertEquals("비와 강한 바람이 겹친 날씨", weatherCalculator.calculate(rainyAndWindy).getDescription());
@@ -33,9 +35,9 @@ class UserFacingFactorDescriptionTest {
 
     @Test
     void adjustsTemperatureWordingToImpactStrength() {
-        CurrentWeatherObservation slightlyHot = new CurrentWeatherObservation(0, 0, 26, 50, 1);
-        CurrentWeatherObservation hot = new CurrentWeatherObservation(0, 0, 29, 50, 1);
-        CurrentWeatherObservation veryHot = new CurrentWeatherObservation(0, 0, 32, 50, 1);
+        ForecastWeatherObservation slightlyHot = new ForecastWeatherObservation(WEATHER_AT, 0, 0, 26, 50, 1);
+        ForecastWeatherObservation hot = new ForecastWeatherObservation(WEATHER_AT, 0, 0, 29, 50, 1);
+        ForecastWeatherObservation veryHot = new ForecastWeatherObservation(WEATHER_AT, 0, 0, 32, 50, 1);
 
         assertEquals("기온이 조금 높은 편", weatherCalculator.calculate(slightlyHot).getDescription());
         assertEquals("높은 기온으로 외출이 다소 불편한 날씨", weatherCalculator.calculate(hot).getDescription());

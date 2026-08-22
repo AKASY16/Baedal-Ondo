@@ -3,11 +3,12 @@ package com.baedalondo.api.score.calculator;
 import com.baedalondo.api.score.ScoreCalculationResult;
 import com.baedalondo.api.score.status.DayDemandLevel;
 import com.baedalondo.api.score.status.TimeDemandLevel;
-import com.baedalondo.api.weather.domain.CurrentWeatherObservation;
+import com.baedalondo.api.weather.domain.ForecastWeatherObservation;
 import com.baedalondo.api.weather.domain.WeatherScoreResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -15,6 +16,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class WeightedScoreCalculatorTest {
 
     private static final int NO_MARKET_DAY_WEIGHT = 0;
+
+    // 가중 합산은 관측 시각을 쓰지 않는다. 예보 타입이 요구하는 자리만 채운다.
+    private static final LocalDateTime WEATHER_AT = LocalDateTime.of(2026, 8, 16, 20, 0);
 
     private final WeightedScoreCalculator calculator = new WeightedScoreCalculator();
 
@@ -430,11 +434,11 @@ class WeightedScoreCalculatorTest {
         );
     }
 
-    private CurrentWeatherObservation noRainWeather() {
-        return new CurrentWeatherObservation(0, 0, 20, 50, 1);
+    private ForecastWeatherObservation noRainWeather() {
+        return new ForecastWeatherObservation(WEATHER_AT, 0, 0, 20, 50, 1);
     }
 
-    private CurrentWeatherObservation rainyWeather() {
-        return new CurrentWeatherObservation(1, 5, 20, 80, 3);
+    private ForecastWeatherObservation rainyWeather() {
+        return new ForecastWeatherObservation(WEATHER_AT, 1, 5, 20, 80, 3);
     }
 }

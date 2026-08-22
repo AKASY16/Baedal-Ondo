@@ -746,6 +746,6 @@ password: "${DB_PASSWORD}"
 
 추가로 보강할 부분:
 
-- `CurrentWeatherService`, `KmaTimeCalculator` 등 서비스 계층 테스트
+- `KmaTimeCalculator`, `ForecastWeatherService` 등 서비스 계층 테스트
 
 현재 MVP에서는 별도 Store 목록 페이지와 `ScoreHistory` 기반 과거 비교 기능을 보류했습니다. 매장 전환은 대시보드 드롭다운으로 처리하고, 현재 버전은 과거 분석보다 **현재 점수와 그 점수가 나온 이유**를 보여주는 데 집중합니다.

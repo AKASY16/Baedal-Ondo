@@ -1,14 +1,19 @@
 package com.baedalondo.api.weather.calculator;
 
-import com.baedalondo.api.weather.domain.CurrentWeatherObservation;
+import com.baedalondo.api.weather.domain.ForecastWeatherObservation;
 import com.baedalondo.api.weather.domain.WeatherScoreResult;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class CurrentWeatherWeightCalculatorTest {
+class WeatherWeightCalculatorTest {
 
-    private final CurrentWeatherWeightCalculator calculator =  new CurrentWeatherWeightCalculator(new WeatherWeightCalculator());
+    // 점수 규칙은 관측 시각과 무관하다. 예보 타입이 시각을 요구할 뿐이라 고정값을 쓴다.
+    private static final LocalDateTime AT = LocalDateTime.of(2026, 8, 16, 20, 0);
+
+    private final WeatherWeightCalculator calculator = new WeatherWeightCalculator();
 
     @Test
     void rainfallScoreTest(){
@@ -25,8 +30,8 @@ class CurrentWeatherWeightCalculatorTest {
         double rainfallTwentyNine = 29;
         double rainfallThirty = 30;
 
-        CurrentWeatherObservation observationRainfallZero =
-                new CurrentWeatherObservation(
+        ForecastWeatherObservation observationRainfallZero =
+                weather(
                         0,
                         rainfallZero,
                         20,
@@ -34,7 +39,7 @@ class CurrentWeatherWeightCalculatorTest {
                         1
                 );
 
-        CurrentWeatherObservation observationRainfallUnderOne = new CurrentWeatherObservation(
+        ForecastWeatherObservation observationRainfallUnderOne = weather(
                 0,
                 rainfallUnderOne,
                 20,
@@ -42,8 +47,8 @@ class CurrentWeatherWeightCalculatorTest {
                 1
         );
 
-        CurrentWeatherObservation observationRainfallOne =
-                new CurrentWeatherObservation(
+        ForecastWeatherObservation observationRainfallOne =
+                weather(
                         0,
                         rainfallOne,
                         20,
@@ -51,8 +56,8 @@ class CurrentWeatherWeightCalculatorTest {
                         1
                 );
 
-        CurrentWeatherObservation observationRainfallTwo =
-                new CurrentWeatherObservation(
+        ForecastWeatherObservation observationRainfallTwo =
+                weather(
                         0,
                         rainfallTwo,
                         20,
@@ -60,8 +65,8 @@ class CurrentWeatherWeightCalculatorTest {
                         1
                 );
 
-        CurrentWeatherObservation observationRainfallThree =
-                new CurrentWeatherObservation(
+        ForecastWeatherObservation observationRainfallThree =
+                weather(
                         0,
                         rainfallThree,
                         20,
@@ -69,8 +74,8 @@ class CurrentWeatherWeightCalculatorTest {
                         1
                 );
 
-        CurrentWeatherObservation observationRainfallFour =
-                new CurrentWeatherObservation(
+        ForecastWeatherObservation observationRainfallFour =
+                weather(
                         0,
                         rainfallFour,
                         20,
@@ -78,8 +83,8 @@ class CurrentWeatherWeightCalculatorTest {
                         1
                 );
 
-        CurrentWeatherObservation observationRainfallFourteen =
-                new CurrentWeatherObservation(
+        ForecastWeatherObservation observationRainfallFourteen =
+                weather(
                         0,
                         rainfallFourteen,
                         20,
@@ -87,8 +92,8 @@ class CurrentWeatherWeightCalculatorTest {
                         1
                 );
 
-        CurrentWeatherObservation observationRainfallFifteen =
-                new CurrentWeatherObservation(
+        ForecastWeatherObservation observationRainfallFifteen =
+                weather(
                         0,
                         rainfallFifteen,
                         20,
@@ -96,8 +101,8 @@ class CurrentWeatherWeightCalculatorTest {
                         1
                 );
 
-        CurrentWeatherObservation observationRainfallTwentyNine =
-                new CurrentWeatherObservation(
+        ForecastWeatherObservation observationRainfallTwentyNine =
+                weather(
                         0,
                         rainfallTwentyNine,
                         20,
@@ -105,8 +110,8 @@ class CurrentWeatherWeightCalculatorTest {
                         1
                 );
 
-        CurrentWeatherObservation observationRainfallThirty =
-                new CurrentWeatherObservation(
+        ForecastWeatherObservation observationRainfallThirty =
+                weather(
                         0,
                         rainfallThirty,
                         20,
@@ -152,7 +157,7 @@ class CurrentWeatherWeightCalculatorTest {
         int seven = 7;
         int eight = 8;
 
-        CurrentWeatherObservation ObservationPrecipitationTypeZero = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationPrecipitationTypeZero = weather(
                 zero,
                 0,
                 20,
@@ -160,7 +165,7 @@ class CurrentWeatherWeightCalculatorTest {
                 1
         );
 
-        CurrentWeatherObservation ObservationPrecipitationTypeOne = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationPrecipitationTypeOne = weather(
                 one,
                 0,
                 20,
@@ -168,7 +173,7 @@ class CurrentWeatherWeightCalculatorTest {
                 1
         );
 
-        CurrentWeatherObservation ObservationPrecipitationTypeTwo = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationPrecipitationTypeTwo = weather(
                 two,
                 0,
                 20,
@@ -176,7 +181,7 @@ class CurrentWeatherWeightCalculatorTest {
                 1
         );
 
-        CurrentWeatherObservation ObservationPrecipitationTypeThree = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationPrecipitationTypeThree = weather(
                 three,
                 0,
                 20,
@@ -184,7 +189,7 @@ class CurrentWeatherWeightCalculatorTest {
                 1
         );
 
-        CurrentWeatherObservation ObservationPrecipitationTypeFour = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationPrecipitationTypeFour = weather(
                 four,
                 0,
                 20,
@@ -192,7 +197,7 @@ class CurrentWeatherWeightCalculatorTest {
                 1
         );
 
-        CurrentWeatherObservation ObservationPrecipitationTypeFive = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationPrecipitationTypeFive = weather(
                 five,
                 0,
                 20,
@@ -200,7 +205,7 @@ class CurrentWeatherWeightCalculatorTest {
                 1
         );
 
-        CurrentWeatherObservation ObservationPrecipitationTypeSix = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationPrecipitationTypeSix = weather(
                 six,
                 0,
                 20,
@@ -208,7 +213,7 @@ class CurrentWeatherWeightCalculatorTest {
                 1
         );
 
-        CurrentWeatherObservation ObservationPrecipitationTypeSeven = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationPrecipitationTypeSeven = weather(
                 seven,
                 0,
                 20,
@@ -216,7 +221,7 @@ class CurrentWeatherWeightCalculatorTest {
                 1
         );
 
-        CurrentWeatherObservation ObservationPrecipitationTypeEight = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationPrecipitationTypeEight = weather(
                 eight,
                 0,
                 20,
@@ -280,7 +285,7 @@ class CurrentWeatherWeightCalculatorTest {
         double twentyone = 21;
         double hundred = 100;
 
-        CurrentWeatherObservation ObservationWindSpeedZero = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationWindSpeedZero = weather(
                 0,
                 0,
                 20,
@@ -288,7 +293,7 @@ class CurrentWeatherWeightCalculatorTest {
                 zero
         );
 
-        CurrentWeatherObservation ObservationWindSpeedThree = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationWindSpeedThree = weather(
                 0,
                 0,
                 20,
@@ -296,7 +301,7 @@ class CurrentWeatherWeightCalculatorTest {
                 three
         );
 
-        CurrentWeatherObservation ObservationWindSpeedFour = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationWindSpeedFour = weather(
                 0,
                 0,
                 20,
@@ -304,7 +309,7 @@ class CurrentWeatherWeightCalculatorTest {
                 four
                 );
 
-        CurrentWeatherObservation ObservationWindSpeedEight = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationWindSpeedEight = weather(
                 0,
                 0,
                 20,
@@ -312,7 +317,7 @@ class CurrentWeatherWeightCalculatorTest {
                 eight
                 );
 
-        CurrentWeatherObservation ObservationWindSpeedNine = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationWindSpeedNine = weather(
                 0,
                 0,
                 20,
@@ -320,7 +325,7 @@ class CurrentWeatherWeightCalculatorTest {
                 nine
                 );
 
-        CurrentWeatherObservation ObservationWindSpeedTen = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationWindSpeedTen = weather(
                 0,
                 0,
                 20,
@@ -328,7 +333,7 @@ class CurrentWeatherWeightCalculatorTest {
                 ten
                 );
 
-        CurrentWeatherObservation ObservationWindSpeedThirteen = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationWindSpeedThirteen = weather(
                 0,
                 0,
                 20,
@@ -336,7 +341,7 @@ class CurrentWeatherWeightCalculatorTest {
                 thirteen
                 );
 
-        CurrentWeatherObservation ObservationWindSpeedFourteen = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationWindSpeedFourteen = weather(
                 0,
                 0,
                 20,
@@ -344,7 +349,7 @@ class CurrentWeatherWeightCalculatorTest {
                 fourteen
                 );
 
-        CurrentWeatherObservation ObservationWindSpeedTwenty = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationWindSpeedTwenty = weather(
                 0,
                 0,
                 20,
@@ -352,7 +357,7 @@ class CurrentWeatherWeightCalculatorTest {
                 twenty
                 );
 
-        CurrentWeatherObservation ObservationWindSpeedTwentyone = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationWindSpeedTwentyone = weather(
                 0,
                 0,
                 20,
@@ -360,7 +365,7 @@ class CurrentWeatherWeightCalculatorTest {
                 twentyone
                 );
 
-        CurrentWeatherObservation ObservationWindSpeedHundred = new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationWindSpeedHundred = weather(
                 0,
                 0,
                 20,
@@ -428,8 +433,8 @@ class CurrentWeatherWeightCalculatorTest {
         double twentyfive = 25;
         double hundred = 100;
 
-        CurrentWeatherObservation ObservationTemperatureZero =
-                new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationTemperatureZero =
+                weather(
                 0,
                 0,
                 zero,
@@ -437,8 +442,8 @@ class CurrentWeatherWeightCalculatorTest {
                 1
         );
 
-        CurrentWeatherObservation ObservationTemperatureFour =
-                new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationTemperatureFour =
+                weather(
                         0,
                         0,
                         four,
@@ -446,8 +451,8 @@ class CurrentWeatherWeightCalculatorTest {
                         1
                 );
 
-        CurrentWeatherObservation ObservationTemperatureFive =
-                new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationTemperatureFive =
+                weather(
                         0,
                         0,
                         five,
@@ -455,8 +460,8 @@ class CurrentWeatherWeightCalculatorTest {
                         1
                 );
 
-        CurrentWeatherObservation ObservationTemperatureNine =
-                new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationTemperatureNine =
+                weather(
                         0,
                         0,
                         nine,
@@ -464,8 +469,8 @@ class CurrentWeatherWeightCalculatorTest {
                         1
                 );
 
-        CurrentWeatherObservation ObservationTemperatureTen =
-                new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationTemperatureTen =
+                weather(
                         0,
                         0,
                         ten,
@@ -473,8 +478,8 @@ class CurrentWeatherWeightCalculatorTest {
                         1
                 );
 
-        CurrentWeatherObservation ObservationTemperatureTwentyfour =
-                new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationTemperatureTwentyfour =
+                weather(
                         0,
                         0,
                         twentyfour,
@@ -482,8 +487,8 @@ class CurrentWeatherWeightCalculatorTest {
                         1
                 );
 
-        CurrentWeatherObservation ObservationTemperatureTwentyfive =
-                new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationTemperatureTwentyfive =
+                weather(
                         0,
                         0,
                         twentyfive,
@@ -491,8 +496,8 @@ class CurrentWeatherWeightCalculatorTest {
                         1
                 );
 
-        CurrentWeatherObservation ObservationTemperatureHundred =
-                new CurrentWeatherObservation(
+        ForecastWeatherObservation ObservationTemperatureHundred =
+                weather(
                         0,
                         0,
                         hundred,
@@ -537,4 +542,13 @@ class CurrentWeatherWeightCalculatorTest {
 
     }
 
+
+    private static ForecastWeatherObservation weather(int precipitationType,
+                                                      double rainfall,
+                                                      double temperature,
+                                                      int humidity,
+                                                      double windSpeed) {
+        return new ForecastWeatherObservation(
+                AT, precipitationType, rainfall, temperature, humidity, windSpeed);
+    }
 }

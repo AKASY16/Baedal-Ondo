@@ -296,7 +296,8 @@
   주석 처리로 껐다 켰다 하면 그 상태로 커밋되기 쉬워서 가드를 뒀다.
 
 - [ ] **REH(습도) 정책 결정**
-  근거: `KmaCurrentWeatherClient`가 `hasReh`를 필수로 요구하나 점수 계산에는 미사용.
+  근거: 실황 클라이언트가 `hasReh`를 필수로 요구했으나 점수 계산에는 미사용이었다.
+  실황 제거 후에는 `KmaForecastWeatherClient`에만 해당한다.
   저장 자체는 향후 확장을 위해 정당하나, 누락 시 날씨 전체를 실패 처리할 필요가 있는지 결정
 
 - [ ] **죽은 코드 정리**
@@ -304,13 +305,16 @@
   - `CurrentAirQualityRecord` — 주석 처리된 줄 17개
   - Lombok — 실사용이 `CustomUserDetailsService` 1개 파일뿐. 유지 여부 결정
   - 미사용 import 정리
-  - ⚠️ **실황 계열은 호출부가 0건이지만 지우지 않는다.**
-    `CurrentWeatherService`, `KmaCurrentWeatherClient`, `CurrentWeatherRecord`,
-    `CurrentWeatherWeightCalculator`가 모두 해당한다.
-    현재 점수가 예보 기준으로 바뀌고, 요청 경로의 실황 수집도 걷어내면서 빠졌다.
-    지난 관측은 ASOS로 소급할 수 있지만 **ASOS는 관측 지점 단위이고 초단기실황은
-    격자(nx, ny) 단위**라, 격자별 차이가 필요해지면 이 경로를 다시 쓰게 된다.
-    v2에서 예보 오차를 점수 단위로 재려면 두 계산기가 모두 필요하다
+  - [x] **실황 계열 제거 완료.** `CurrentWeatherService`, `KmaCurrentWeatherClient`,
+    `CurrentWeatherRecord`, `CurrentWeatherRecordRepository`, `CurrentWeatherObservation`,
+    `CurrentWeatherWeightCalculator`, `CurrentWeatherDemandLevel`,
+    `KmaTimeCalculator.getSafeBaseDateTime()`, 그리고 `current_weather_record` 테이블(V4).
+    보존을 고민했던 이유는 ASOS가 관측 지점 단위이고 초단기실황은 격자(nx, ny) 단위라
+    격자별 차이가 필요해질 수 있다는 것이었다. 다만 예보 전환 이후 이 테이블에 쓰는 경로가
+    없어 격자 이력이 쌓이지 않고 있었으므로, 남겨 두어도 그 능력이 보존되지는 않았다.
+    다시 필요해지면 수집 경로를 새로 만들어야 하고 스키마도 달라진다.
+    점수 규칙은 `WeatherWeightCalculator`에 그대로 있어 실황 타입을 다시 들이더라도
+    `WeatherMeasurement` 구현 하나만 추가하면 된다
 
 ---
 
@@ -585,11 +589,7 @@ Redis · Kafka · MSA · Kubernetes · Repository 추상화 · Service마다 Int
 
 ## 알려진 검증 공백
 
-- **Flyway 마이그레이션의 자동 검증이 없습니다.** 테스트는 H2에서 엔티티 기준 `create-drop`을 쓰고,
-  V1은 `ENUM`/`ENGINE=InnoDB`/`BIT(1)` 등 MySQL 전용 문법이라 H2에서 실행할 수 없습니다.
-  compose로 빈 스키마에 V1이 적용되는 것은 **수동으로 확인했지만**, 매번 자동으로 확인되지는 않습니다.
-  Testcontainers 기반 통합 테스트로 메워야 합니다.
-- **캐시 테이블에 정리 로직이 없습니다.** `current_weather_record`, `current_air_quality_record`가
+- **캐시 테이블에 정리 로직이 없습니다.** `forecast_weather_record`, `current_air_quality_record`가
   무한 증가합니다. 작업 항목은 "배포 후 1순위" 절에 있습니다.
 - **외부 API 호출이 사용자 요청 경로에 그대로 남아 있습니다.** 캐시가 비면 사용자가 왕복을 기다립니다.
   타임아웃으로 최악의 지연은 막았지만 근본 해결은 사전 적재입니다. 같은 절 참고.

@@ -1,6 +1,5 @@
 package com.baedalondo.api.weather.calculator;
 
-import com.baedalondo.api.weather.domain.CurrentWeatherObservation;
 import com.baedalondo.api.weather.domain.ForecastWeatherObservation;
 import com.baedalondo.api.weather.domain.WeatherScoreResult;
 import org.junit.jupiter.api.DisplayName;
@@ -19,22 +18,6 @@ class ForecastWeatherWeightCalculatorTest {
     private final WeatherWeightCalculator weatherWeightCalculator = new WeatherWeightCalculator();
     private final ForecastWeatherWeightCalculator forecastCalculator =
             new ForecastWeatherWeightCalculator(weatherWeightCalculator);
-    private final CurrentWeatherWeightCalculator currentCalculator =
-            new CurrentWeatherWeightCalculator(weatherWeightCalculator);
-
-    @Test
-    @DisplayName("같은 관측값이면 실황과 예보의 점수가 동일하다")
-    void producesSameScoreAsCurrentWeatherForSameValues() {
-        ForecastWeatherObservation forecast = createForecast(
-                LocalDateTime.of(2026, 8, 16, 20, 0), 1, 5.0, 3.0, 12.0);
-        CurrentWeatherObservation current = new CurrentWeatherObservation(1, 5.0, 3.0, 60, 12.0);
-
-        WeatherScoreResult forecastResult = forecastCalculator.calculate(forecast);
-        WeatherScoreResult currentResult = currentCalculator.calculate(current);
-
-        assertEquals(currentResult.getWeatherScore(), forecastResult.getWeatherScore());
-        assertEquals(currentResult.getDescription(), forecastResult.getDescription());
-    }
 
     @Test
     @DisplayName("비가 오지 않고 기온이 온화하면 날씨 영향이 없다")
