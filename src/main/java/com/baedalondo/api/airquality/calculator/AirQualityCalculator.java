@@ -1,6 +1,5 @@
 package com.baedalondo.api.airquality.calculator;
 
-import com.baedalondo.api.common.ServiceTime;
 import com.baedalondo.api.airquality.domain.CurrentAirQualityObservation;
 import org.springframework.stereotype.Component;
 
@@ -54,10 +53,11 @@ public class AirQualityCalculator {
 
         return 0; // 좋음/보통
     }
-    public LocalDateTime getSafeAirQualityBaseTime() {
-        return getSafeAirQualityBaseTime(ServiceTime.now());
-    }
 
+    /**
+     기준 시각은 호출부가 넘긴다. 여기서 현재 시각을 읽으면 한 요청 안에서
+     계산 시점이 갈려 시간 경계에서 결과가 어긋난다.
+     */
     public LocalDateTime getSafeAirQualityBaseTime(LocalDateTime referenceTime) {
 
         // 에어코리아 실시간 측정정보는 정각 측정값이 매시 15분 내외로 반영

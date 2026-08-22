@@ -41,6 +41,9 @@ import static org.mockito.Mockito.when;
 
 class CurrentAirQualityServiceTest {
 
+    // 운영은 요청 진입점에서 읽은 시각을 그대로 넘긴다. 테스트도 같은 경로를 탄다.
+    // 22:30은 분이 20 이상이라 AirQualityCalculator 규칙상 기준시각이 22:00이 된다.
+    private static final LocalDateTime REFERENCE_TIME = LocalDateTime.of(2026, 8, 16, 22, 30);
     private static final LocalDateTime BASE_TIME = LocalDateTime.of(2026, 8, 16, 22, 0);
     private static final LocalDateTime PREVIOUS_BASE_TIME = BASE_TIME.minusHours(1);
 
@@ -87,7 +90,7 @@ class CurrentAirQualityServiceTest {
                 .thenReturn(List.of(observation));
 
         CurrentAirQualityObservation result =
-                currentAirQualityService.getCurrentAirQuality(scoreTarget);
+                currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME);
 
         assertEquals(observation, result);
         verify(airKoreaClient).getCurrentAirQualities("서울");
@@ -100,7 +103,7 @@ class CurrentAirQualityServiceTest {
         CurrentAirQualityRecord storedRecord = mock(CurrentAirQualityRecord.class);
         CurrentAirQualityObservation stored = createObservation("중구");
 
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(airQualityFetchLogRepository.existsBySidoNameAndBaseTime("서울", BASE_TIME))
                 .thenReturn(true);
         when(currentAirQualityRecordRepository
@@ -109,7 +112,7 @@ class CurrentAirQualityServiceTest {
         when(storedRecord.toObservation()).thenReturn(stored);
 
         CurrentAirQualityObservation result =
-                currentAirQualityService.getCurrentAirQuality(scoreTarget);
+                currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME);
 
         assertSame(stored, result);
         verify(airKoreaClient, never()).getCurrentAirQualities(anyString());
@@ -122,14 +125,14 @@ class CurrentAirQualityServiceTest {
         ScoreTarget scoreTarget = createScoreTarget("중구");
         CurrentAirQualityObservation observation = createObservation("중구");
 
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(airQualityFetchLogRepository.existsBySidoNameAndBaseTime("서울", BASE_TIME))
                 .thenReturn(false);
         when(airKoreaClient.getCurrentAirQualities("서울"))
                 .thenReturn(List.of(observation));
 
         CurrentAirQualityObservation result =
-                currentAirQualityService.getCurrentAirQuality(scoreTarget);
+                currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME);
 
         assertEquals(observation, result);
         verify(airKoreaClient).getCurrentAirQualities("서울");
@@ -143,7 +146,7 @@ class CurrentAirQualityServiceTest {
         ScoreTarget scoreTarget = createScoreTarget("중구");
         CurrentAirQualityObservation observation = createObservation("중구");
 
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(airQualityFetchLogRepository.existsBySidoNameAndBaseTime("서울", PREVIOUS_BASE_TIME))
                 .thenReturn(true);
         when(airQualityFetchLogRepository.existsBySidoNameAndBaseTime("서울", BASE_TIME))
@@ -151,7 +154,7 @@ class CurrentAirQualityServiceTest {
         when(airKoreaClient.getCurrentAirQualities("서울"))
                 .thenReturn(List.of(observation));
 
-        currentAirQualityService.getCurrentAirQuality(scoreTarget);
+        currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME);
 
         verify(airKoreaClient).getCurrentAirQualities("서울");
         verify(airQualityFetchLogRepository).save(any(AirQualityFetchLog.class));
@@ -162,14 +165,14 @@ class CurrentAirQualityServiceTest {
     void doesNotSaveFetchLogWhenApiCallFails() {
         ScoreTarget scoreTarget = createScoreTarget("중구");
 
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(airQualityFetchLogRepository.existsBySidoNameAndBaseTime("서울", BASE_TIME))
                 .thenReturn(false);
         when(airKoreaClient.getCurrentAirQualities("서울"))
                 .thenThrow(new AirKoreaApiException("에어코리아 API 호출 실패"));
 
         assertThrows(AirKoreaApiException.class,
-                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME));
 
         verify(airQualityFetchLogRepository, never()).save(any());
     }
@@ -180,7 +183,7 @@ class CurrentAirQualityServiceTest {
         ScoreTarget scoreTarget = createScoreTarget("중구");
         CurrentAirQualityObservation observation = createObservation("중구");
 
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(airQualityFetchLogRepository.existsBySidoNameAndBaseTime("서울", BASE_TIME))
                 .thenReturn(false);
         when(airKoreaClient.getCurrentAirQualities("서울"))
@@ -190,7 +193,7 @@ class CurrentAirQualityServiceTest {
                         "서울", "중구", "중구", observation.getMeasuredAt()))
                 .thenReturn(true);
 
-        currentAirQualityService.getCurrentAirQuality(scoreTarget);
+        currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME);
 
         verify(currentAirQualityRecordRepository, never()).save(any(CurrentAirQualityRecord.class));
         verify(airQualityFetchLogRepository).save(any(AirQualityFetchLog.class));
@@ -203,7 +206,7 @@ class CurrentAirQualityServiceTest {
         CurrentAirQualityObservation otherDistrict = createObservation("중구");
         CurrentAirQualityObservation seoulAverage = createAverageObservation();
 
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(airQualityFetchLogRepository.existsBySidoNameAndBaseTime("서울", BASE_TIME))
                 .thenReturn(false);
         when(airKoreaClient.getCurrentAirQualities("서울"))
@@ -212,7 +215,7 @@ class CurrentAirQualityServiceTest {
                 .thenReturn(seoulAverage);
 
         CurrentAirQualityObservation result =
-                currentAirQualityService.getCurrentAirQuality(scoreTarget);
+                currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME);
 
         assertSame(seoulAverage, result);
         verify(averageAirQualityClient).getHourlyAverage("서울", BASE_TIME);
@@ -224,7 +227,7 @@ class CurrentAirQualityServiceTest {
         ScoreTarget scoreTarget = createScoreTarget("마포구");
         CurrentAirQualityObservation seoulAverage = createAverageObservation();
 
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(airQualityFetchLogRepository.existsBySidoNameAndBaseTime("서울", BASE_TIME))
                 .thenReturn(true);
         when(currentAirQualityRecordRepository
@@ -234,7 +237,7 @@ class CurrentAirQualityServiceTest {
                 .thenReturn(seoulAverage);
 
         CurrentAirQualityObservation result =
-                currentAirQualityService.getCurrentAirQuality(scoreTarget);
+                currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME);
 
         assertSame(seoulAverage, result);
         verify(airKoreaClient, never()).getCurrentAirQualities(anyString());
@@ -246,13 +249,13 @@ class CurrentAirQualityServiceTest {
         ScoreTarget scoreTarget = createScoreTarget("중구");
         CurrentAirQualityObservation observation = createObservation("중구");
 
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(airKoreaClient.getCurrentAirQualities("서울"))
                 .thenThrow(timeout())
                 .thenReturn(List.of(observation));
 
         CurrentAirQualityObservation result =
-                currentAirQualityService.getCurrentAirQuality(scoreTarget);
+                currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME);
 
         assertSame(observation, result);
         verify(airKoreaClient, times(2)).getCurrentAirQualities("서울");
@@ -265,12 +268,12 @@ class CurrentAirQualityServiceTest {
         // 상대가 정상적으로 응답한 실패다. 다시 불러도 같은 답이 오고 일일 호출 한도만 태운다.
         ScoreTarget scoreTarget = createScoreTarget("중구");
 
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(airKoreaClient.getCurrentAirQualities("서울"))
                 .thenThrow(new AirKoreaApiException("에어코리아 API 에러, resultCode=99"));
 
         assertThrows(AirKoreaApiException.class,
-                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME));
 
         verify(airKoreaClient, times(1)).getCurrentAirQualities("서울");
     }
@@ -287,11 +290,11 @@ class CurrentAirQualityServiceTest {
         ScoreTarget scoreTarget = createScoreTarget("중구");
         CurrentAirQualityRecord storedRecord = mock(CurrentAirQualityRecord.class);
 
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(airKoreaClient.getCurrentAirQualities("서울")).thenThrow(timeout());
 
         assertThrows(AirKoreaApiException.class,
-                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME));
         verify(airKoreaClient, times(2)).getCurrentAirQualities("서울");
 
         // 저장된 값이 있어도 쓰지 않는다.
@@ -300,7 +303,7 @@ class CurrentAirQualityServiceTest {
                 .thenReturn(Optional.of(storedRecord));
 
         assertThrows(AirKoreaApiException.class,
-                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME));
 
         verify(airKoreaClient, times(2)).getCurrentAirQualities("서울");
         verify(storedRecord, never()).toObservation();
@@ -312,14 +315,14 @@ class CurrentAirQualityServiceTest {
         // 평균도 같은 게이트웨이를 쓴다. 여기서 기다리면 외부 호출을 건너뛴 의미가 없다.
         ScoreTarget scoreTarget = createScoreTarget("마포구");
 
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(airKoreaClient.getCurrentAirQualities("서울")).thenThrow(timeout());
 
         assertThrows(AirKoreaApiException.class,
-                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME));
 
         assertThrows(AirKoreaApiException.class,
-                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME));
 
         verify(averageAirQualityClient, never()).getHourlyAverage(anyString(), any());
     }
@@ -331,11 +334,11 @@ class CurrentAirQualityServiceTest {
         // 빈 데이터를 정상으로 취급한다.
         ScoreTarget scoreTarget = createScoreTarget("중구");
 
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(airKoreaClient.getCurrentAirQualities("서울")).thenThrow(timeout());
 
         assertThrows(AirKoreaApiException.class,
-                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME));
 
         verify(airQualityFetchLogRepository, never()).save(any());
     }
@@ -347,7 +350,7 @@ class CurrentAirQualityServiceTest {
         CurrentAirQualityObservation observation = createObservation("중구");
         AtomicInteger calls = new AtomicInteger();
 
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(airKoreaClient.getCurrentAirQualities("서울")).thenAnswer(invocation -> {
             if (calls.incrementAndGet() <= 2) {
                 throw timeout();
@@ -356,13 +359,13 @@ class CurrentAirQualityServiceTest {
         });
 
         assertThrows(AirKoreaApiException.class,
-                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME));
         assertEquals(2, calls.get());
 
         now = now.plusSeconds(60);
 
         CurrentAirQualityObservation result =
-                currentAirQualityService.getCurrentAirQuality(scoreTarget);
+                currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME);
 
         assertSame(observation, result);
         assertEquals(3, calls.get());
@@ -371,7 +374,7 @@ class CurrentAirQualityServiceTest {
     @Test
     @DisplayName("사전 적재는 쿨다운 중인 시도를 건너뛴다")
     void preloadSkipsSidoInCooldown() {
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(storeRepository.findDistinctSidoNames()).thenReturn(List.of("서울특별시"));
         when(airKoreaClient.getCurrentAirQualities("서울")).thenThrow(timeout());
 
@@ -387,7 +390,7 @@ class CurrentAirQualityServiceTest {
     void preloadsGuestRegionSidoWithoutStores() {
         // 게스트 대시보드는 매장 없이도 열린다. 매장만 보면 아무것도 채우지 않아
         // 첫 방문자가 외부 호출을 그대로 맞는다.
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(storeRepository.findDistinctSidoNames()).thenReturn(List.of());
         when(guestRegionService.getRegions()).thenReturn(List.of(guestRegion("서울특별시")));
         when(airKoreaClient.getCurrentAirQualities("서울"))
@@ -403,7 +406,7 @@ class CurrentAirQualityServiceTest {
     @DisplayName("게스트 지역과 매장의 시도가 같으면 한 번만 호출한다")
     void callsOncePerSidoAcrossGuestRegionsAndStores() {
         // 게스트 25개 자치구와 서울 매장이 모두 같은 시도라 정규화 후 중복을 제거해야 한다.
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(storeRepository.findDistinctSidoNames()).thenReturn(List.of("서울"));
         when(guestRegionService.getRegions())
                 .thenReturn(List.of(guestRegion("서울특별시"), guestRegion("서울특별시")));
@@ -423,7 +426,7 @@ class CurrentAirQualityServiceTest {
         ScoreTarget scoreTarget = createScoreTarget("중구");
         CurrentAirQualityObservation seoulAverage = createAverageObservation();
 
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(airQualityFetchLogRepository.existsBySidoNameAndBaseTime("서울", BASE_TIME))
                 .thenReturn(true);
         when(currentAirQualityRecordRepository
@@ -433,7 +436,7 @@ class CurrentAirQualityServiceTest {
         when(averageAirQualityClient.getHourlyAverage("서울", BASE_TIME))
                 .thenReturn(seoulAverage);
 
-        assertSame(seoulAverage, currentAirQualityService.getCurrentAirQuality(scoreTarget));
+        assertSame(seoulAverage, currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME));
     }
 
     @Test
@@ -443,14 +446,14 @@ class CurrentAirQualityServiceTest {
         ScoreTarget scoreTarget = createScoreTarget("마포구");
         CurrentAirQualityObservation seoulAverage = createAverageObservation();
 
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(airKoreaClient.getCurrentAirQualities("서울"))
                 .thenReturn(List.of(createObservation("중구")));
         when(averageAirQualityClient.getHourlyAverage("서울", BASE_TIME))
                 .thenThrow(timeout())
                 .thenReturn(seoulAverage);
 
-        assertSame(seoulAverage, currentAirQualityService.getCurrentAirQuality(scoreTarget));
+        assertSame(seoulAverage, currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME));
 
         verify(averageAirQualityClient, times(2)).getHourlyAverage("서울", BASE_TIME);
         verify(airQualityFetchLogRepository).save(any(AirQualityFetchLog.class));
@@ -461,19 +464,19 @@ class CurrentAirQualityServiceTest {
     void startsCooldownWhenAverageCallFailsTwice() {
         ScoreTarget scoreTarget = createScoreTarget("마포구");
 
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(airKoreaClient.getCurrentAirQualities("서울"))
                 .thenReturn(List.of(createObservation("중구")));
         when(averageAirQualityClient.getHourlyAverage("서울", BASE_TIME)).thenThrow(timeout());
 
         assertThrows(AirKoreaApiException.class,
-                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME));
         verify(averageAirQualityClient, times(2)).getHourlyAverage("서울", BASE_TIME);
         verify(airQualityFetchLogRepository, never()).save(any());
 
         // 쿨다운이 걸렸으므로 다음 요청은 메인 API도 부르지 않는다.
         assertThrows(AirKoreaApiException.class,
-                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME));
         verify(airKoreaClient, times(1)).getCurrentAirQualities("서울");
         verify(averageAirQualityClient, times(2)).getHourlyAverage("서울", BASE_TIME);
     }
@@ -487,7 +490,7 @@ class CurrentAirQualityServiceTest {
         CurrentAirQualityRecord storedRecord = mock(CurrentAirQualityRecord.class);
         CurrentAirQualityObservation stored = createObservation("중구");
 
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(airKoreaClient.getCurrentAirQualities("서울"))
                 .thenReturn(List.of(createObservation("중구")));
         when(currentAirQualityRecordRepository.save(any(CurrentAirQualityRecord.class)))
@@ -503,7 +506,7 @@ class CurrentAirQualityServiceTest {
                 .thenReturn(Optional.of(storedRecord));
         when(storedRecord.toObservation()).thenReturn(stored);
 
-        assertSame(stored, currentAirQualityService.getCurrentAirQuality(scoreTarget));
+        assertSame(stored, currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME));
 
         verify(airKoreaClient, times(1)).getCurrentAirQualities("서울");
     }
@@ -514,14 +517,14 @@ class CurrentAirQualityServiceTest {
         // 한 번만 다시 시도한다. 계속 충돌하면 동시성이 아니라 다른 문제다.
         ScoreTarget scoreTarget = createScoreTarget("중구");
 
-        when(airQualityCalculator.getSafeAirQualityBaseTime()).thenReturn(BASE_TIME);
+        when(airQualityCalculator.getSafeAirQualityBaseTime(REFERENCE_TIME)).thenReturn(BASE_TIME);
         when(airKoreaClient.getCurrentAirQualities("서울"))
                 .thenReturn(List.of(createObservation("중구")));
         when(currentAirQualityRecordRepository.save(any(CurrentAirQualityRecord.class)))
                 .thenThrow(new DataIntegrityViolationException("uk_current_air_quality_record"));
 
         assertThrows(DataIntegrityViolationException.class,
-                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget));
+                () -> currentAirQualityService.getCurrentAirQuality(scoreTarget, REFERENCE_TIME));
 
         verify(airKoreaClient, times(2)).getCurrentAirQualities("서울");
         verify(airQualityFetchLogRepository, never()).save(any());

@@ -10,7 +10,9 @@ import com.baedalondo.api.airquality.repository.AirQualityFetchLogRepository;
 import com.baedalondo.api.airquality.exception.AirKoreaApiException;
 import com.baedalondo.api.airquality.repository.CurrentAirQualityRecordRepository;
 import com.baedalondo.api.airquality.util.KoreanAddressParser;
+import com.baedalondo.api.common.ExternalCallCooldownException;
 import com.baedalondo.api.common.ExternalCallGuard;
+import com.baedalondo.api.common.ServiceTime;
 import com.baedalondo.api.guest.domain.GuestRegion;
 import com.baedalondo.api.guest.service.GuestRegionService;
 import com.baedalondo.api.score.dto.ScoreTarget;
@@ -59,11 +61,6 @@ public class CurrentAirQualityService {
         this.externalCallGuard = externalCallGuard;
     }
 
-    public CurrentAirQualityObservation getCurrentAirQuality(ScoreTarget scoreTarget) {
-        LocalDateTime expectedBaseTime = airQualityCalculator.getSafeAirQualityBaseTime();
-        return getCurrentAirQualityAtBaseTime(scoreTarget, expectedBaseTime);
-    }
-
     public CurrentAirQualityObservation getCurrentAirQuality(ScoreTarget scoreTarget,
                                                              LocalDateTime referenceTime) {
         LocalDateTime expectedBaseTime =
@@ -73,26 +70,55 @@ public class CurrentAirQualityService {
 
     private CurrentAirQualityObservation getCurrentAirQualityAtBaseTime(
             ScoreTarget scoreTarget,
-            LocalDateTime expectedBaseTime) {
+            LocalDateTime expectedBaseTime
+    ) {
 
         if (scoreTarget == null) {
             throw new IllegalArgumentException("가게 정보가 없습니다.");
         }
 
-        if(scoreTarget.getSidoName()==null || scoreTarget.getSigunguName()==null){
+        if (scoreTarget.getSidoName() == null
+                || scoreTarget.getSigunguName() == null) {
             throw new IllegalArgumentException("가게 주소 정보가 없습니다.");
         }
 
-        String sidoName = koreanAddressParser.extractSidoName(scoreTarget.getSidoName());
+        String sidoName =
+                koreanAddressParser.extractSidoName(scoreTarget.getSidoName());
+
         String sigunguName = scoreTarget.getSigunguName();
 
         try {
-            return loadOrFetch(sidoName, sigunguName, expectedBaseTime);
-        } catch (DataIntegrityViolationException e) {
-            // 같은 측정값을 다른 요청이 먼저 저장했다. 조회부터 다시 하면 그 결과를 읽어 쓴다.
-            log.debug("같은 기준시각을 다른 요청이 먼저 저장했습니다. 다시 조회합니다. sidoName={}", sidoName);
+            return loadOrFetch(
+                    sidoName,
+                    sigunguName,
+                    expectedBaseTime
+            );
 
-            return loadOrFetch(sidoName, sigunguName, expectedBaseTime);
+        } catch (DataIntegrityViolationException e) {
+
+            log.debug(
+                    "같은 기준시각을 다른 요청이 먼저 저장했습니다. 다시 조회합니다. sidoName={}",
+                    sidoName
+            );
+
+            try {
+                return loadOrFetch(
+                        sidoName,
+                        sigunguName,
+                        expectedBaseTime
+                );
+            } catch (ExternalCallCooldownException cooldownException) {
+                throw new AirKoreaApiException(
+                        "대기질 조회가 연속 실패해 잠시 호출을 멈춘 상태입니다.",
+                        cooldownException
+                );
+            }
+
+        } catch (ExternalCallCooldownException e) {
+            throw new AirKoreaApiException(
+                    "대기질 조회가 연속 실패해 잠시 호출을 멈춘 상태입니다.",
+                    e
+            );
         }
     }
 
@@ -159,7 +185,10 @@ public class CurrentAirQualityService {
      시도 하나가 실패해도 나머지는 계속 채운다.
      */
     public int preloadDashboardSidoNames() {
-        LocalDateTime expectedBaseTime = airQualityCalculator.getSafeAirQualityBaseTime();
+        // 사전 적재도 요청 경로와 같은 규칙을 쓴다. 진입점에서 시각을 한 번 읽어 넘긴다.
+        LocalDateTime referenceTime = ServiceTime.now();
+        LocalDateTime expectedBaseTime =
+                airQualityCalculator.getSafeAirQualityBaseTime(referenceTime);
         Set<String> sidoNames = findDashboardSidoNames();
         int loaded = 0;
 

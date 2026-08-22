@@ -1,5 +1,6 @@
 package com.baedalondo.api.weather.service;
 
+import com.baedalondo.api.common.ExternalCallCooldownException;
 import com.baedalondo.api.common.ExternalCallGuard;
 import com.baedalondo.api.common.ServiceTime;
 import com.baedalondo.api.score.calculator.KmaTimeCalculator;
@@ -54,8 +55,10 @@ public class ForecastWeatherService {
         this.externalCallGuard = externalCallGuard;
     }
 
-    public List<ForecastWeatherObservation> getForecastWeather(ScoreTarget scoreTarget,
-                                                               LocalDateTime referenceTime) {
+    public List<ForecastWeatherObservation> getForecastWeather(
+            ScoreTarget scoreTarget,
+            LocalDateTime referenceTime
+    ) {
         if (scoreTarget == null) {
             throw new IllegalArgumentException("가게 정보가 없습니다.");
         }
@@ -64,7 +67,18 @@ public class ForecastWeatherService {
             throw new IllegalStateException("가게의 기상청 격자 좌표가 없습니다.");
         }
 
-        return loadOrFetch(scoreTarget.getNx(), scoreTarget.getNy(), referenceTime);
+        try {
+            return loadOrFetch(
+                    scoreTarget.getNx(),
+                    scoreTarget.getNy(),
+                    referenceTime
+            );
+        } catch (ExternalCallCooldownException e) {
+            throw new KmaWeatherApiException(
+                    "예보 조회가 연속 실패해 잠시 호출을 멈춘 상태입니다.",
+                    e
+            );
+        }
     }
 
     /**
