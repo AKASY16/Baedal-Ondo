@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>대시보드 - 배달온도</title>
-    <link rel="icon" href="/images/baedal-ondo-icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/css/common.css">
+    <!--/* 이 템플릿은 /dashboard/main(로그인)과 /dashboard/guest(공개) 양쪽에서 렌더된다.
+           guestMode가 있을 때만 크롤러가 닿는 화면이므로 canonical과 색인 여부를 그 기준으로 나눈다. */-->
+    <th:block th:replace="~{fragments/head :: meta(
+            '대시보드',
+            ${guestMode} ? '배달온도 - 지금 우리 동네 배달온도' : '배달온도 대시보드',
+            '날씨·시간대·요일·대기질을 종합해 지금이 평소보다 주문이 들어오기 좋은 조건인지 0~100점으로 보여줍니다.',
+            ${guestMode} ? '/dashboard/guest' : '/dashboard/main',
+            ${guestMode})}"></th:block>
     <style>
         :root {
             --canvas: #f1efe9;

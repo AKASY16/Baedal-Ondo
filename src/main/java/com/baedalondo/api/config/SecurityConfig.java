@@ -27,6 +27,10 @@ public class SecurityConfig {
                                 "/error",
                                 "/guest",
                                 "/dashboard/guest",
+                                // 크롤러는 로그인하지 않는다. 열어두지 않으면 로그인으로 튕겨
+                                // 색인 규칙과 사이트맵이 전달되지 않는다.
+                                "/robots.txt",
+                                "/sitemap.xml",
                                 "/css/**",
                                 "/fonts/**",
                                 "/js/**",

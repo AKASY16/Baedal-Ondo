@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# 로그인해야 볼 수 있는 화면. 크롤러가 닿아도 로그인 페이지로 튕기므로 미리 제외한다.
+Disallow: /dashboard/main
+Disallow: /store/
+Disallow: /account/
+Disallow: /logout
+
+# 운영 확인용 경로.
+Disallow: /error
+Disallow: /actuator/
+
+Sitemap: https://www.baedalondo.com/sitemap.xml

@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>개인정보 처리방침 | 배달온도</title>
-    <link rel="stylesheet" href="/css/common.css">
+    <th:block th:replace="~{fragments/head :: meta(
+            '개인정보 처리방침',
+            '배달온도 개인정보 처리방침',
+            '배달온도가 어떤 개인정보를 어떤 근거로 처리하고, 어디까지 위탁하며 언제 파기하는지 정리한 처리방침입니다.',
+            '/privacy',
+            true)}"></th:block>
     <link rel="stylesheet" href="/css/baedal-ui.css">
     <link rel="stylesheet" href="/css/legal.css">
 </head>
@@ -132,7 +134,7 @@
             <section id="privacy-4" class="legal-section">
                 <p class="legal-section-number">04</p>
                 <h2>개인정보 처리의 위탁과 국외 이전</h2>
-                <p>배달온도는 서비스 인프라 운영을 위해 AWS를 사용하고, 문의 접수와 답변을 위해 Gmail을 사용합니다. 각 수탁자는 아래 범위에서 개인정보를 처리·보관합니다.</p>
+                <p>배달온도는 서비스 인프라 운영을 위해 AWS를, 도메인 연결과 트래픽 보호를 위해 Cloudflare를, 문의 접수와 답변을 위해 Gmail을 사용합니다. 각 수탁자는 아래 범위에서 개인정보를 처리·보관합니다.</p>
                 <div class="legal-table-wrap">
                     <table class="legal-table">
                         <thead><tr><th>수탁자·이전받는 자</th><th>업무와 목적</th><th>이전 항목</th><th>국가·방법</th><th>보유 기간</th></tr></thead>
@@ -145,6 +147,13 @@
                             <td>회원 탈퇴 또는 위탁계약 종료 시까지. 백업 데이터는 설정된 보존 기간이 지난 뒤 삭제</td>
                         </tr>
                         <tr>
+                            <td>Cloudflare, Inc.<br><a href="https://www.cloudflare.com/ko-kr/privacypolicy/" target="_blank" rel="noopener">개인정보처리방침 확인</a></td>
+                            <td>도메인 연결, 콘텐츠 전송(CDN)과 트래픽 보호, 접속 통계 집계</td>
+                            <td>접속 IP 주소, 접속 일시, 브라우저 정보(User-Agent), 요청 주소와 응답 상태, 요청에 포함된 쿠키</td>
+                            <td>미국을 포함한 Cloudflare 엣지 서버 소재 국가<br>이용자의 모든 요청과 응답이 엣지 서버를 통과하는 방식으로 이전</td>
+                            <td>보안 기록과 접속 통계는 Cloudflare 정책에 따른 기간 동안 보관한 뒤 삭제</td>
+                        </tr>
+                        <tr>
                             <td>Google LLC<br>(Gmail)<br><a href="https://policies.google.com/privacy?hl=ko" target="_blank" rel="noopener">문의·정책 확인</a></td>
                             <td>문의 이메일 수신·보관·전송</td>
                             <td>보낸 사람 이메일 주소, 문의 내용과 첨부 정보</td>
@@ -155,6 +164,7 @@
                     </table>
                 </div>
                 <p class="legal-note">AWS의 주 데이터 저장 위치는 대한민국 서울 리전(ap-northeast-2)입니다. AWS는 고객이 선택한 리전 밖으로 고객 콘텐츠를 이동하거나 복제하지 않는다고 안내합니다.</p>
+                <p class="legal-note">Cloudflare는 배달온도의 도메인 앞단에서 동작하므로 이용자의 모든 접속이 이 구간을 지나갑니다. 배달온도는 여기서 접속 통계를 집계하며, 이 통계에는 이용자를 개별적으로 식별하기 위한 쿠키를 사용하지 않습니다.</p>
                 <p class="legal-note">Google은 전 세계의 서버에서 정보가 처리될 수 있다고 안내합니다. 자세한 내용은 <a href="https://policies.google.com/privacy?hl=ko" target="_blank" rel="noopener">Google 개인정보처리방침</a>에서 확인할 수 있습니다.</p>
                 <p>배달온도는 위 국외 처리·보관 사항을 개인정보 보호법 제28조의8에 따라 공개합니다. 문의 메일에는 문의 처리에 필요하지 않은 민감하거나 불필요한 개인정보를 기재하지 말아 주세요.</p>
             </section>

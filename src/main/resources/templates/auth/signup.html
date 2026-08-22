@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>회원가입 - 배달온도</title>
-    <link rel="icon" href="/images/baedal-ondo-icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/css/common.css">
+    <th:block th:replace="~{fragments/head :: meta(
+            '회원가입',
+            '배달온도 회원가입',
+            '가게를 등록하면 상권·업종에 맞춘 오늘의 배달온도와 앞으로 다섯 시간의 시간대별 예보를 볼 수 있습니다.',
+            '/signup',
+            true)}"></th:block>
     <link rel="stylesheet" href="/css/baedal-ui.css">
     <style>
         .signup-shell {
