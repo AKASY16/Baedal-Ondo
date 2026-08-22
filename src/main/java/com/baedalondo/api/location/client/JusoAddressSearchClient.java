@@ -14,7 +14,7 @@ public class JusoAddressSearchClient {
 
     public JusoAddressSearchClient(
             RestClient.Builder restClientBuilder,
-            @Value("${jusogokr.api.search-auth-key:${jusogokr.api.popup-auth-key:TESTJUSOGOKR}}") String confmKey,
+            @Value("${jusogokr.api.search-auth-key}") String confmKey,
             @Value("${jusogokr.api.search-base-url:https://business.juso.go.kr/addrlink/addrLinkApi.do}") String baseUrl
     ) {
         this.restClient = restClientBuilder

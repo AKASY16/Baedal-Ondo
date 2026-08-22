@@ -67,5 +67,6 @@ dataportal:
 
 jusogokr:
   api:
+    search-auth-key: "${JUSO_SEARCH_AUTH_KEY}"
     coordinate-auth-key: "${JUSO_COORDINATE_AUTH_KEY}"
     popup-auth-key: "${JUSO_POPUP_AUTH_KEY:TESTJUSOGOKR}"

@@ -47,6 +47,7 @@ dataportal:
 jusogokr:
   api:
     search-base-url: http://localhost:0/juso-search
+    search-auth-key: test-juso-search-key
     coordinate-auth-key: test-juso-coordinate-key
     popup-auth-key: TESTJUSOGOKR
 
