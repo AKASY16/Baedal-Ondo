@@ -60,7 +60,7 @@ class RememberMeFlowTest extends MySqlTestSupport {
     }
 
     @Test
-    @DisplayName("로그인 유지 쿠키는 30일 동안 인증하고 로그아웃하면 삭제된다")
+    @DisplayName("로그인 유지 쿠키는 90일 동안 인증하고 로그아웃하면 삭제된다")
     void rememberMeCookieAuthenticatesAndIsDeletedOnLogout() throws Exception {
         MvcResult loginPage = mockMvc.perform(get("/login"))
                 .andExpect(status().isOk())
@@ -81,7 +81,7 @@ class RememberMeFlowTest extends MySqlTestSupport {
 
         Cookie rememberMeCookie = login.getResponse().getCookie("remember-me");
         assertNotNull(rememberMeCookie, "로그인 유지 쿠키가 발급되지 않았다");
-        assertEquals(30 * 24 * 60 * 60, rememberMeCookie.getMaxAge());
+        assertEquals(90 * 24 * 60 * 60, rememberMeCookie.getMaxAge());
 
         MvcResult rememberedRequest = mockMvc.perform(get("/dashboard/main")
                         .cookie(rememberMeCookie))

@@ -56,7 +56,7 @@ public class SecurityConfig {
                 .rememberMe(rememberMe -> rememberMe
                         .key(rememberMeKey)
                         .rememberMeParameter("remember-me")
-                        .tokenValiditySeconds(30 * 24 * 60 * 60)
+                        .tokenValiditySeconds(90 * 24 * 60 * 60)
                 )
                 .logout(logout -> logout
                         .logoutUrl("/logout")

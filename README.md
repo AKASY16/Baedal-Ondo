@@ -1,10 +1,12 @@
 # 배달온도 BaedalOndo
 
-서울 지역 매장의 현재 배달 수요 환경을 0~100점으로 보여주는 Spring Boot 프로젝트입니다.
+서울 지역 매장의 현재부터 5시간 뒤까지 배달 수요 환경을 0~100점으로 보여주는 Spring Boot 프로젝트입니다.
 
-매장 주소로 서울시 상권을 찾고, 상권·업종별 시간대/요일 패턴에 현재 날씨와 대기질을 더해 점수를 계산합니다.
+매장 주소로 서울시 상권을 찾고, 상권·업종별 시간대/요일 패턴에 기상청 시간별 예보와 대기질을 더해 점수를 계산합니다.
 
 실제 배달 주문량을 직접 예측하는 모델은 아닙니다. 서울시 상권분석서비스의 추정매출과 공공데이터를 이용해, 지금이 평소보다 주문이 들어오기 좋은 조건인지 빠르게 볼 수 있도록 만든 지표입니다.
+
+운영 서비스: [www.baedalondo.com](https://www.baedalondo.com)
 
 ---
 
@@ -15,9 +17,11 @@
 | 주제 | 구현 |
 | --- | --- |
 | **상권·업종별 수요 패턴** | 서울시 추정매출(2023~2025)을 오프라인 전처리해 `DayWeight`, `TimeWeight` 생성. 상권 데이터가 없을 때는 서울 전체 업종 평균으로 fallback |
+| **현재 + 5시간 전망** | 현재 시각과 이후 5시간을 같은 계산 규칙으로 산출. 가까운 1~3시간의 상승·하락 폭을 대시보드 안내 문구에 반영 |
 | **외부 API 장애 대응** | AirKorea 응답 시간을 직접 측정한 뒤 timeout 연장 대신 **즉시 재시도 1회 + 60초 실패 쿨다운** 적용. 서버 기동 시 공휴일·대기질·예보도 미리 적재 |
 | **운영 DB와 같은 테스트 환경** | H2에서는 MySQL용 Flyway migration이 검증되지 않는 문제가 있어 Testcontainers MySQL로 교체. 테스트에서도 V1부터 migration 후 `ddl-auto: validate` 수행 |
 | **주소에서 상권까지 연결** | 도로명주소 좌표 → WGS84 → JTS 기반 서울시 상권 GeoJSON 판별 → `commercialAreaCode` 저장. 같은 주소에서 기상청 격자 `nx`, `ny`도 계산 |
+| **운영 배포 자동화** | CI를 통과한 커밋만 GHCR에 이미지로 게시하고, GitHub Actions가 AWS OIDC와 SSM으로 EC2에 배포한 뒤 health check 확인 |
 
 아래에서 각 부분의 계산 방식과 문제 해결 과정을 조금 더 자세히 설명합니다.
 
@@ -40,9 +44,9 @@ commercialAreaCode + businessType
    ├─ TimeWeight
    └─ DayWeight
 
-기상청 현재 날씨 ─┐
-AirKorea 대기질 ──┼─> ScoreService ─> DashboardView ─> Thymeleaf
-공휴일 정보 ──────┘
+기상청 초단기예보 ─┐
+AirKorea 대기질 ───┼─> ScoreService ─> DashboardView ─> Thymeleaf
+공휴일 정보 ───────┘
 ```
 
 외부 데이터는 요청할 때마다 새로 받지 않습니다. 같은 기준시각의 값이 DB에 있으면 저장된 값을 재사용하고, 없을 때만 외부 API를 호출합니다.
@@ -62,13 +66,15 @@ AirKorea 대기질 ──┼─> ScoreService ─> DashboardView ─> Thymeleaf
 ### 대시보드
 
 - 현재 배달온도 점수와 상태 표시
+- 현재 시각부터 5시간 뒤까지 시간별 배달온도 표시
+- 가까운 1~3시간의 상승·하락 전망을 현재 상태 문구에 반영
 - 시간대, 요일/공휴일, 날씨, 대기질이 점수에 준 영향 표시
 - 등록 매장 드롭다운 전환
 - 비로그인 사용자와 등록 매장이 없는 사용자를 위한 게스트 대시보드
 
 ### 외부 데이터
 
-- 기상청 초단기실황: `PTY`, `RN1`, `T1H`, `REH`, `WSD`
+- 기상청 초단기예보: `PTY`, `RN1`, `T1H`, `REH`, `WSD`
 - AirKorea: PM10, PM2.5
 - 공공데이터포털 특일정보: 공휴일
 - 외부 API 실패 시 해당 요인만 제외하고 대시보드는 계속 표시
@@ -77,8 +83,10 @@ AirKorea 대기질 ──┼─> ScoreService ─> DashboardView ─> Thymeleaf
 ### 인증
 
 - Spring Security 기반 로그인/로그아웃
+- 로그인 유지(90일)와 브라우저 로컬 저장소 기반 아이디 저장
 - 회원가입 및 아이디 중복 검사
 - 가입 시 약관·개인정보·연령·광고성 이메일 동의 시각/문서 버전 저장
+- 비밀번호 재확인 후 계정·매장·동의 이력 삭제
 - 사용자 소유 Store만 접근 가능
 
 ---
@@ -99,7 +107,7 @@ score = 50
 | 요인 | 반영 방식 | 범위 |
 | --- | --- | ---: |
 | 시간대 | 상권 x 업종 x `TimeWeight` | -12 ~ +14 |
-| 요일 | 상권 x 업종 x `DayWeight` | -6 ~ +8 |
+| 요일 | 상권 x 업종 x `DayWeight` | -6 ~ +6 |
 | 공휴일 | 고정 가중치 | +8 |
 | 날씨 | 강수량, 강수형태, 기온, 풍속 | 0 ~ +20 |
 | 대기질 | PM10, PM2.5 | 0 ~ +8 |
@@ -178,11 +186,13 @@ ceil(DayWeight / 2)
 
 | 점수 | 상태 |
 | --- | --- |
-| 0~19 | 마감 · 매우 낮은 수요 구간 |
-| 20~39 | 하 · 수요 둔화 구간 |
-| 40~59 | 중 · 평균 수요 구간 |
-| 60~79 | 상 · 높은 수요 구간 |
-| 80~100 | 상 · 수요 급등 구간 |
+| 0~36 | 매우 낮음 · 한산한 수요 구간 |
+| 37~41 | 낮음 · 수요 둔화 구간 |
+| 42~55 | 보통 · 평균 수요 구간 |
+| 56~63 | 높음 · 높은 수요 구간 |
+| 64~100 | 매우 높음 · 수요 급등 구간 |
+
+20점 단위로 나누면 계산 가능한 최저점이 32라 최하단 구간이 사실상 나오지 않고, 맑은 날에는 80점 이상도 나오지 않았습니다. 그래서 `simulate_score_distribution.py`로 만든 맑은 날 분포를 기준으로 경계를 다시 잡았습니다. 악천후는 실제 가산 요인이므로 평범한 날보다 높은 구간으로 이동하도록 그대로 둡니다.
 
 상호작용 보너스는 최종 점수에는 포함하지만 대시보드에 별도 항목으로 노출하지 않습니다. 화면에서는 시간대, 요일/공휴일, 날씨, 대기질이 점수에 영향을 준 방향만 보여줍니다.
 
@@ -345,7 +355,7 @@ try {
 | 구분 | 사용 기술 |
 | --- | --- |
 | Language | Java 17, Python 3 |
-| Framework | Spring Boot 4.0.6, Spring Web MVC, Spring Security |
+| Framework | Spring Boot 4.0.7, Spring Web MVC, Spring Security |
 | View | Thymeleaf |
 | Persistence | Spring Data JPA, MySQL 8, Flyway |
 | Spatial | PROJ4J, JTS Topology Suite |
@@ -393,8 +403,9 @@ API 키와 DB 비밀번호, 로그인 유지 서명 키는 설정 파일에 저�
 
 | 환경변수 | 용도 | 필수 |
 | --- | --- | --- |
-| `KMA_AUTH_KEY` | 기상청 초단기실황 | O |
+| `KMA_AUTH_KEY` | 기상청 초단기예보 | O |
 | `DATAPORTAL_AUTH_KEY` | AirKorea, 공휴일 | O |
+| `JUSO_SEARCH_AUTH_KEY` | 도로명주소 검색·서버 검증 | O |
 | `JUSO_COORDINATE_AUTH_KEY` | 도로명주소 좌표제공 | O |
 | `REMEMBER_ME_KEY` | 로그인 유지 토큰 서명 키(32자 이상의 랜덤 문자열) | O |
 | `DATAPORTAL_HOLIDAY_AUTH_KEY` | 공휴일 전용 키 | 선택 |
@@ -416,6 +427,7 @@ REMEMBER_ME_KEY=openssl_rand_-base64_48_명령으로_생성한_값을_입력하�
 KMA_AUTH_KEY=기상청_API_KEY
 DATAPORTAL_AUTH_KEY=공공데이터포털_API_KEY
 DATAPORTAL_HOLIDAY_AUTH_KEY=공휴일_API_KEY
+JUSO_SEARCH_AUTH_KEY=도로명주소_검색_API_KEY
 JUSO_COORDINATE_AUTH_KEY=도로명주소_좌표제공_API_KEY
 JUSO_POPUP_AUTH_KEY=도로명주소_팝업_API_KEY
 ```
@@ -504,6 +516,30 @@ SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
 운영 환경에서는 `local` 프로필을 사용하지 않습니다.
 
 </details>
+
+### 운영 배포
+
+`master` push가 CI를 통과하면 같은 커밋으로 실행 jar와 Docker 이미지를 만듭니다.
+
+```text
+GitHub Actions CI 성공
+        │
+        v
+GHCR 이미지 게시 (latest + commit SHA)
+        │
+        v
+AWS OIDC 역할 수임
+        │
+        v
+SSM으로 EC2 배포
+        │
+        v
+/actuator/health 확인
+```
+
+EC2에서는 Gradle 빌드를 하지 않고 검증된 이미지만 받습니다. 앱 포트는 `127.0.0.1:8080`에만 열고, 외부 요청은 Cloudflare와 Nginx를 거쳐 전달합니다.
+
+현재 배포 명령은 app 컨테이너를 `--force-recreate`하므로 교체와 JVM 기동 사이에 짧은 중단이 있습니다. 10초 간격 외부 관측에서 502가 두 번 연속 확인돼 실제 중단은 10~30초로 추정합니다. 정확한 초 단위 측정과 blue-green 전환은 [`TODO.md`](TODO.md)의 배포 검증 트랙에서 관리합니다.
 
 ---
 
@@ -731,21 +767,25 @@ password: "${DB_PASSWORD}"
 현재 구현되어 있는 범위:
 
 - 매장 등록/수정과 사용자 소유권 검증
-- 로그인/로그아웃, 회원가입
+- 로그인/로그아웃, 로그인 유지, 아이디 저장, 회원가입, 회원 탈퇴
 - 게스트 대시보드
 - 주소 기반 기상청 격자/상권 판별
 - 서울시 추정매출 기반 `DayWeight`, `TimeWeight`
-- 기상청/AirKorea/공휴일 API 연동
+- 기상청 초단기예보/AirKorea/공휴일 API 연동
+- 현재 시각과 향후 5시간 점수, 가까운 1~3시간 전망 문구
 - 외부 데이터 DB 재사용, 기동 preload, 재시도/쿨다운
 - 가중치 기반 점수 계산과 영향 방향 표시
 - Flyway migration
 - Testcontainers MySQL 테스트
 - Docker Compose
-- GitHub Actions
+- GitHub Actions CI/CD, GHCR, AWS OIDC·SSM 기반 EC2 배포
+- Nginx·Cloudflare·HTTPS 운영 경로
 - DB 백업/복구
 
 추가로 보강할 부분:
 
-- `KmaTimeCalculator`, `ForecastWeatherService` 등 서비스 계층 테스트
+- 예보·대기질 캐시 테이블 보존 기간과 정리 정책
+- 배포 중단 시간 정밀 측정과 인스턴스 증설 시 blue-green 전환
+- 핵심 사용자 경로 브라우저 E2E와 운영 부하 테스트
 
-현재 MVP에서는 별도 Store 목록 페이지와 `ScoreHistory` 기반 과거 비교 기능을 보류했습니다. 매장 전환은 대시보드 드롭다운으로 처리하고, 현재 버전은 과거 분석보다 **현재 점수와 그 점수가 나온 이유**를 보여주는 데 집중합니다.
+현재 MVP에서는 별도 Store 목록 페이지와 `ScoreHistory` 기반 과거 비교 기능을 보류했습니다. 매장 전환은 대시보드 드롭다운으로 처리하고, 현재 버전은 과거 분석보다 **현재 점수, 그 점수가 나온 이유, 가까운 시간대의 전망**을 보여주는 데 집중합니다.
