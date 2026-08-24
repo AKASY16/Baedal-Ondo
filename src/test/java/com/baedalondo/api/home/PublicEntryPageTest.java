@@ -31,7 +31,9 @@ class PublicEntryPageTest extends MySqlTestSupport {
                 .andExpect(content().string(containsString("<h1 id=\"hero-title\">")))
                 .andExpect(content().string(containsString("날씨·시간대·요일·대기환경·상권 데이터를 이용해")))
                 .andExpect(content().string(containsString("href=\"/dashboard/guest\"")))
-                .andExpect(content().string(containsString("게스트로 바로 체험하기")));
+                .andExpect(content().string(containsString("게스트로 바로 체험하기")))
+                .andExpect(content().string(containsString("<div class=\"section-intro how-intro\">")))
+                .andExpect(content().string(containsString("02 · START")));
     }
 
     @Test

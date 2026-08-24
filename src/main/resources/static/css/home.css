@@ -261,15 +261,13 @@ body.landing-page {
     padding: 88px 0 104px;
 }
 
-.section-intro,
-.how-section {
+.section-intro {
     display: grid;
     grid-template-columns: 150px minmax(0, 1fr);
     gap: 40px;
 }
 
 .section-intro h2,
-.how-section h2,
 .landing-cta h2 {
     margin: 0;
     font-size: clamp(36px, 5vw, 56px);
@@ -325,12 +323,9 @@ body.landing-page {
     word-break: keep-all;
 }
 
-.how-heading h2 {
-    margin-top: 20px;
-}
-
 .how-content {
-    padding-top: 31px;
+    margin-left: 190px;
+    padding-top: 56px;
 }
 
 .how-content ol {
@@ -524,14 +519,12 @@ body.landing-page {
         padding: 66px 0 76px;
     }
 
-    .section-intro,
-    .how-section {
+    .section-intro {
         grid-template-columns: 1fr;
         gap: 22px;
     }
 
     .section-intro h2,
-    .how-section h2,
     .landing-cta h2 {
         font-size: clamp(34px, 10vw, 48px);
     }
@@ -559,6 +552,7 @@ body.landing-page {
     }
 
     .how-content {
+        margin-left: 0;
         padding-top: 0;
     }
 
