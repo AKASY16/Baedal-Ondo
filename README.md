@@ -55,6 +55,13 @@ AirKorea 대기질 ───┼─> ScoreService ─> DashboardView ─> Thymele
 
 ## 주요 기능
 
+### 공개 랜딩
+
+- `/`에서 서비스 목적과 0~100점 지표의 의미를 설명
+- 게스트 대시보드, 로그인, 회원가입으로 이어지는 공개 진입 경로
+- canonical, Open Graph, 검색 설명문과 네이버 사이트 소유확인 메타 제공
+- 로그인·회원가입은 `noindex`, 검색 가치가 있는 공개 페이지만 sitemap에 포함
+
 ### 매장 등록
 
 - 도로명주소 검색 팝업 연동
@@ -69,6 +76,7 @@ AirKorea 대기질 ───┼─> ScoreService ─> DashboardView ─> Thymele
 - 현재 시각부터 5시간 뒤까지 시간별 배달온도 표시
 - 가까운 1~3시간의 상승·하락 전망을 현재 상태 문구에 반영
 - 시간대, 요일/공휴일, 날씨, 대기질이 점수에 준 영향 표시
+- 게스트는 서울 25개 구 중 지역을 직접 선택
 - 등록 매장 드롭다운 전환
 - 비로그인 사용자와 등록 매장이 없는 사용자를 위한 게스트 대시보드
 
@@ -377,6 +385,7 @@ src/main/java/com/baedalondo/api
 ├── config          # Security, RestClient 등 공통 설정
 ├── dashboard       # 대시보드 화면, DashboardView 조립
 ├── guest           # 게스트 지역 로딩/조회
+├── home            # 공개 랜딩페이지
 ├── holiday         # 공휴일 API, 저장/조회
 ├── location        # 주소 좌표, 기상청 격자 변환
 ├── legal           # 약관, 개인정보 처리방침
@@ -569,6 +578,7 @@ Windows:
 
 | URL | 용도 | 로그인 |
 | --- | --- | --- |
+| `/` | 서비스 소개와 공개 진입 랜딩페이지 | 불필요 |
 | `/dashboard/main` | 로그인 사용자 대시보드 | 필요 |
 | `/dashboard/main/{storeId}` | 매장 선택 | 필요 |
 | `/store/register` | 매장 등록 | 필요 |
@@ -576,7 +586,7 @@ Windows:
 | `/api/stores` | 매장 등록 API | 필요 |
 | `/api/stores/{storeId}` | 매장 수정 API | 필요 |
 | `/guest` | 게스트 모드 진입 | 불필요 |
-| `/dashboard/guest` | 게스트 대시보드 | 불필요 |
+| `/dashboard/guest` | 게스트 대시보드, `regionId`로 서울 25개 구 선택 | 불필요 |
 | `/login` | 로그인 | 불필요 |
 | `/signup` | 회원가입 | 불필요 |
 | `/terms` | 이용약관 | 불필요 |
@@ -768,7 +778,9 @@ password: "${DB_PASSWORD}"
 
 - 매장 등록/수정과 사용자 소유권 검증
 - 로그인/로그아웃, 로그인 유지, 아이디 저장, 회원가입, 회원 탈퇴
+- 공개 랜딩페이지와 기본 SEO 메타·robots·sitemap
 - 게스트 대시보드
+- 서울 25개 구 게스트 지역 선택
 - 주소 기반 기상청 격자/상권 판별
 - 서울시 추정매출 기반 `DayWeight`, `TimeWeight`
 - 기상청 초단기예보/AirKorea/공휴일 API 연동

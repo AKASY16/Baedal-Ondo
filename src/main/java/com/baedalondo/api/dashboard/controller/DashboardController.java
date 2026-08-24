@@ -2,6 +2,8 @@ package com.baedalondo.api.dashboard.controller;
 
 import com.baedalondo.api.dashboard.dto.DashboardView;
 import com.baedalondo.api.dashboard.service.DashboardService;
+import com.baedalondo.api.guest.domain.GuestRegion;
+import com.baedalondo.api.guest.service.GuestRegionService;
 import com.baedalondo.api.store.domain.Store;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
@@ -19,14 +21,12 @@ public class DashboardController {
     private static final String SELECTED_STORE_ID_SESSION_KEY = "selectedStoreId";
 
     private final DashboardService dashboardService;
+    private final GuestRegionService guestRegionService;
 
-    public DashboardController(DashboardService dashboardService) {
+    public DashboardController(DashboardService dashboardService,
+                               GuestRegionService guestRegionService) {
         this.dashboardService = dashboardService;
-    }
-
-    @GetMapping("/")
-    public String home() {
-        return "redirect:/dashboard/main";
+        this.guestRegionService = guestRegionService;
     }
 
     @GetMapping("/dashboard/main")
@@ -46,15 +46,34 @@ public class DashboardController {
     }
 
     @GetMapping("/dashboard/guest")
-    public String guestDashboard(HttpSession session, Model model) {
+    public String guestDashboard(
+            @RequestParam(name = "regionId", required = false) Long regionId,
+            HttpSession session,
+            Model model
+    ) {
         session.removeAttribute(SELECTED_STORE_ID_SESSION_KEY);
-        DashboardView dashboard = dashboardService.getRandomGuestDashboard();
+        GuestRegion selectedRegion = selectGuestRegion(regionId);
+        DashboardView dashboard = dashboardService.getGuestDashboard(selectedRegion.getId());
 
         model.addAttribute("dashboard", dashboard);
         model.addAttribute("guestMode", true);
         model.addAttribute("authenticated", false);
+        model.addAttribute("guestRegions", guestRegionService.getRegions());
+        model.addAttribute("selectedGuestRegionId", selectedRegion.getId());
 
         return "dashboard/main";
+    }
+
+    private GuestRegion selectGuestRegion(Long regionId) {
+        if (regionId == null) {
+            return guestRegionService.getRandomSeoulRegion();
+        }
+
+        try {
+            return guestRegionService.getGuestRegion(regionId);
+        } catch (IllegalArgumentException e) {
+            return guestRegionService.getRandomSeoulRegion();
+        }
     }
 
 

@@ -952,12 +952,22 @@
 
         <div class="topbar-actions">
             <div class="store-picker" th:if="${stores != null and not #lists.isEmpty(stores)}">
-                <label for="store-select">현재 가게</label>
+                <label for="store-select">가게 선택</label>
                 <select id="store-select" class="store-select" aria-label="가게 선택">
                     <option th:each="store : ${stores}"
                             th:value="${store.id}"
                             th:selected="${store.id == selectedStoreId}"
                             th:text="${store.name}">가게명</option>
+                </select>
+            </div>
+
+            <div class="store-picker" th:if="${guestMode}">
+                <label for="guest-region-select">지역 선택</label>
+                <select id="guest-region-select" class="store-select" aria-label="지역 선택">
+                    <option th:each="region : ${guestRegions}"
+                            th:value="${region.id}"
+                            th:selected="${region.id == selectedGuestRegionId}"
+                            th:text="${region.sigunguName}">송파구</option>
                 </select>
             </div>
 
@@ -1166,6 +1176,7 @@
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const storeSelect = document.getElementById("store-select");
+        const guestRegionSelect = document.getElementById("guest-region-select");
         const accountMenuButton = document.getElementById("account-menu-button");
         const accountMenu = document.getElementById("account-menu");
         const storeOnboardingLayer = document.getElementById("store-onboarding-layer");
@@ -1206,6 +1217,14 @@
             storeSelect.addEventListener("change", function () {
                 if (this.value) {
                     window.location.href = "/dashboard/main/" + encodeURIComponent(this.value);
+                }
+            });
+        }
+
+        if (guestRegionSelect) {
+            guestRegionSelect.addEventListener("change", function () {
+                if (this.value) {
+                    window.location.href = "/dashboard/guest?regionId=" + encodeURIComponent(this.value);
                 }
             });
         }

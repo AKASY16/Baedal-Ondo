@@ -3,6 +3,8 @@ package com.baedalondo.api;
 import com.baedalondo.api.dashboard.controller.DashboardController;
 import com.baedalondo.api.dashboard.dto.DashboardView;
 import com.baedalondo.api.dashboard.service.DashboardService;
+import com.baedalondo.api.guest.domain.GuestRegion;
+import com.baedalondo.api.guest.service.GuestRegionService;
 import com.baedalondo.api.store.domain.Store;
 import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.Test;
@@ -26,6 +28,9 @@ class DashboardControllerTest {
 
     @Mock
     private DashboardService dashboardService;
+
+    @Mock
+    private GuestRegionService guestRegionService;
 
     @Mock
     private HttpSession session;
@@ -78,5 +83,47 @@ class DashboardControllerTest {
         assertEquals("redirect:/dashboard/main", viewName);
         assertEquals(true, redirectAttributes.getFlashAttributes().get("registered"));
         verify(session).setAttribute("selectedStoreId", 7L);
+    }
+
+    @Test
+    void guestRegionSelectionLoadsTheRequestedRegionAndListsAllChoices() {
+        GuestRegion selectedRegion = mock(GuestRegion.class);
+        GuestRegion anotherRegion = mock(GuestRegion.class);
+        DashboardView dashboard = mock(DashboardView.class);
+        when(selectedRegion.getId()).thenReturn(15L);
+        when(guestRegionService.getGuestRegion(15L)).thenReturn(selectedRegion);
+        when(guestRegionService.getRegions()).thenReturn(List.of(selectedRegion, anotherRegion));
+        when(dashboardService.getGuestDashboard(15L)).thenReturn(dashboard);
+
+        ExtendedModelMap model = new ExtendedModelMap();
+
+        String viewName = dashboardController.guestDashboard(15L, session, model);
+
+        assertEquals("dashboard/main", viewName);
+        assertEquals(dashboard, model.get("dashboard"));
+        assertEquals(true, model.get("guestMode"));
+        assertEquals(false, model.get("authenticated"));
+        assertEquals(List.of(selectedRegion, anotherRegion), model.get("guestRegions"));
+        assertEquals(15L, model.get("selectedGuestRegionId"));
+        verify(dashboardService).getGuestDashboard(15L);
+        verify(session).removeAttribute("selectedStoreId");
+    }
+
+    @Test
+    void firstGuestVisitKeepsRandomRegionAsTheDefaultSelection() {
+        GuestRegion randomRegion = mock(GuestRegion.class);
+        DashboardView dashboard = mock(DashboardView.class);
+        when(randomRegion.getId()).thenReturn(18L);
+        when(guestRegionService.getRandomSeoulRegion()).thenReturn(randomRegion);
+        when(guestRegionService.getRegions()).thenReturn(List.of(randomRegion));
+        when(dashboardService.getGuestDashboard(18L)).thenReturn(dashboard);
+
+        ExtendedModelMap model = new ExtendedModelMap();
+
+        String viewName = dashboardController.guestDashboard(null, session, model);
+
+        assertEquals("dashboard/main", viewName);
+        assertEquals(18L, model.get("selectedGuestRegionId"));
+        verify(dashboardService).getGuestDashboard(18L);
     }
 }

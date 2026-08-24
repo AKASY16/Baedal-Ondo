@@ -1,20 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- 로그인 없이 볼 수 있는 페이지만 넣는다. 나머지는 크롤러가 닿아도 로그인으로 튕긴다. -->
+<!-- 검색 가치가 있는 공개 페이지만 넣는다. 인증·중간 진입 경로는 robots.txt와 noindex로 제외한다. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-        <loc>https://www.baedalondo.com/login</loc>
-        <changefreq>monthly</changefreq>
+        <loc>https://www.baedalondo.com/</loc>
+        <changefreq>weekly</changefreq>
         <priority>1.0</priority>
     </url>
     <url>
         <loc>https://www.baedalondo.com/dashboard/guest</loc>
         <changefreq>daily</changefreq>
-        <priority>0.9</priority>
-    </url>
-    <url>
-        <loc>https://www.baedalondo.com/signup</loc>
-        <changefreq>monthly</changefreq>
-        <priority>0.6</priority>
+        <priority>0.8</priority>
     </url>
     <url>
         <loc>https://www.baedalondo.com/terms</loc>
