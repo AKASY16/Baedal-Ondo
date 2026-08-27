@@ -2,14 +2,37 @@ package com.baedalondo.api.config;
 
 import com.baedalondo.api.auth.service.AccountLoginFailureHandler;
 import com.baedalondo.api.auth.service.AccountLoginSuccessHandler;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import org.springframework.security.web.savedrequest.NullRequestCache;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
+
+import java.util.Arrays;
 
 @Configuration
 public class SecurityConfig {
+
+    private static final String[] AUTHENTICATED_PATHS = {
+            "/dashboard/**",
+            "/store/**",
+            "/api/**",
+            "/account/**",
+            "/logout"
+    };
+
+    private static final RequestMatcher LOGIN_REDIRECT_REQUESTS = new OrRequestMatcher(
+            Arrays.stream(AUTHENTICATED_PATHS)
+                    .<RequestMatcher>map(PathPatternRequestMatcher::pathPattern)
+                    .toList()
+    );
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
@@ -43,6 +66,11 @@ public class SecurityConfig {
                                 "/js/**",
                                 "/images/**"
                         ).permitAll()
+                        // 공개 게스트 화면을 먼저 허용한 뒤 기능 단위 경로 전체를 보호한다.
+                        // 새 하위 URL이 생겨도 각 화면을 일일이 matcher에 추가하지 않아도 된다.
+                        .requestMatchers(AUTHENTICATED_PATHS).authenticated()
+                        // health 이외의 actuator 경로가 나중에 노출 설정에 추가돼도 외부에는 열지 않는다.
+                        .requestMatchers("/actuator/**").denyAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
@@ -59,6 +87,11 @@ public class SecurityConfig {
                         .rememberMeParameter("remember-me")
                         .tokenValiditySeconds(90 * 24 * 60 * 60)
                 )
+                // 로그인 성공 후 항상 대시보드로 이동하므로 보호 요청을 세션에 저장하지 않는다.
+                // 잘못된 URL을 요청한 크롤러에게도 불필요한 JSESSIONID가 생기지 않게 한다.
+                .requestCache(cache -> cache
+                        .requestCache(new NullRequestCache())
+                )
                 .logout(logout -> logout
                         .logoutUrl("/logout")
                         .logoutSuccessUrl("/login?logout")
@@ -74,8 +107,27 @@ public class SecurityConfig {
                 )
                 .headers(headers -> headers
                         .frameOptions(frame -> frame.sameOrigin())
+                )
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(notFoundUnlessLoginProtected())
                 );
 
         return http.build();
+    }
+
+    private AuthenticationEntryPoint notFoundUnlessLoginProtected() {
+        LoginUrlAuthenticationEntryPoint loginEntryPoint =
+                new LoginUrlAuthenticationEntryPoint("/login");
+
+        return (request, response, authenticationException) -> {
+            if (LOGIN_REDIRECT_REQUESTS.matches(request)) {
+                loginEntryPoint.commence(request, response, authenticationException);
+                return;
+            }
+
+            // 공개 목록에도 보호 경로에도 없는 URL은 새 공개 기능으로 추측하지 않는다.
+            // 익명 사용자에게도 로그인 화면 대신 실제 404를 반환하면서 기본 정책은 fail-closed로 둔다.
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+        };
     }
 }

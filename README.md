@@ -60,8 +60,9 @@ AirKorea 대기질 ───┼─> ScoreService ─> DashboardView ─> Thymele
 - `/` 첫 화면에서 데이터 근거와 0~100점 지표의 의미를 두 줄로 나눠 설명
 - 게스트 대시보드, 로그인, 회원가입으로 이어지는 공개 진입 경로
 - `01 · SIGNALS`, `02 · START`가 같은 제목 기준선을 사용하는 responsive 구성
-- canonical, Open Graph, 검색 설명문과 네이버 사이트 소유확인 메타 제공
-- 로그인·회원가입은 `noindex`, 검색 가치가 있는 공개 페이지만 sitemap에 포함
+- canonical, Open Graph, WebSite JSON-LD, 검색 설명문과 네이버 사이트 소유확인 메타 제공
+- 절대 URL favicon과 `Content-Language: ko-KR`로 검색엔진에 사이트·문서 언어를 일관되게 전달
+- 로그인·회원가입·동적 게스트 대시보드는 `noindex`, 검색 가치가 있는 정적 공개 페이지만 sitemap에 포함
 
 ### 매장 등록
 
@@ -765,9 +766,10 @@ password: "${DB_PASSWORD}"
 
 비로그인 상태에서 없는 URL에 접근했을 때 404 화면 대신 로그인 화면으로 이동했습니다.
 
-오류가 발생하면 `/error`로 `ERROR` dispatch가 발생하는데, 이 요청도 Spring Security 인가 대상에 포함됩니다.
+모든 미분류 요청을 인증 대상으로 두면 컨트롤러 매핑이 없는 URL도 MVC의 404 처리보다 먼저 로그인 진입점에 걸립니다.
 
-`SecurityConfig`의 `permitAll`에 `/error`를 추가해 해결했습니다.
+공개 URL과 로그인 보호 경로군을 명시하고, 그 어디에도 속하지 않는 익명 요청은 404로 응답하게 했습니다.
+`/dashboard/**`, `/store/**`, `/api/**`, `/account/**`는 계속 로그인으로 보내며 `/error`의 `ERROR` dispatch는 허용합니다.
 
 </details>
 
@@ -779,7 +781,7 @@ password: "${DB_PASSWORD}"
 
 - 매장 등록/수정과 사용자 소유권 검증
 - 로그인/로그아웃, 로그인 유지, 아이디 저장, 회원가입, 회원 탈퇴
-- 공개 랜딩페이지와 기본 SEO 메타·robots·sitemap
+- 공개 랜딩페이지와 SEO 메타·WebSite JSON-LD·robots·sitemap
 - 게스트 대시보드
 - 서울 25개 구 게스트 지역 선택
 - 주소 기반 기상청 격자/상권 판별

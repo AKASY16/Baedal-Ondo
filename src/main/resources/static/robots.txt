@@ -3,11 +3,13 @@ Allow: /
 
 # 로그인·회원가입은 HTML의 noindex를 읽을 수 있게 크롤링은 허용하되 sitemap에서 제외한다.
 # /guest는 공개 대시보드로 보내는 중간 리다이렉트라 직접 수집할 필요가 없다.
+# /dashboard/guest도 HTML의 noindex를 읽어야 하므로 차단하지 않고 sitemap에서만 제외한다.
 Disallow: /guest
 
 # 로그인해야 볼 수 있는 화면. 크롤러가 닿아도 로그인 페이지로 튕기므로 미리 제외한다.
 Disallow: /dashboard/main
 Disallow: /store/
+Disallow: /api/
 Disallow: /account/
 Disallow: /logout
 
