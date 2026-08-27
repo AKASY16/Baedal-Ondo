@@ -57,8 +57,9 @@ AirKorea 대기질 ───┼─> ScoreService ─> DashboardView ─> Thymele
 
 ### 공개 랜딩
 
-- `/`에서 서비스 목적과 0~100점 지표의 의미를 설명
+- `/` 첫 화면에서 데이터 근거와 0~100점 지표의 의미를 두 줄로 나눠 설명
 - 게스트 대시보드, 로그인, 회원가입으로 이어지는 공개 진입 경로
+- `01 · SIGNALS`, `02 · START`가 같은 제목 기준선을 사용하는 responsive 구성
 - canonical, Open Graph, 검색 설명문과 네이버 사이트 소유확인 메타 제공
 - 로그인·회원가입은 `noindex`, 검색 가치가 있는 공개 페이지만 sitemap에 포함
 
