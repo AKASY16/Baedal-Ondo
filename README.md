@@ -8,6 +8,10 @@
 
 운영 서비스: [www.baedalondo.com](https://www.baedalondo.com)
 
+![배달온도 대시보드](docs/screenshots/dashboard-desktop.png)
+
+현재 점수와 그 점수가 나온 이유, 그리고 앞으로 5시간의 전망을 한 화면에서 봅니다.
+
 ---
 
 ## 핵심 구현
@@ -57,6 +61,8 @@ AirKorea 대기질 ───┼─> ScoreService ─> DashboardView ─> Thymele
 
 ### 공개 랜딩
 
+<img src="docs/screenshots/landing.png" width="640" alt="공개 랜딩페이지">
+
 - `/` 첫 화면에서 데이터 근거와 0~100점 지표의 의미를 두 줄로 나눠 설명
 - 게스트 대시보드, 로그인, 회원가입으로 이어지는 공개 진입 경로
 - `01 · SIGNALS`, `02 · START`가 같은 제목 기준선을 사용하는 responsive 구성
@@ -66,6 +72,10 @@ AirKorea 대기질 ───┼─> ScoreService ─> DashboardView ─> Thymele
 
 ### 매장 등록
 
+![도로명주소 검색 팝업](docs/screenshots/store-register-popup.png)
+
+주소를 고르면 나머지 주소 항목이 채워지고, 기상청 격자 좌표와 상권 코드는 서버가 계산합니다.
+
 - 도로명주소 검색 팝업 연동
 - 주소 기반 기상청 격자 좌표 `nx`, `ny` 계산
 - WGS84 좌표와 서울시 상권 GeoJSON을 이용한 `commercialAreaCode` 판별
@@ -73,6 +83,10 @@ AirKorea 대기질 ───┼─> ScoreService ─> DashboardView ─> Thymele
 - 로그인 사용자의 소유 Store만 조회/수정
 
 ### 대시보드
+
+<img src="docs/screenshots/dashboard-mobile.png" width="300" alt="모바일 대시보드">
+
+가게에서 폰으로 보는 화면입니다. 시간대별 예보는 좁은 화면에서 가로로 넘겨 봅니다.
 
 - 현재 배달온도 점수와 상태 표시
 - 현재 시각부터 5시간 뒤까지 시간별 배달온도 표시
@@ -550,7 +564,28 @@ SSM으로 EC2 배포
 
 EC2에서는 Gradle 빌드를 하지 않고 검증된 이미지만 받습니다. 앱 포트는 `127.0.0.1:8080`에만 열고, 외부 요청은 Cloudflare와 Nginx를 거쳐 전달합니다.
 
-현재 배포 명령은 app 컨테이너를 `--force-recreate`하므로 교체와 JVM 기동 사이에 짧은 중단이 있습니다. 10초 간격 외부 관측에서 502가 두 번 연속 확인돼 실제 중단은 10~30초로 추정합니다. 정확한 초 단위 측정과 blue-green 전환은 [`TODO.md`](TODO.md)의 배포 검증 트랙에서 관리합니다.
+<img src="docs/screenshots/pipeline-runs.png" width="720" alt="GitHub Actions 실행 목록">
+
+커밋을 밀면 테스트, 이미지 게시, 배포가 차례로 돕니다. 테스트가 통과한 커밋만 이미지가 되고, 그 이미지가 그대로 서버에 올라갑니다.
+
+<details>
+<summary><strong>단계별 실행 화면</strong></summary>
+
+테스트. Testcontainers가 MySQL을 띄우고 Flyway migration까지 실제로 실행합니다.
+
+![CI 실행](docs/screenshots/pipeline-ci.png)
+
+이미지 게시. 테스트를 통과한 커밋을 다시 받아 jar를 만들고 GHCR에 올립니다.
+
+![이미지 게시 실행](docs/screenshots/pipeline-publish.png)
+
+배포. AWS OIDC로 역할을 수임하고 SSM으로 EC2에서 배포 명령을 실행합니다. 장기 자격증명을 두지 않습니다.
+
+![배포 실행](docs/screenshots/pipeline-deploy.png)
+
+</details>
+
+현재 배포 명령은 app 컨테이너를 `--force-recreate`하므로 교체와 JVM 기동 사이에 짧은 중단이 있습니다. 10초 간격 외부 관측에서 502가 두 번 연속 확인돼 실제 중단은 10~30초로 추정합니다. 정확한 초 단위 측정과 blue-green 전환은 인스턴스를 늘리는 시점에 함께 진행합니다.
 
 ---
 
