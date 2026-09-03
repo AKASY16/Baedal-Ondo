@@ -4,6 +4,7 @@ import com.baedalondo.api.dashboard.dto.DashboardView;
 import com.baedalondo.api.dashboard.service.DashboardService;
 import com.baedalondo.api.guest.domain.GuestRegion;
 import com.baedalondo.api.guest.service.GuestRegionService;
+import com.baedalondo.api.score.factory.ScoreMessageFactory;
 import com.baedalondo.api.store.domain.Store;
 import com.baedalondo.api.support.MySqlTestSupport;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,10 +17,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -32,6 +36,9 @@ class PublicEntryPageTest extends MySqlTestSupport {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private ScoreMessageFactory scoreMessageFactory;
 
     @MockitoBean
     private DashboardService dashboardService;
@@ -60,6 +67,30 @@ class PublicEntryPageTest extends MySqlTestSupport {
                 .andExpect(content().string(containsString("게스트로 바로 체험하기")))
                 .andExpect(content().string(containsString("<div class=\"section-intro how-intro\">")))
                 .andExpect(content().string(containsString("02 · START")));
+    }
+
+    @Test
+    @DisplayName("랜딩 예시 화면의 점수와 상태 문구가 실제 구간 규칙과 같다")
+    void landingPreviewStatusFollowsScoreBands() throws Exception {
+        // 예시 화면은 고정 HTML이라 점수만 바꾸고 문구를 그대로 두기 쉽다.
+        // 73점을 "높음"이라고 적어 둔 채로 배포돼 있었고, 화면만 봐서는 틀린 줄 알 수 없다.
+        String html = mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Matcher previewScore = Pattern
+                .compile("class=\"preview-score\"><strong>([0-9]+)</strong>")
+                .matcher(html);
+
+        assertTrue(previewScore.find(), "랜딩에서 예시 점수를 찾지 못했습니다");
+
+        int score = Integer.parseInt(previewScore.group(1));
+        String status = scoreMessageFactory.calculateStatus(score);
+
+        assertTrue(html.contains(status),
+                score + "점의 상태 문구는 \"" + status + "\"인데 랜딩 예시가 다른 문구를 쓰고 있습니다");
     }
 
     @Test
