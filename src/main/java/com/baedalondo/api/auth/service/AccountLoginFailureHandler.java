@@ -14,7 +14,10 @@ public class AccountLoginFailureHandler extends SimpleUrlAuthenticationFailureHa
 
     public static final String FAILED_LOGIN_ID_SESSION_KEY = "failedLoginId";
 
-    public AccountLoginFailureHandler() {
+    private final LoginAttemptGuard loginAttemptGuard;
+
+    public AccountLoginFailureHandler(LoginAttemptGuard loginAttemptGuard) {
+        this.loginAttemptGuard = loginAttemptGuard;
         setDefaultFailureUrl("/login?error");
     }
 
@@ -27,6 +30,10 @@ public class AccountLoginFailureHandler extends SimpleUrlAuthenticationFailureHa
         if (loginId != null) {
             request.getSession().setAttribute(FAILED_LOGIN_ID_SESSION_KEY, loginId);
         }
+
+        // 계정이 없어서 실패했는지 비밀번호가 틀려서 실패했는지 여기서는 구분하지 않는다.
+        // 구분해서 세면 잠기는지 여부가 그 아이디가 있다는 신호가 된다.
+        loginAttemptGuard.recordFailure(loginId);
 
         super.onAuthenticationFailure(request, response, exception);
     }

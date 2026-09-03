@@ -304,6 +304,13 @@
             <span>아이디 또는 비밀번호가 올바르지 않습니다.<br>입력한 정보를 다시 확인해 주세요.</span>
         </div>
 
+        <!--/* 시도 제한과 계정 잠금을 한 문구로 합친다. 나눠서 알려주면 어느 쪽에 걸렸는지가
+               그 아이디가 있는지 없는지를 알려주는 신호가 된다. */-->
+        <div class="login-error" th:if="${param.blocked != null}" role="alert" aria-live="assertive">
+            <strong>잠시 로그인을 제한했습니다.</strong>
+            <span>짧은 시간에 시도가 여러 번 이어졌습니다.<br>잠시 뒤에 다시 시도해 주세요.</span>
+        </div>
+
         <div class="login-notice" th:if="${param.withdrawn != null}" role="status" aria-live="polite">
             <strong>탈퇴가 완료되었습니다.</strong>
             <span>계정과 가게 정보가 모두 삭제되었습니다.<br>그동안 이용해 주셔서 감사합니다.</span>

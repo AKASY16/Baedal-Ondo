@@ -1,7 +1,9 @@
 package com.baedalondo.api.config;
 
+import com.baedalondo.api.auth.filter.LoginAttemptFilter;
 import com.baedalondo.api.auth.service.AccountLoginFailureHandler;
 import com.baedalondo.api.auth.service.AccountLoginSuccessHandler;
+import com.baedalondo.api.auth.service.LoginAttemptGuard;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -10,6 +12,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.savedrequest.NullRequestCache;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
@@ -38,6 +41,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http,
                                            AccountLoginSuccessHandler loginSuccessHandler,
                                            AccountLoginFailureHandler loginFailureHandler,
+                                           LoginAttemptGuard loginAttemptGuard,
                                            @Value("${baedalondo.security.remember-me-key}") String rememberMeKey) throws Exception {
         if (rememberMeKey.length() < 32) {
             throw new IllegalArgumentException("REMEMBER_ME_KEY는 32자 이상의 랜덤 문자열이어야 합니다.");
@@ -73,6 +77,9 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").denyAll()
                         .anyRequest().authenticated()
                 )
+                // 인증 필터 앞에 둔다. 여기서 막으면 BCrypt 대조와 DB 조회를 시작하지 않는다.
+                .addFilterBefore(new LoginAttemptFilter(loginAttemptGuard),
+                        UsernamePasswordAuthenticationFilter.class)
                 .formLogin(form -> form
                         .loginPage("/login")
                         .loginProcessingUrl("/login")

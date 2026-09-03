@@ -2,12 +2,16 @@ package com.baedalondo.api;
 
 import com.baedalondo.api.auth.controller.LoginController;
 import com.baedalondo.api.auth.service.AccountLoginFailureHandler;
+import com.baedalondo.api.auth.service.LoginAttemptGuard;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.ui.ExtendedModelMap;
+
+import java.time.Duration;
+import java.time.Instant;
 
 import static com.baedalondo.api.auth.service.AccountLoginFailureHandler.FAILED_LOGIN_ID_SESSION_KEY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -17,7 +21,13 @@ class LoginFailureFlowTest {
 
     @Test
     void failedLoginPreservesOnlyLoginIdAndRedirectsToErrorPage() throws Exception {
-        AccountLoginFailureHandler handler = new AccountLoginFailureHandler();
+        AccountLoginFailureHandler handler = new AccountLoginFailureHandler(new LoginAttemptGuard(
+                10,
+                Duration.ofMinutes(1),
+                5,
+                Duration.ofMinutes(10),
+                Instant::now
+        ));
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpServletResponse response = new MockHttpServletResponse();
         request.setParameter("loginId", "owner01");

@@ -46,6 +46,14 @@ baedalondo:
   security:
     # remember-me 토큰 서명 키는 소스나 이미지에 포함하지 않고 환경변수로만 받는다.
     remember-me-key: "${REMEMBER_ME_KEY}"
+  # 로그인과 회원가입 시도 제한.
+  # 정상 사용자는 평생 닿지 않는 값으로 두고 자동화된 반복만 걸리게 한다.
+  # 실제 공격 양상을 보고 조정하는 값이라 재배포 없이 환경변수로 덮을 수 있게 뒀다.
+  login-protection:
+    max-attempts-per-address: "${LOGIN_MAX_ATTEMPTS_PER_ADDRESS:10}"
+    attempt-window: "${LOGIN_ATTEMPT_WINDOW:1m}"
+    max-failures-per-account: "${LOGIN_MAX_FAILURES_PER_ACCOUNT:5}"
+    account-lock: "${LOGIN_ACCOUNT_LOCK:10m}"
 
 service:
   legal:

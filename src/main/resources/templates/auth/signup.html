@@ -325,6 +325,10 @@
         <h2 id="signup-title">사장님 회원가입</h2>
         <p class="signup-description">로그인에 사용할 아이디와 이메일, 비밀번호를 정해 주세요.</p>
 
+        <p class="field-error is-visible" th:if="${param.blocked != null}" role="alert">
+            짧은 시간에 가입 시도가 여러 번 이어져 잠시 제한했습니다. 잠시 뒤에 다시 시도해 주세요.
+        </p>
+
         <form id="signup-form" action="/signup" method="post" th:action="@{/signup}" th:object="${signupRequest}" novalidate>
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
 
