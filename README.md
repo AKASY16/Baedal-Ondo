@@ -228,7 +228,7 @@ ceil(DayWeight / 2)
 
 서버를 한동안 내려뒀다가 다시 켜면 첫 대시보드 요청에서 대기질이 빠지는 경우가 있었습니다. 로그에는 timeout이 남았지만 새로고침을 몇 번 하면 다시 정상적으로 나왔습니다.
 
-처음에는 fallback 구조를 의심했지만, 재시도를 넣기 전에 AirKorea 응답 시간을 먼저 확인했습니다.
+처음에는 fallback 구조를 의심했지만, 재시도를 넣기 전에 AirKorea 응답 시간을 먼저 확인했습니다. 같은 요청을 반복해 보내고 걸린 시간을 정리하는 일은 Claude Code에 지시했습니다. 한 번 보고 끝낼 수치가 아니라서 그 과정은 스크립트로 남겼습니다.
 
 ```bash
 python data-processing/probe_airkorea_latency.py
